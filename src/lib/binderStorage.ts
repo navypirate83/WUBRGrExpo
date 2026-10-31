@@ -1,15 +1,14 @@
 /* =====================================================================
    BINDER STORAGE
    Each binder's real home is a file in the person's Google Drive (see
-   googleDrive.ts). This file keeps a WORKING COPY of each binder in the
-   browser, so pages open instantly and keep working even when the
+   googleDrive.ts). This file keeps a WORKING COPY of each binder on the
+   device, so pages open instantly and keep working even when the
    Google connection has run out. A "needs saving" marker remembers
    which binders have changes that haven't reached Drive yet.
-   The cards themselves are kept in the browser's big database
-   (IndexedDB: see cardStore.ts); the small things (the list of
-   binders, the markers) are kept in localStorage.
+   Everything is saved with AsyncStorage (see storage.ts): the cards
+   (see cardStore.ts), the list of binders, and the markers.
    LOCAL USE ONLY: someone can skip signing in ("Skip login, local use
-   only" on the welcome page). Then this browser's copy is the ONLY copy,
+   only" on the welcome page). Then this device's copy is the ONLY copy,
    until they sign in (which uploads them: see uploadLocalBinders).
    Plain TypeScript with no React in it.
    ===================================================================== */
@@ -47,18 +46,15 @@ export const MAX_COPIES = 99;
 // were saved as .csv files), so an uploaded one can be recognized
 export const FILE_APP_NAME = 'mtg-card-binder';
 
-// The names things are saved under in localStorage (each binder's cards
-// are in IndexedDB, found by the binder's id: its Google Drive file id):
+// The names things are saved under (see storage.ts) (each binder's cards
+// are under "binderCards:" plus the binder's id, its Google Drive file
+// id: see cardStore.ts):
 //  - binderDirty:<id>  set when that binder has changes not yet in Drive
 //  - binderList        the list of binders: [{ id, name, color, cover, pages }, ...]
-//  - localOnly         "yes" while using the site without signing in
+//  - localOnly         "yes" while using the app without signing in
 const DIRTY_KEY_PREFIX = 'binderDirty:';
 const BINDER_LIST_KEY = 'binderList';
 const LOCAL_MODE_KEY = 'localOnly';
-
-// Before there were several binders, the one binder was saved under this
-// name. The Binders page moves those cards into the first binder.
-export const OLD_SINGLE_BINDER_KEY = 'binderCards';
 
 /* ---------------------------------------------------------------------
    WHAT A BINDER AND A CARD LOOK LIKE
@@ -106,10 +102,12 @@ export type BinderCards = Record<string, BinderCard>;
 //  - name:   the full name, read out by screen readers and shown on hover
 //  - short:  the word shown under the symbol in the symbol choices
 //  - group:  'single' (one color, colorless or planeswalker) or 'two'
-//  - symbol: its picture from Scryfall (or our own, for planeswalker)
+//  - symbol: its picture: a web address (Scryfall's) or, for
+//            planeswalker, our own picture bundled with the app (a
+//            number, which is how React Native refers to a bundled picture)
 // The two-color ones' short names are the Magic guild names for those
 // pairs (Azorius is white-blue, and so on), since "White-Blue" won't fit.
-export type ManaColor = { code: string; name: string; short: string; group: 'single' | 'two'; symbol: string };
+export type ManaColor = { code: string; name: string; short: string; group: 'single' | 'two'; symbol: string | number };
 const SYMBOL_URL = 'https://svgs.scryfall.io/card-symbols/';
 export const MANA_COLORS: ManaColor[] = ([
   { code: 'W',  name: 'White',     short: 'White',     group: 'single' },
@@ -118,10 +116,10 @@ export const MANA_COLORS: ManaColor[] = ([
   { code: 'R',  name: 'Red',       short: 'Red',       group: 'single' },
   { code: 'G',  name: 'Green',     short: 'Green',     group: 'single' },
   { code: 'C',  name: 'Colorless', short: 'Colorless', group: 'single' },
-  // The planeswalker symbol uses our own copy (in public/icons): Scryfall's
+  // The planeswalker symbol uses our own copy (in assets/images): Scryfall's
   // is a black shape with no circle, which would vanish on a black cover.
   { code: 'PW', name: 'Planeswalker', short: 'Planeswalker', group: 'single',
-    symbol: `${import.meta.env.BASE_URL}icons/planeswalker.svg` },
+    symbol: require('../../assets/images/planeswalker.svg') as number },
   // Neighboring colors on Magic's color wheel ("allied" pairs)...
   { code: 'WU', name: 'White and Blue',  short: 'Azorius',  group: 'two' },
   { code: 'UB', name: 'Blue and Black',  short: 'Dimir',    group: 'two' },
@@ -136,7 +134,7 @@ export const MANA_COLORS: ManaColor[] = ([
   { code: 'GU', name: 'Green and Blue',  short: 'Simic',    group: 'two' },
 // Each symbol's picture is Scryfall's, unless the entry names its own.
 // ("as" tells TypeScript each entry is a ManaColor that may lack its picture.)
-] as (Omit<ManaColor, 'symbol'> & { symbol?: string })[]).map((color) =>
+] as (Omit<ManaColor, 'symbol'> & { symbol?: string | number })[]).map((color) =>
   ({ ...color, symbol: color.symbol ?? `${SYMBOL_URL}${color.code}.svg` }));
 
 // Find a symbol by its code ("U" → the Blue entry), or null if there's
@@ -214,7 +212,7 @@ export function relayoutCards(cards: BinderCards, fromPerPage: number, toPerPage
   return moved;
 }
 
-// The page layout changed: move every binder's cards in this browser to
+// The page layout changed: move every binder's cards on this device to
 // match. (Their files in Google Drive say which layout they were saved
 // with, so they're read correctly whichever layout is in use, and don't
 // need saving again for this.)
@@ -267,7 +265,7 @@ export function loadBinder(id: string): BinderCards {
   return readCards(id) ?? {};
 }
 
-// Does this browser have a copy of this binder's cards yet? (A binder
+// Does this device have a copy of this binder's cards yet? (A binder
 // made on another computer may not have been brought over yet.)
 export function hasBinderCopy(id: string): boolean {
   return hasCards(id);
@@ -369,14 +367,14 @@ export function binderDetails(id: string): Omit<Binder, 'id'> {
   };
 }
 
-// Forget one binder kept in this browser (after it's deleted or uploaded).
+// Forget one binder kept on this device (after it's deleted or uploaded).
 export function forgetBinder(id: string): void {
   deleteCards(id);
   storageRemove(DIRTY_KEY_PREFIX + id);
   saveBinderList(loadBinderList().filter((b) => b.id !== id));
 }
 
-// Forget every binder saved in this browser (used when signing out, so
+// Forget every binder saved on this device (used when signing out, so
 // the next person on this computer doesn't see them).
 export function clearAllBinders(): void {
   const ids = loadBinderList().map((binder) => binder.id);

@@ -2,22 +2,21 @@
    THE "NEW BINDER" WINDOW
    A name (the next free "Binder 3" to start, selected so typing replaces
    it), a cover symbol (None to start) and a cover color (black to start).
-   Used by The Shelf (the "+" binder) and the Search page ("New binder"
-   in the "Add to which binder?" menu). The page decides what happens
-   when "Create binder" is clicked.
+   Used by The Shelf (its "New binder" button) and the Card Finder ("New
+   binder" in the "Add to which binder?" menu). The screen decides what
+   happens when "Create binder" is tapped.
    On The Shelf it also has "Upload .CSV": make the binder from a
-   binder file downloaded earlier, or a card list exported from ManaBox
-   (or a similar app). An older .json binder file works too.
+   binder file saved earlier, or a card list exported from ManaBox (or a
+   similar app). An older .json binder file works too.
    ===================================================================== */
 
-import { useRef, useState, type ChangeEvent } from 'react';
-import Modal from '../Modal';
+import { useState } from 'react';
+import { DEFAULT_COVER, NAME_LIMIT, binderFromFile, nextBinderName, type BinderCards } from '@/lib/binderStorage';
+import { binderFromCsv } from '@/lib/binderCsv';
+import { pickTextFile } from '@/lib/pickFile';
+import { showMessage } from '@/lib/dialogs';
+import PopupWindow, { type PopupButton } from '@/components/PopupWindow';
 import { NameField, SymbolChoices, CoverChoices } from './BinderChoices';
-import {
-  DEFAULT_COVER, NAME_LIMIT, binderFromFile, nextBinderName, type BinderCards,
-} from '../../lib/binderStorage';
-import { binderFromCsv } from '../../lib/binderCsv';
-import styles from './BinderWindows.module.css';
 
 // What an uploaded binder file turns into (see binderFromCsv and binderFromFile)
 export type UploadedBinder = ReturnType<typeof binderFromFile> & { cards: BinderCards };
@@ -32,95 +31,54 @@ type Props = {
 };
 
 export default function NewBinderDialog({ onCreate, onCancel, onUpload }: Props) {
-  // What's typed and picked. (The page draws this window fresh each time
-  // it opens, so these always start from the beginning.)
+  // What's typed and picked. (The screen draws this window fresh each
+  // time it opens, so these always start from the beginning.)
   const [name, setName] = useState(nextBinderName);
   const [symbol, setSymbol] = useState('');
   const [cover, setCover] = useState(DEFAULT_COVER);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  // The binder from an uploaded file, once one has been picked, and
-  // whether a file is being read right now (cards without a Scryfall ID
-  // are looked up on Scryfall, which can take a few seconds)
-  const uploaded = useRef<UploadedBinder | null>(null);
+  // Is a file being read right now? (Cards without a Scryfall ID are
+  // looked up on Scryfall, which can take a few seconds.)
   const [reading, setReading] = useState(false);
 
-  // When the window closes, see which button closed it. "Create binder"
-  // hands the name, symbol and cover color to the page. (The name box is
-  // "required", so it can't be blank; spaces-only falls back to the
-  // default name.)
-  function handleClose(returnValue: string) {
-    if (returnValue === 'create') {
-      onCreate(name.trim().slice(0, NAME_LIMIT) || nextBinderName(), symbol || null, cover);
-    } else if (returnValue === 'upload' && uploaded.current && onUpload) {
-      onUpload(uploaded.current);
-    } else {
-      onCancel();
-    }
+  // "Create binder": hand the name, symbol and cover color to the screen.
+  // A blank (or spaces-only) name falls back to the next free name.
+  function create() {
+    onCreate(name.trim().slice(0, NAME_LIMIT) || nextBinderName(), symbol || null, cover);
   }
 
-  // A file was picked with "Upload .CSV": read it and check it. A .json
-  // file (or one that starts with "{") is an older binder file; anything
-  // else is read as a .csv card list. If it's a binder, close the window
-  // and hand it to the page; if not, say why and leave the window open.
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const chosen = input.files?.[0];
-    input.value = '';     // so picking the same file again still works
-    if (!chosen) return;  // the picker was closed without a file
+  // "Upload .CSV": pick a file and read it. A .json file (or one that
+  // starts with "{") is an older binder file; anything else is read as a
+  // .csv card list. If it's a binder, hand it to the screen (which
+  // closes the window); if not, say why and leave the window open.
+  async function upload() {
+    if (!onUpload) return;
     setReading(true);
     try {
-      const text = await chosen.text();
-      uploaded.current = /\.json$/i.test(chosen.name) || text.trimStart().startsWith('{')
-        ? binderFromFile(JSON.parse(text))
-        : await binderFromCsv(text, chosen.name);
+      const file = await pickTextFile();
+      if (!file) return;   // the picker was closed without a file
+      const binder = /\.json$/i.test(file.name) || file.text.trimStart().startsWith('{')
+        ? binderFromFile(JSON.parse(file.text))
+        : await binderFromCsv(file.text, file.name);
+      onUpload(binder);
     } catch (err) {
-      alert(err instanceof SyntaxError ? 'That file isn\'t a readable binder file.' : (err as Error).message);
-      return;
+      showMessage('Couldn\'t upload that file', err instanceof SyntaxError ? 'That file isn\'t a readable binder file.' : (err as Error).message);
     } finally {
       setReading(false);
     }
-    input.closest('dialog')?.close('upload');
   }
 
-  return (
-    <Modal labelledBy="newBinderTitle" onClose={handleClose} onOpened={() => nameRef.current?.select()}>
-      {/* method="dialog": the buttons close the window, each with its value */}
-      <form method="dialog">
-        <h2 id="newBinderTitle" className={styles.title}>New binder</h2>
-        <NameField id="newBinderName" value={name} onChange={setName} inputRef={nameRef} />
-        <SymbolChoices
-          group="binderColor"
-          legend="Choose a color symbol for the cover, or none."
-          value={symbol}
-          onChange={setSymbol}
-        />
-        <CoverChoices group="binderCover" value={cover} onChange={setCover} />
+  // The buttons: Upload .CSV (The Shelf only), Cancel, Create binder
+  const buttons: PopupButton[] = [
+    ...(onUpload ? [{ label: reading ? 'Reading…' : 'Upload .CSV', onPress: upload, kind: 'secondary' as const, disabled: reading }] : []),
+    { label: 'Cancel', onPress: onCancel, kind: 'secondary' },
+    { label: 'Create binder', onPress: create, kind: 'primary', disabled: reading },
+  ];
 
-        {/* "Create binder" comes first so Enter creates the binder; they
-            show in reverse: Upload .CSV (far left), Cancel, Create binder.
-            formNoValidate: Cancel works even if the name box is empty.
-            While a file is being read, the upload button says so. */}
-        <div className={styles.buttons}>
-          <button value="create" className={`${styles.button} ${styles.primary}`} type="submit">Create binder</button>
-          <button value="cancel" className={styles.button} type="submit" formNoValidate>Cancel</button>
-          {onUpload && (
-            <button
-              className={`${styles.button} ${styles.uploadButton}`}
-              type="button"
-              disabled={reading}
-              onClick={() => fileRef.current?.click()}
-            >
-              {reading ? 'Reading…' : 'Upload .CSV'}
-            </button>
-          )}
-        </div>
-        {/* The file picker, hidden: the Upload .CSV button opens it. It
-            takes .csv files, and older .json binder files. */}
-        {onUpload && (
-          <input ref={fileRef} type="file" accept=".csv,text/csv,.json,application/json" hidden onChange={handleFile} />
-        )}
-      </form>
-    </Modal>
+  return (
+    <PopupWindow title="New binder" onClose={onCancel} buttons={buttons}>
+      <NameField value={name} onChange={setName} autoFocus onSubmit={create} />
+      <SymbolChoices legend="Choose a color symbol for the cover, or none." value={symbol} onChange={setSymbol} />
+      <CoverChoices value={cover} onChange={setCover} />
+    </PopupWindow>
   );
 }

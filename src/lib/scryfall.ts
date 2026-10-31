@@ -153,7 +153,7 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
    --------------------------------------------------------------------- */
 
 // The full list of card names (about 35,000), downloaded once so the
-// search can run instantly in the browser as you type.
+// search can run instantly on the device as you type.
 export async function loadCardNames(): Promise<string[]> {
   const catalog = await scryfall<{ data: string[] }>('/catalog/card-names');
   return catalog.data;

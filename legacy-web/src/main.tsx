@@ -41,7 +41,7 @@ const queryClient = new QueryClient({
 //    warns about common mistakes (it does nothing on the real site).
 //  - QueryClientProvider: lets every page use the queryClient above.
 //  - BrowserRouter: lets the app show a different page for each address
-//    (like /WUBRGr/help) without reloading. "basename" is the "/WUBRGr/"
+//    (like /WUBRGrExpo/help) without reloading. "basename" is the "/WUBRGrExpo/"
 //    part at the start of every address (set as "base" in vite.config.ts).
 openCardStore().finally(() => {
   createRoot(document.getElementById('root')!).render(

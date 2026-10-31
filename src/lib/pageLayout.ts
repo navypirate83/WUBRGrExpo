@@ -85,16 +85,3 @@ export function saveLayout(layout: PageLayout): void {
   storageSet(LAYOUT_KEY, JSON.stringify(current));
   for (const listener of listeners) listener();
 }
-
-// Another open tab of the site changed the layout (the browser tells the
-// other tabs with a "storage" event). That tab has already moved the
-// cards, and sent them to this tab (see cardStore.ts), so just take the
-// new layout and tell this tab's pages.
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (event) => {
-    if (event.key !== LAYOUT_KEY) return;
-    current = null;   // read it again from storage
-    pageLayout();
-    for (const listener of listeners) listener();
-  });
-}

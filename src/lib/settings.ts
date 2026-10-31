@@ -94,7 +94,7 @@ export function currentSettings(): Settings {
 
 // Put settings into effect on this device, remember them here, and tell
 // the pages that use them. A new page layout first moves every binder's
-// cards in this browser to match, then takes effect (binder pages redraw).
+// cards on this device to match, then takes effect (binder pages redraw).
 function applySettings(settings: Settings): void {
   if (settings.theme !== currentThemeChoice()) setThemeChoice(settings.theme);
   storageSet(HIDDEN_FORMATS_KEY, JSON.stringify(settings.hiddenFormats));

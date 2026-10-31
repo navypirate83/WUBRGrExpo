@@ -20,10 +20,14 @@
    below throws away every saved copy and starts afresh.
    ===================================================================== */
 
-// The name of this site's box of saved files
-const CACHE_NAME = 'wubrgr-v1';
+// The name of this site's box of saved files. Every name starts with
+// CACHE_PREFIX: the old WUBRG'r site lives at the same address
+// (navypirate83.github.io) and shares the browser's boxes with this one,
+// so this site only ever touches boxes whose names start with its prefix.
+const CACHE_PREFIX = 'wubrgrexpo-';
+const CACHE_NAME = `${CACHE_PREFIX}v1`;
 
-// The site's own address (e.g. https://navypirate83.github.io/WUBRGr/),
+// The site's own address (e.g. https://navypirate83.github.io/WUBRGrExpo/),
 // worked out from where this file lives, so it works locally too
 const SCOPE = self.registration.scope;
 
@@ -39,11 +43,14 @@ self.addEventListener('install', (event) => {
 });
 
 // TAKING OVER: throw away boxes of saved files from older versions of
-// this file (any other name), then start handling the open tabs.
+// this file (this site's prefix but another name; the old WUBRG'r site's
+// boxes are left alone), then start handling the open tabs.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((names) => Promise.all(names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))))
+      .then((names) => Promise.all(names
+        .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+        .map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });
@@ -55,7 +62,7 @@ self.addEventListener('fetch', (event) => {
   // (other websites, saving to Google Drive) goes ahead as normal.
   if (request.method !== 'GET' || !request.url.startsWith(SCOPE)) return;
 
-  // Opening a page of the app (any address, like /WUBRGr/binders/...):
+  // Opening a page of the app (any address, like /WUBRGrExpo/binders/...):
   // the app is one page that draws every address itself, so the answer
   // is always index.html. Fetch it fresh (and save that copy); if there's
   // no internet, use the saved copy.

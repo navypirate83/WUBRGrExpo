@@ -8,12 +8,12 @@ export default defineConfig({
   // the .tsx files) and refreshes the page instantly when you save a file.
   plugins: [react()],
 
-  // GitHub Pages puts the site at navypirate83.github.io/WUBRGr/, not at
+  // GitHub Pages puts the site at navypirate83.github.io/WUBRGrExpo/, not at
   // the root of the address, so every link and file path starts with
-  // "/WUBRGr/". (The same is used while working locally, so they match.)
-  base: '/WUBRGr/',
+  // "/WUBRGrExpo/". (The same is used while working locally, so they match.)
+  base: '/WUBRGrExpo/',
 
-  // While working locally, the app runs at http://localhost:3000/WUBRGr/
+  // While working locally, the app runs at http://localhost:3000/WUBRGrExpo/
   server: { port: 3000 },
 
   // Building the finished site: the libraries the app uses (React, React

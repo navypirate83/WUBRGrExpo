@@ -2,13 +2,41 @@
    SAFER INTERNET REQUESTS
    Every request to Scryfall (card details), and later Google Drive
    (binders), goes through fetchOrExplain, so problems come back as
-   plain-English messages instead of the browser's "Failed to fetch", and
+   plain-English messages instead of "Failed to fetch", and
    a request that never answers doesn't leave the page stuck on
    "Loading…". (The same as the original site's binder-storage.js.)
+   In the phone app, every request (and every card picture, through
+   pictureSource) also says which app is asking: Scryfall refuses to
+   answer phones that don't (see APP_HEADERS).
    ===================================================================== */
+
+import { Platform } from 'react-native';
 
 // How long to wait for a reply before giving up (20 seconds).
 const REQUEST_TIMEOUT_MS = 20000;
+
+// How the phone app introduces itself to websites (the "User-Agent").
+// Scryfall turns away requests that only carry a phone's built-in
+// default ("okhttp" on Android) and asks every app to name itself, so
+// the phone app sends this with every request, and with every card
+// picture it downloads. (A web browser always sends its own name and
+// won't let a website change it, so the website leaves this out.)
+const APP_USER_AGENT = 'WUBRGr/0.2 (+https://github.com/navypirate83/WUBRGrExpo)';
+export const APP_HEADERS: Record<string, string> =
+  Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT };
+
+// A picture to download from Scryfall (or anywhere), with the app's
+// name sent along (see APP_HEADERS). The same picture always gets the
+// same object back, so a picture that hasn't changed isn't downloaded again.
+const pictureSources = new Map<string, { uri: string; headers: Record<string, string> }>();
+export function pictureSource(url: string) {
+  let source = pictureSources.get(url);
+  if (!source) {
+    source = { uri: url, headers: APP_HEADERS };
+    pictureSources.set(url, source);
+  }
+  return source;
+}
 
 // An error that can say whether trying again might help. "offline" means
 // there was no reply at all (no internet, or too slow), and "retryable"
@@ -27,9 +55,9 @@ export class RequestError extends Error {
 // Send a request ("fetch") and return the reply. "service" is who it's
 // for, used in messages (like "Scryfall"). If there's no reply at all,
 // it throws a RequestError that explains why:
-//  - the device is offline
+//  - the device is offline (only known on the web)
 //  - it took longer than REQUEST_TIMEOUT_MS ("AbortController" is the
-//    browser's way to cancel a request part way)
+//    way to cancel a request part way)
 //  - anything else (no internet, a blocked or broken connection)
 // A reply that says something went wrong (like "not found") is still a
 // reply: it's returned, and the caller decides what to say.
@@ -41,7 +69,9 @@ export async function fetchOrExplain(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    // The request, with the app's name added to its headers (see APP_HEADERS)
+    const headers = { ...APP_HEADERS, ...(options.headers as Record<string, string> | undefined) };
+    return await fetch(url, { ...options, headers, signal: controller.signal });
   } catch (err) {
     const message = navigator.onLine === false
       ? 'You\'re offline. Check your internet connection, then try again.'

@@ -32,7 +32,7 @@ export default function TopBar() {
   // Inside one binder? (Its address is /binders/ followed by its id)
   const inBinder = location.pathname.startsWith('/binders/');
   // On the home (welcome) page? Its address is just "/" (Vite and the
-  // router take the "/WUBRGr" part off for us).
+  // router take the "/WUBRGrExpo" part off for us).
   const onHome = location.pathname === '/';
 
   return (

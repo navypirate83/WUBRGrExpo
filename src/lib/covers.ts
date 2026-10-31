@@ -1,17 +1,32 @@
 /* =====================================================================
    COVER COLORS: HOW TO DRAW ONE
    A cover (a binder on the shelf, a color swatch, a dot in a menu) is
-   drawn with four shades: --cover-light, --cover-base and --cover-dark
-   (a sheen from corner to corner) and --cover-edge (its thin border).
-   - One of the named colors ("gold"): its "cover-gold" class, in
-     styles/covers.css, sets the shades.
+   drawn with four shades: "light", "base" and "dark" (a sheen from
+   corner to corner) and "edge" (its thin border).
+   - One of the named colors ("gold"): its shades are in NAMED_SHADES
+     below (the same as the original site's covers.css).
    - A custom color ("#3a7bd5"): the shades are worked out here, by
      mixing it with white and black.
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import type { CSSProperties } from 'react';
 import { COVER_COLORS, cleanCover, isCustomCover } from './binderStorage';
+
+// The four shades of one cover
+export type CoverShades = { light: string; base: string; dark: string; edge: string };
+
+// The shades of each named cover color
+const NAMED_SHADES: Record<string, CoverShades> = {
+  black:  { light: '#2a2a30', base: '#121214', dark: '#050506', edge: '#2a2a2e' },
+  white:  { light: '#fbfaf7', base: '#e9e6df', dark: '#c9c4b8', edge: '#b8b2a5' },
+  blue:   { light: '#3a6fb5', base: '#1f4f8f', dark: '#12305a', edge: '#2c5d9e' },
+  red:    { light: '#b33a32', base: '#8e2020', dark: '#561010', edge: '#a02c28' },
+  green:  { light: '#2f8a50', base: '#1f6a3a', dark: '#113f22', edge: '#287a45' },
+  gold:   { light: '#dcb64a', base: '#b8902a', dark: '#7d5f14', edge: '#9c7a20' },
+  purple: { light: '#7d4bb3', base: '#5b2d8e', dark: '#361a57', edge: '#6a3aa0' },
+  orange: { light: '#e8893a', base: '#c8641c', dark: '#8a3f0c', edge: '#a9541a' },
+  gray:   { light: '#d6d8dc', base: '#b9bcc2', dark: '#8d9096', edge: '#9a9da3' },
+};
 
 // Split "#3a7bd5" into its red, green and blue amounts (each 0 to 255).
 function colorParts(hex: string): number[] {
@@ -37,26 +52,23 @@ function brightness(hex: string): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-// How to draw a cover color: the class to add (named colors), the
-// shades to set directly (custom colors), and whether it's a pale cover
-// (whose name label then needs dark text).
-export function coverLook(code: string | null | undefined): { className: string; style: CSSProperties; light: boolean } {
+// How to draw a cover color: its four shades, and whether it's a pale
+// cover (whose name label then needs dark text).
+export function coverLook(code: string | null | undefined): { shades: CoverShades; light: boolean } {
   const clean = cleanCover(code);
   if (isCustomCover(clean)) {
     return {
-      className: '',
-      style: {
-        '--cover-light': mixColors(clean, '#ffffff', 0.25),   // a quarter white
-        '--cover-base': clean,
-        '--cover-dark': mixColors(clean, '#000000', 0.45),    // nearly half black
-        '--cover-edge': mixColors(clean, '#000000', 0.2),
-      } as CSSProperties,
+      shades: {
+        light: mixColors(clean, '#ffffff', 0.25),   // a quarter white
+        base: clean,
+        dark: mixColors(clean, '#000000', 0.45),    // nearly half black
+        edge: mixColors(clean, '#000000', 0.2),
+      },
       light: brightness(clean) > 0.6,
     };
   }
   return {
-    className: `cover-${clean}`,
-    style: {},
+    shades: NAMED_SHADES[clean] ?? NAMED_SHADES.black,
     light: COVER_COLORS.find((c) => c.code === clean)?.light === true,
   };
 }

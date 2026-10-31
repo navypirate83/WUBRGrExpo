@@ -1,15 +1,15 @@
 /* =====================================================================
-   WHO'S USING THE SITE?
-   A hook that tells a page whether someone is signed in to Google,
-   using the site locally, or using the binders at all, and draws the
-   page again whenever that changes (signing in or out, "Skip login", or
+   WHO'S USING THE APP?
+   A hook that tells a screen whether someone is signed in to Google,
+   using the app locally, or using the binders at all, and draws the
+   screen again whenever that changes (signing in or out, "Skip login", or
    the list of binders changing: see lib/accountEvents.ts).
    ===================================================================== */
 
 import { useSyncExternalStore } from 'react';
-import { accountVersion, onAccountChange } from '../lib/accountEvents';
-import { isSignedIn, isUsingBinders } from '../lib/googleDrive';
-import { isLocalMode } from '../lib/binderStorage';
+import { accountVersion, onAccountChange } from '@/lib/accountEvents';
+import { isSignedIn, isUsingBinders } from '@/lib/googleDrive';
+import { isLocalMode } from '@/lib/binderStorage';
 
 export function useAccount() {
   // "useSyncExternalStore" is React's way to follow something kept

@@ -1,73 +1,92 @@
 # WUBRG'r Binder
 
-**Live site: [navypirate83.github.io/WUBRGr](https://navypirate83.github.io/WUBRGr/)**
+**Website: [navypirate83.github.io/WUBRGrExpo](https://navypirate83.github.io/WUBRGrExpo/)**
+(the phone app's web version; the original web app stays at
+[navypirate83.github.io/WUBRGr](https://navypirate83.github.io/WUBRGr/))
 
-A Magic: The Gathering card binder app: keep your cards in binders that
-look and work like real ones, find any card with the MTG Card Finder, and
-save everything to your own Google Drive (or just on your device).
+A Magic: The Gathering card binder app for **iPhone, Android and the
+web**: keep your cards in binders that look and work like real ones,
+find any card with the Card Finder, and save everything on your device
+(or, on the web, in your own Google Drive).
 
-This repository is the **React rewrite** of the original app,
-[card-binder](https://github.com/navypirate83/card-binder)
-([live site](https://navypirate83.github.io/card-binder/)), which was
-built with plain HTML, CSS and JavaScript. Both use the same Google Drive
-folder, but WUBRG'r saves each binder as a `.csv` file, and the original
-saved `.json` files. The first time WUBRG'r opens a Drive folder, it
-turns each old `.json` binder into a `.csv` one, and keeps a backup copy
-of the `.json` (which the original site can still open).
+This repository is the **Expo (React Native)** version of
+[WUBRG'r](https://github.com/navypirate83/WUBRGr), which was a React
+website, itself a rewrite of the original
+[card-binder](https://github.com/navypirate83/card-binder). All three
+use the same Google Drive folder and the same `.csv` binder files.
 
 ## What it does
 
-- **The Shelf**: all your binders with colored covers and Magic
-  symbols. Make, rename, reorder, delete, download and upload them, and
-  search the cards in them. Binders are `.csv` files in the same layout
-  as a ManaBox export (plus each card's page and pocket, and the binder's
-  name, cover and pages), so ManaBox lists can be uploaded and binders
-  imported into ManaBox.
-- **Binder pages**: pockets of cards that turn like a real binder, with
-  copy counts, foil borders, dragging cards between pockets and binders,
-  and dropping card pictures in from Scryfall or EDHREC.
-- **MTG Card Finder**: search any card, pick its set, version and
+- **The Shelf** (a tab): your binders side by side as closed binders,
+  with colored covers and Magic symbols, filling the screen as you make
+  more. Tap Add binder to make one (name, cover symbol and color), or
+  upload a `.csv`. Drag a binder to move it, hold it for Edit and
+  Delete, and pull down to load again. Search the cards in every binder.
+- **Binder pages**: pockets of cards. Swipe to turn the page (one page on
+  a phone, two side by side on a wide screen), change copy counts, see
+  foil borders, and rest a finger on a card then slide it to drag it to
+  another pocket, onto the red X (remove) or the blue circle (move to
+  another binder). Hold a card still and let go for its menu. The bell sets a reminder notification
+  (phones). On a computer, card pictures can be dropped in from Scryfall
+  or EDHREC.
+- **Card Finder** (a tab): search any card, pick its set, version and
   language, see its rulings, format legality and prices (TCGplayer, Card
   Kingdom, Cardmarket), share it, and add it to a binder.
-- **Settings**: theme (Dark, System or Light), the binder page layout
-  (pockets across × down, like 3 × 3 or 3 × 5), and which formats show in
-  Format Legality, saved to Google Drive.
-- **Help**: instructions for every page.
-- **Installable** as an app on computers and phones, and opens without an
-  internet connection (`public/manifest.webmanifest` and the service
-  worker `public/sw.js`).
-- Works with the mouse, touch and the keyboard.
+- **Settings** (a tab): theme (Dark, System or Light), the binder page
+  layout (pockets across × down), which formats show in Format Legality,
+  and your account.
+- **Help**: the ? button in every screen's header.
+- Binders are `.csv` files in the same layout as a ManaBox export (plus
+  each card's page and pocket, and the binder's name, cover and pages).
+
+## Running it
+
+You need [Node.js](https://nodejs.org). Then, in this folder:
+
+```sh
+npm install        # download the libraries (once)
+npm run dev        # start the app at http://localhost:3000 (the web version)
+```
+
+To try it **on a phone**, install the free **Expo Go** app, then scan the
+QR code that `npm run dev` shows in the terminal (iPhone: with the
+Camera app; Android: inside Expo Go). The phone and computer must be on
+the same Wi-Fi. If the phone can't connect, try `npx expo start --tunnel`.
+
+Other commands:
+
+- `npm run build`: build the website into `dist` (published to GitHub
+  Pages by `.github/workflows/deploy.yml` on every push to `main`)
+- `npm run typecheck`: check the code for mistakes
 
 ## How it's built
 
-- **React + TypeScript**, built with **Vite**, as a static site on
-  **GitHub Pages** (no server: binders stay in each user's Google Drive).
-- **React Router** for the pages, **TanStack Query** for Scryfall card
-  data, and **dnd-kit** for dragging cards and binders.
-- Every push to `main` is built and published by a GitHub Actions
-  workflow (`.github/workflows/deploy.yml`).
+- **Expo** (React Native) with **Expo Router**: one set of code for the
+  phone apps and the website (react-native-web draws it in a browser).
+- **TanStack Query** for Scryfall card data, **AsyncStorage** for saving
+  on the device, **react-native-gesture-handler** and **Reanimated** for
+  swipes, holds, drags and the page turn, **expo-notifications** for
+  reminders, **expo-image** for card pictures.
 
 ## Where things are
 
-- `src/pages/`: the pages (`HelpPage.tsx`, with its text in
-  `src/pages/help/helpTopics.tsx`). Pages made of several pieces have
-  their own folder: `home/`, `binders/` (the shelf), `binder/` (one
-  binder's pages), `search/` and `settings/`, plus the starter `lists/`
-  and `decklists/` pages.
-- `src/components/`: pieces shared by the pages (top bar, footer, pop-up
-  windows, and in `binders/` the closed binder picture and the New
-  binder window).
-- `src/hooks/`: shared page behavior (shortcut keys, messages read out
-  to screen readers, who's signed in, settings).
-- `src/lib/`: plain TypeScript with no React (Google sign-in and Drive,
-  binder storage (each binder's cards in the browser's IndexedDB), binder
-  `.csv` files, cover colors, talking to Scryfall, the card-name
-  search, card helpers, prices, the page-turn animation, card pictures
-  dropped from other websites, settings, light/dark theme), to share
-  with a future phone app.
-- `src/styles/`: the site's colors and basics (`global.css`) and the
-  binder cover colors (`covers.css`). Each page and component has its
-  own `.module.css` file beside it.
+- `src/app/`: the screens. Each file is one address: `(tabs)/` holds the
+  four tabs (`index.tsx` Home, `binders/` The Shelf and one binder
+  (`[id].tsx`), `search.tsx` Card Finder, `settings.tsx`), plus
+  `help.tsx`, `lists.tsx` and `decklists.tsx`.
+- `src/components/`: pieces of the screens, in folders by screen
+  (`binders/`, `binder/`, `search/`, `settings/`, `help/`, `home/`), plus
+  shared ones (buttons, text boxes, pop-up windows).
+- `src/hooks/`: shared screen behavior (theme colors, settings, who's
+  signed in, shortcut keys, screen-reader messages).
+- `src/lib/`: plain TypeScript with no React (binder storage, `.csv`
+  files, Google Drive, Scryfall, the card-name search, prices, settings,
+  reminders). A file ending in `.web.ts` is the web's version of the
+  file beside it.
+- `src/theme/colors.ts`: the light and dark colors.
+- `assets/images/`: the app icon, pictures and store logos.
+- `legacy-web/`: the old Vite website's code, kept for reference while
+  the move to Expo finishes.
 
 ## Card data
 

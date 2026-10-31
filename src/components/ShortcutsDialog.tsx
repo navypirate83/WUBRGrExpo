@@ -1,14 +1,16 @@
 /* =====================================================================
    KEYBOARD SHORTCUTS WINDOW
-   A pop-up window listing a page's keys. Every page that has keyboard
-   shortcuts uses this: it passes in its own list of keys, an optional
-   line above the list and note under it, and whether the window is open
-   (the page opens it with the ? key, or a button).
+   A pop-up window listing a screen's keys (on a computer: phones have
+   no keyboard shortcuts). Every screen that has keyboard shortcuts uses
+   this: it passes in its own list of keys, an optional line above the
+   list and note under it, and whether the window is open (the screen
+   opens it with the ? key, or a button).
    ===================================================================== */
 
 import type { ReactNode } from 'react';
-import Modal from './Modal';
-import styles from './ShortcutsDialog.module.css';
+import { StyleSheet, Text, View } from 'react-native';
+import { useColors } from '@/hooks/useTheme';
+import PopupWindow from './PopupWindow';
 
 // One line of the list: the key(s) to press, and what they do
 export type Shortcut = {
@@ -25,36 +27,32 @@ type Props = {
 };
 
 export default function ShortcutsDialog({ open, onClose, shortcuts, intro, note }: Props) {
-  // Drawn only while open (Modal opens the window as soon as it's drawn,
-  // and calls onClose when Close, Escape or a click outside shuts it)
+  const colors = useColors();
+  // Drawn only while open
   if (!open) return null;
   return (
-    <Modal labelledBy="shortcutsTitle" onClose={onClose}>
-      {/* method="dialog" means the Close button just closes the window */}
-      <form method="dialog">
-        <h2 id="shortcutsTitle" className={styles.title}>Keyboard shortcuts</h2>
+    <PopupWindow title="Keyboard shortcuts" onClose={onClose} buttons={[{ label: 'Close', onPress: onClose }]}>
+      {/* The line above the list (if the screen gave one) */}
+      {intro && <Text style={[styles.text, { color: colors.muted }]}>{intro}</Text>}
 
-        {/* The line above the list (if the page gave one) */}
-        {intro && <p className={styles.intro}>{intro}</p>}
+      {/* Each key on the left, and what it does on the right */}
+      {shortcuts.map((shortcut) => (
+        <View key={shortcut.does} style={[styles.row, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.keys, { color: colors.text }]}>{shortcut.keys}</Text>
+          <Text style={[styles.does, { color: colors.text }]}>{shortcut.does}</Text>
+        </View>
+      ))}
 
-        {/* A list of keys (<dt>) and what each one does (<dd>) */}
-        <dl className={styles.list}>
-          {shortcuts.map((shortcut) => (
-            <div key={shortcut.does} className={styles.row}>
-              <dt>{shortcut.keys}</dt>
-              <dd>{shortcut.does}</dd>
-            </div>
-          ))}
-        </dl>
-
-        {/* The note under the list (if the page gave one) */}
-        {note && <p className={styles.note}>{note}</p>}
-
-        {/* The Close button, on the right */}
-        <div className={styles.buttons}>
-          <button className={styles.primaryButton} type="submit" value="close">Close</button>
-        </div>
-      </form>
-    </Modal>
+      {/* The note under the list (if the screen gave one) */}
+      {note && <Text style={[styles.text, { color: colors.muted }]}>{note}</Text>}
+    </PopupWindow>
   );
 }
+
+// The list's look: key and meaning side by side, a thin line between rows
+const styles = StyleSheet.create({
+  text: { fontSize: 14 },
+  row: { flexDirection: 'row', gap: 12, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  keys: { width: 110, fontWeight: '700', fontFamily: 'monospace' },
+  does: { flex: 1 },
+});

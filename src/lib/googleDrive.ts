@@ -30,6 +30,7 @@ import {
   saveBinder, setLocalMode, type Binder, type BinderCards,
 } from './binderStorage';
 import { binderToCsv, cardsFromCsv } from './binderCsv';
+import { askYesNo } from './dialogs';
 
 // The site's Google Client ID: it tells Google which site is asking to
 // sign in (it comes from Google Cloud Console, and isn't a secret).
@@ -144,6 +145,11 @@ let pendingSignIn: { resolve: () => void; reject: (err: Error) => void } | null 
 // Load Google's sign-in library (once), and wait until it's ready.
 // Gives up after 10 seconds.
 function loadGoogleLibrary(): Promise<void> {
+  // Phones have no web page ("document") to load it into: Google sign-in
+  // there needs the full app build, so say so instead of crashing
+  if (typeof document === 'undefined') {
+    return Promise.reject(new Error('Google sign-in isn\'t available in this version of the app yet.'));
+  }
   if (!document.querySelector(`script[src="${GOOGLE_LIBRARY_URL}"]`)) {
     const script = document.createElement('script');
     script.src = GOOGLE_LIBRARY_URL;
@@ -232,9 +238,10 @@ export async function signOutAndForget(): Promise<boolean> {
   try {
     await Promise.all(unsaved.map((b) => syncBinder(b.id)));
   } catch {
-    if (!confirm('Some changes couldn\'t be saved to Google Drive and will be lost if you sign out. Sign out anyway?')) {
-      return false;
-    }
+    // (askYesNo shows the phone's or browser's own yes/no box: see dialogs.ts)
+    const signOutAnyway = await askYesNo('Sign out anyway?',
+      'Some changes couldn\'t be saved to Google Drive and will be lost if you sign out.', 'Sign out', 'Cancel');
+    if (!signOutAnyway) return false;
   }
   const token = getAccessToken();
   if (token) window.google?.accounts?.oauth2?.revoke(token, () => {});

@@ -22,7 +22,7 @@ export default function App() {
     <Routes>
       {/* Every page below is drawn inside Layout's frame */}
       <Route element={<Layout />}>
-        {/* Home: the welcome page (the address with nothing after /WUBRGr/) */}
+        {/* Home: the welcome page (the address with nothing after /WUBRGrExpo/) */}
         <Route index element={<HomePage />} />
         {/* Binders: the shelf of binders */}
         <Route path="binders" element={<BindersPage />} />

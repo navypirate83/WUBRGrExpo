@@ -1,32 +1,57 @@
 {
   "name": "wubrgr",
+  "version": "0.2.0",
   "private": true,
-  "version": "0.1.0",
-  "description": "A Magic: The Gathering card binder app: keep your cards in binders that look and work like real ones, find any card with the MTG Card Finder, and save everything to your own Google Drive (or just on your device).",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build && node -e \"require('fs').copyFileSync('dist/index.html', 'dist/404.html')\"",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
-  },
+  "description": "WUBRG'r: a Magic: The Gathering card binder app for phones (iPhone and Android) and the web, built with Expo.",
+  "homepage": "https://navypirate83.github.io/WUBRGrExpo/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/navypirate83/WUBRGr.git"
+    "url": "git+https://github.com/navypirate83/WUBRGrExpo.git"
   },
-  "homepage": "https://navypirate83.github.io/WUBRGr/",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "dev": "expo start --web --port 3000",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "expo export -p web && node scripts/finish-web-build.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint"
+  },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@tanstack/react-query": "^5.104.5",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router": "^8.5.0"
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@tanstack/react-query": "^5.105.0",
+    "expo": "~58.0.21",
+    "expo-clipboard": "~58.0.4",
+    "expo-constants": "~58.0.14",
+    "expo-document-picker": "~58.0.4",
+    "expo-file-system": "~58.0.13",
+    "expo-font": "~58.0.11",
+    "expo-haptics": "~58.0.7",
+    "expo-image": "~58.0.18",
+    "expo-linear-gradient": "~58.0.3",
+    "expo-linking": "~58.0.15",
+    "expo-notifications": "~58.1.7",
+    "expo-router": "~58.0.28",
+    "expo-sharing": "~58.0.21",
+    "expo-splash-screen": "~58.0.12",
+    "expo-status-bar": "~58.0.4",
+    "expo-system-ui": "~58.0.7",
+    "expo-web-browser": "~58.0.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-gesture-handler": "~3.3.0",
+    "react-native-reanimated": "4.7.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-web": "~0.21.4",
+    "react-native-worklets": "0.13.0"
   },
   "devDependencies": {
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
   }
 }
