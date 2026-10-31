@@ -11,11 +11,11 @@
    - TAP a card to open it in the Card Finder, or an empty pocket's "+"
      to pick a card for it
    - the "− 3 +" bar changes how many copies you own
-   - PRESS AND HOLD a card until it lifts (a little buzz), then drag it:
-     onto another pocket (swapping with any card there), onto the red X
-     to remove it, or onto the blue circle to move it to another binder.
-     Holding it at the binder's left or right edge turns the page.
-     Holding a card and letting go WITHOUT dragging opens its menu.
+   - REST a finger on a card, then drag it (with a mouse: press and
+     drag) onto another pocket, swapping with any card there. Holding it
+     at the binder's left or right edge turns the page.
+   - HOLD a card still for half a second for its menu: copies, open it,
+     move it to another binder, or remove it.
    On a computer, the arrow and Page Up / Down keys turn pages, and card
    pictures dragged in from Scryfall or EDHREC fill empty pockets.
    Every change is saved on this device straight away, then to Google
@@ -56,7 +56,6 @@ import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
-import { fixed } from '@/theme/colors';
 
 /* ---------------------------------------------------------------------
    SETTINGS
@@ -100,9 +99,7 @@ const PAD = 8;
 const GAP = 5;
 const CARD_RATIO = 88 / 63;
 
-// The drop circles under the binder (while dragging): their size, and
-// the strip they sit in (where Previous / Next are the rest of the time)
-const CIRCLE = 44;
+// The strip under the binder (Previous / Next and the page number)
 const BAR_HEIGHT = 24;
 
 // In the phone app with two pages showing, pockets shrink to fit the
@@ -332,10 +329,10 @@ function BinderView({ binderId }: { binderId: string }) {
   // any: the pocket it's on (null between pockets), whether that pocket
   // has a card, whether the card has been picked up yet, when the finger
   // came down, how far it has moved sideways, and (once picked up) the
-  // pocket or circle the card would drop on
+  // pocket the card would drop into
   const dragRef = useRef<{
     from: string | null; hasCard: boolean; lifted: boolean; startedAt: number; dx: number;
-    target: string | null; circle: 'move' | 'trash' | null;
+    target: string | null;
   } | null>(null);
 
   // Bring this binder up to date with Google Drive now.
@@ -604,44 +601,26 @@ function BinderView({ binderId }: { binderId: string }) {
     return null;
   }
 
-  // Where the two drop circles sit across the strip under the binder
-  // (their centers): "move to another binder" on the left, "remove" on
-  // the right
-  const moveCircleX = binderW / 2 - CIRCLE * 0.9;
-  const trashCircleX = binderW / 2 + CIRCLE * 0.9;
-
   // Where things are on the screen ("in the window"), measured when a
   // finger comes to rest: the space the binder fills (the floating card
-  // is drawn there), the scrolling part of it, and the strip under it.
-  // The strip stays put while the page scrolls, so a dragged card is
-  // checked against the circles by its place on the screen, not on the page.
+  // is drawn there) and the scrolling part of it (for scrolling while
+  // dragging)
   type Box = { x: number; y: number; width: number; height: number };
   const areaRef = useRef<ComponentRef<typeof View>>(null);
-  const barRef = useRef<ComponentRef<typeof View>>(null);
-  const boxes = useRef<{ area?: Box; scroll?: Box; bar?: Box }>({});
+  const boxes = useRef<{ area?: Box; scroll?: Box }>({});
   function measureBoxes() {
     // "save" makes the function that keeps one measurement once it arrives
-    const save = (name: 'area' | 'scroll' | 'bar') => (x: number, y: number, width: number, height: number) => {
+    const save = (name: 'area' | 'scroll') => (x: number, y: number, width: number, height: number) => {
       boxes.current[name] = { x, y, width, height };
     };
     areaRef.current?.measureInWindow(save('area'));
     scrollRef.current?.measureInWindow(save('scroll'));
-    barRef.current?.measureInWindow(save('bar'));
-  }
-  // Is a point on the screen over one of the circles? (null if neither)
-  function circleAt(absX: number, absY: number): 'move' | 'trash' | null {
-    const bar = boxes.current.bar;
-    if (!bar) return null;
-    const y = bar.y + BAR_HEIGHT / 2;
-    const near = (x: number) => Math.hypot(absX - (bar.x + x), absY - y) <= CIRCLE * 0.75;
-    return near(trashCircleX) ? 'trash' : near(moveCircleX) ? 'move' : null;
   }
 
   // The card being dragged (its pocket), the pocket it would drop into,
-  // the circle it's over, and the edge it's held at (-1 left, 1 right)
+  // and the edge it's held at (-1 left, 1 right)
   const [dragFrom, setDragFrom] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<string | null>(null);
-  const [overCircle, setOverCircle] = useState<'move' | 'trash' | null>(null);
   const edgeRef = useRef(0);
   const edgeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // The floating copy of the card that follows the finger (where it is
@@ -701,7 +680,7 @@ function BinderView({ binderId }: { binderId: string }) {
     const from = pocketAt(x, y);
     dragRef.current = {
       from, hasCard: Boolean(from && cardsRef.current[from]), lifted: false,
-      startedAt: Date.now() - REST_MS, dx: 0, target: null, circle: null,
+      startedAt: Date.now() - REST_MS, dx: 0, target: null,
     };
     startPoint.current = { x, y };
     setHolding(true);
@@ -738,24 +717,19 @@ function BinderView({ binderId }: { binderId: string }) {
       setHighlightKey(null);
       setDragFrom(drag.from);
     }
-    // The card follows the finger, and the pocket or circle under it
-    // lights up
+    // The card follows the finger, and the pocket under it lights up
     const area = boxes.current.area;
     ghostX.value = absX - (area?.x ?? 0);
     ghostY.value = absY - (area?.y ?? 0);
-    const circle = circleAt(absX, absY);
-    const target = circle ? null : pocketAt(x, y);
-    drag.circle = circle;
+    const target = pocketAt(x, y);
     drag.target = target;
-    setOverCircle(circle);
     setDragTarget(target && target !== drag.from ? target : null);
     // At the left or right edge of the binder: turn the page (see setEdge)
     const nearHeight = y > -40 && y < binderH + 20;
     setEdge(nearHeight && x < EDGE_ZONE ? -1 : nearHeight && x > binderW - EDGE_ZONE ? 1 : 0);
-    // Near the top or bottom of the scrolling space (but not down over
-    // the circles): scroll the page that way
+    // Near the top or bottom of the scrolling space: scroll the page that way
     const box = boxes.current.scroll;
-    setScrollDirection(!box || circle ? 0
+    setScrollDirection(!box ? 0
       : absY < box.y + SCROLL_EDGE ? -1
       : absY > box.y + box.height - SCROLL_EDGE && absY < box.y + box.height ? 1 : 0);
   }
@@ -768,7 +742,6 @@ function BinderView({ binderId }: { binderId: string }) {
     dragRef.current = null;
     setDragFrom(null);
     setDragTarget(null);
-    setOverCircle(null);
     setEdge(0);
     setScrollDirection(0);
     setHolding(false);
@@ -795,12 +768,10 @@ function BinderView({ binderId }: { binderId: string }) {
       return;
     }
 
-    // A picked-up card: remove it (red X), open "Move card to…" (blue
-    // circle), move it to another pocket, or (anywhere else) it goes back
-    // where it was
-    if (drag.circle === 'trash') removeCard(from);
-    else if (drag.circle === 'move') setMovingKey(from);
-    else if (drag.target && drag.target !== from) moveCard(from, drag.target);
+    // A picked-up card: move it to the pocket it's over, or (anywhere
+    // else) it goes back where it was. (Removing it, or moving it to
+    // another binder, is in its menu: hold it still.)
+    if (drag.target && drag.target !== from) moveCard(from, drag.target);
   }
 
   // The swipe: the pages follow the finger a little; let go far enough
@@ -1125,53 +1096,36 @@ function BinderView({ binderId }: { binderId: string }) {
             </GestureDetector>
           </ScrollView>
 
-          {/* Under the binder (it stays put while the page scrolls): the
-              drop circles while dragging, or else Previous / Next with
-              the page number between them */}
-          <View ref={barRef} style={[styles.bar, { width: binderW, height: BAR_HEIGHT }]} collapsable={false}>
-            {dragFrom ? (
-              <>
-                {/* Blue: move to another binder (a folder with an arrow) */}
-                <View style={[styles.circle, { backgroundColor: '#2f6fd6', left: moveCircleX - CIRCLE / 2 },
-                              overCircle === 'move' && styles.circleActive]}>
-                  <Ionicons name="folder-open-outline" size={26} color="#ffffff" />
-                </View>
-                {/* Red: remove from this binder */}
-                <View style={[styles.circle, { backgroundColor: fixed.danger, left: trashCircleX - CIRCLE / 2 },
-                              overCircle === 'trash' && styles.circleActive]}>
-                  <Ionicons name="close" size={30} color="#ffffff" />
-                </View>
-              </>
-            ) : (
-              <View style={styles.pageNav}>
-                {/* Small arrow buttons (with extra room around them to tap) */}
-                <Pressable accessibilityRole="button" accessibilityLabel="Previous page" hitSlop={10}
-                           disabled={currentPage <= 1} onPress={() => turnPage(-1)}
-                           style={({ pressed }) => [styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border },
-                                                    pressed && styles.pressed, currentPage <= 1 && styles.navOff]}>
-                  <Ionicons name="chevron-back" size={14} color={colors.text} />
-                </Pressable>
-                {/* "Page 3 of 10" on a phone, "Pages 3–4 of 10" on wider screens */}
-                <Text style={[styles.pageStatus, { color: colors.text }]} accessibilityLiveRegion="polite">
-                  {currentPage === lastShown ? `Page ${currentPage} of ${totalPages}` : `Pages ${currentPage}–${lastShown} of ${totalPages}`}
-                </Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Next page" hitSlop={10}
-                           disabled={lastShown >= totalPages} onPress={() => turnPage(1)}
-                           style={({ pressed }) => [styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border },
-                                                    pressed && styles.pressed, lastShown >= totalPages && styles.navOff]}>
-                  <Ionicons name="chevron-forward" size={14} color={colors.text} />
-                </Pressable>
-              </View>
-            )}
+          {/* Under the binder (it stays put while the page scrolls):
+              Previous / Next with the page number between them */}
+          <View style={[styles.bar, { width: binderW, height: BAR_HEIGHT }]}>
+            <View style={styles.pageNav}>
+              {/* Small arrow buttons (with extra room around them to tap) */}
+              <Pressable accessibilityRole="button" accessibilityLabel="Previous page" hitSlop={10}
+                         disabled={currentPage <= 1} onPress={() => turnPage(-1)}
+                         style={({ pressed }) => [styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border },
+                                                  pressed && styles.pressed, currentPage <= 1 && styles.navOff]}>
+                <Ionicons name="chevron-back" size={14} color={colors.text} />
+              </Pressable>
+              {/* "Page 3 of 10" on a phone, "Pages 3–4 of 10" on wider screens */}
+              <Text style={[styles.pageStatus, { color: colors.text }]} accessibilityLiveRegion="polite">
+                {currentPage === lastShown ? `Page ${currentPage} of ${totalPages}` : `Pages ${currentPage}–${lastShown} of ${totalPages}`}
+              </Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Next page" hitSlop={10}
+                         disabled={lastShown >= totalPages} onPress={() => turnPage(1)}
+                         style={({ pressed }) => [styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border },
+                                                  pressed && styles.pressed, lastShown >= totalPages && styles.navOff]}>
+                <Ionicons name="chevron-forward" size={14} color={colors.text} />
+              </Pressable>
+            </View>
           </View>
 
           {/* The floating copy of the card that follows the finger, over
-              everything in the binder's space (the page and the strip).
-              It fades over a drop circle, so the circle shows. */}
+              everything in the binder's space (the page and the strip) */}
           {draggedCard && (
             <Animated.View pointerEvents="none"
                            style={[styles.ghost, { width: pocketW * 1.2, height: pocketH * 1.2, boxShadow: colors.cardShadowLift },
-                                   overCircle && styles.ghostOverCircle, ghostStyle]}>
+                                   ghostStyle]}>
               <Image source={pictureSource(draggedCard.image)} style={styles.ghostPicture} contentFit="cover" />
             </Animated.View>
           )}
@@ -1276,12 +1230,7 @@ const styles = StyleSheet.create({
   // there's no page that way)
   navButton: { width: 40, height: 18, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   navOff: { opacity: 0.35 },
-  // The drop circles, centered on the strip (they stick out above and
-  // below it a little)
-  circle: { position: 'absolute', top: (BAR_HEIGHT - CIRCLE) / 2, width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, alignItems: 'center', justifyContent: 'center', opacity: 0.8 },
-  circleActive: { opacity: 1, transform: [{ scale: 1.2 }] },
   ghost: { position: 'absolute', left: 0, top: 0, borderRadius: 6, overflow: 'hidden', zIndex: 20 },
-  ghostOverCircle: { opacity: 0.4 },
   ghostPicture: { width: '100%', height: '100%' },
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
   // The binder's name and its check mark, side by side

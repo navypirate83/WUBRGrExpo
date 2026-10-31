@@ -14,6 +14,7 @@ import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HelpButton from '@/components/HelpButton';
+import AppTitle from '@/components/AppTitle';
 import { useColors } from '@/hooks/useTheme';
 
 // One tab's icon: an outline normally, filled in when it's the tab you're on
@@ -45,7 +46,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          headerTitle: 'WUBRG\'r',
+          // The app's name, in the five Magic colors (see AppTitle.tsx)
+          headerTitle: () => <AppTitle />,
           tabBarIcon: tabIcon('home-outline', 'home'),
           headerRight: () => <HelpButton />,
         }}

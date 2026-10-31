@@ -522,17 +522,14 @@ export const helpTopics: HelpTopic[] = [
         title: 'Removing cards',
         body: (
           <>
-            <P>There are three ways to take a card out of a binder:</P>
+            <P>There are two ways to take a card out of a binder:</P>
             <Bullet>
-              Press <Strong>−</Strong> on its copies bar until the last copy, then
+              Hold the card still for half a second to open its menu, then tap <Strong>Remove from
+              this binder</Strong> (it asks first).
+            </Bullet>
+            <Bullet>
+              Or press <Strong>−</Strong> on its copies bar until the last copy, then
               answer <Strong>Yes, remove</Strong>.
-            </Bullet>
-            <Bullet>
-              Rest your finger on the card and slide it onto the <Strong>red X circle</Strong> that
-              appears under the binder. This removes the card and all its copies straight away.
-            </Bullet>
-            <Bullet>
-              Hold the card still and let go to open its menu, then tap <Strong>Remove from this binder</Strong> (it asks first).
             </Bullet>
           </>
         ),
@@ -543,9 +540,8 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <Step n={1}>
-              Rest your finger on the card and slide it onto the <Strong>blue
-              circle</Strong> (a folder) that appears under the binder, or hold it still, let go, and
-              tap <Strong>Move to another binder</Strong> in its menu.
+              Hold the card still for half a second to open its menu, then
+              tap <Strong>Move to another binder</Strong>.
               A list of your other binders pops up from the bottom of the screen, with each
               one's card count.
             </Step>

@@ -25,8 +25,8 @@ use the same Google Drive folder and the same `.csv` binder files.
 - **Binder pages**: pockets of cards. Swipe to turn the page (one page on
   a phone, two side by side on a wide screen), change copy counts, see
   foil borders, and rest a finger on a card then slide it to drag it to
-  another pocket, onto the red X (remove) or the blue circle (move to
-  another binder). Hold a card still and let go for its menu. The bell sets a reminder notification
+  another pocket. Hold a card still for its menu (copies, remove it, or
+  move it to another binder). The bell sets a reminder notification
   (phones). On a computer, card pictures can be dropped in from Scryfall
   or EDHREC.
 - **Card Finder** (a tab): search any card, pick its set, version and

@@ -45,6 +45,13 @@ const light = {
   pocketEdge: 'rgba(0, 0, 0, 0.12)',
   pocketShine: 'rgba(0, 0, 0, 0.05)',
   pocketPlus: '#a8492a',
+  // The app's name, "WUBRG'r", has its first five letters in the five
+  // Magic colors: W white (with a black outline in the light theme), U
+  // blue, B purple, R red, G green. (Brighter in the dark theme.)
+  manaU: '#1d6fd6',
+  manaB: '#7b3fd1',
+  manaR: '#c92a2a',
+  manaG: '#2b8a3e',
 };
 
 const dark: typeof light = {
@@ -76,6 +83,10 @@ const dark: typeof light = {
   pocketEdge: 'rgba(255, 255, 255, 0.10)',
   pocketShine: 'rgba(255, 255, 255, 0.07)',
   pocketPlus: '#e38a5c',
+  manaU: '#5aa9ff',
+  manaB: '#b182ff',
+  manaR: '#ff6b6b',
+  manaG: '#51cf66',
 };
 
 // The colors that are the same in both themes

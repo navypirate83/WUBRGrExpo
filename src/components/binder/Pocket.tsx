@@ -78,15 +78,22 @@ function Pocket(props: Props) {
             onLongPress={onHold ? () => onHold(key) : undefined}
             style={[styles.cardHolder, card.foil && styles.foilInset, faded && styles.faded]}
           >
+            {/* The picture ignores the pointer ("pointerEvents none"), so
+                pressing anywhere on the card presses the card itself. (On
+                the website, pressing a picture and moving would otherwise
+                start the browser's own "drag this picture" instead of
+                picking the card up.) */}
             {loaded && (
-              <Image
-                source={pictureSource(card.image)}
-                placeholder={pictureSource(CARD_BACK)}
-                contentFit="cover"
-                transition={150}
-                recyclingKey={card.image}
-                style={styles.picture}
-              />
+              <View pointerEvents="none" style={styles.picture}>
+                <Image
+                  source={pictureSource(card.image)}
+                  placeholder={pictureSource(CARD_BACK)}
+                  contentFit="cover"
+                  transition={150}
+                  recyclingKey={card.image}
+                  style={styles.picture}
+                />
+              </View>
             )}
           </Pressable>
 

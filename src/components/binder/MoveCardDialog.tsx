@@ -1,7 +1,7 @@
 /* =====================================================================
    THE "MOVE CARD TO…" LIST
-   Opens when a card is dropped on the blue move circle (or "Move to
-   another binder" in the card's menu, or the M key on a computer).
+   Opens from "Move to another binder" in a card's menu (hold the card
+   still for half a second).
    It's a list that pops up from the bottom over everything (the same
    kind as the Card Finder's "Add to which binder?"): one row for each of
    your other binders, with its cover color and card count. Tap one and
