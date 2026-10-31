@@ -146,7 +146,7 @@ export default function AddToBinder({ cardEntry, fromBinder, pocket, onMessage, 
     }
     const entry = cardEntry();
     cards[pocketKey(spot.page, spot.slot)] = entry;
-    // Saved here, marked "needs saving to Drive" (My Binders saves it there).
+    // Saved here, marked "needs saving to Drive" (The Shelf saves it there).
     if (!saveBinder(cards, id)) {
       onMessage('Your browser blocked saving, so the card could not be added.', true);
       setBusy(false);

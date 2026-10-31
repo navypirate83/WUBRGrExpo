@@ -1,6 +1,7 @@
 /* =====================================================================
    TOP BAR
-   On the left: the back button and the app's name. On the right: the
+   On the left: the back button and the app's name. In the middle: links
+   to The Shelf, Lists and Decks. On the right: the
    Settings button for someone using the binders (signed in, or using the
    site locally), or the light/dark switch for anyone else. The same on
    every page.
@@ -28,6 +29,11 @@ export default function TopBar() {
   // and the button is greyed out.
   const canGoBack = location.key !== 'default';
   const onSettings = location.pathname.startsWith('/settings');
+  // Inside one binder? (Its address is /binders/ followed by its id)
+  const inBinder = location.pathname.startsWith('/binders/');
+  // On the home (welcome) page? Its address is just "/" (Vite and the
+  // router take the "/WUBRGr" part off for us).
+  const onHome = location.pathname === '/';
 
   return (
     <header className={styles.topbar}>
@@ -62,10 +68,38 @@ export default function TopBar() {
         </h1>
       </div>
 
-      {/* The middle of the top bar: empty on most pages. A page can put
-          its own things here (the binder page shows where it's saved),
-          by drawing them into this box (see TOPBAR_TOOLS_ID). */}
-      <div id={TOPBAR_TOOLS_ID} className={styles.tools} />
+      {/* The middle of the top bar: the page links, then the page's own
+          things (if any) */}
+      <div className={styles.middle}>
+        {/* Links to The Shelf, Lists and Decks (the Decklists page). The one for the page you're on is
+            plain text instead of a link (so it can't be clicked), with
+            aria-current="page" to tell screen readers "you are here".
+            The Shelf only shows to someone using the binders, like the
+            footer's Shelf link. The links are left out on the home page
+            (the welcome page, which has its own way in) and inside a
+            binder (an address like /binders/abc123), where the middle
+            is used for the binder's name and where it's saved. */}
+        {!inBinder && !onHome && (
+          <nav className={styles.pageLinks} aria-label="Main pages">
+            {usingBinders && (
+              location.pathname === '/binders'
+                ? <span aria-current="page">The Shelf</span>
+                : <Link to="/binders">The Shelf</Link>
+            )}
+            {location.pathname === '/lists'
+              ? <span aria-current="page">Lists</span>
+              : <Link to="/lists">Lists</Link>}
+            {location.pathname === '/decklists'
+              ? <span aria-current="page">Decks</span>
+              : <Link to="/decklists">Decks</Link>}
+          </nav>
+        )}
+
+        {/* Empty on most pages. A page can put its own things here (the
+            binder page shows where it's saved), by drawing them into this
+            box (see TOPBAR_TOOLS_ID). */}
+        <div id={TOPBAR_TOOLS_ID} className={styles.tools} />
+      </div>
 
       {/* The right end of the bar */}
       <div className={styles.right}>

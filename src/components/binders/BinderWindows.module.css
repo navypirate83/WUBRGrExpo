@@ -269,7 +269,7 @@
   justify-content: flex-end;
 }
 
-/* "Upload .JSON" in the New binder window on My Binders: pushed to the
+/* "Upload .JSON" in the New binder window on The Shelf: pushed to the
    far left ("margin-right: auto" soaks up the spare room on its right,
    since the buttons are in reverse order). With three buttons, a narrow
    phone has no room for one row, so they may wrap. */

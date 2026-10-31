@@ -1,10 +1,10 @@
 /* =====================================================================
    FOOTER: LINKS TO EVERY PAGE
-   In the middle: "Home" (the welcome page), "Binders" (your shelf of
+   In the middle: "Home" (the welcome page), "Shelf" (your shelf of
    binders), "Search" (the MTG Card Finder) and "Help".
    At the far right: "Sign out", or "Sign in with Google" when using the
    site locally ("Sign in" on a phone).
-   "Binders" and the sign in/out link only show to someone using the
+   "Shelf" and the sign in/out link only show to someone using the
    binders (signed in, or using the site locally).
    (On a binder page, the binder's name is in the top bar.)
    ===================================================================== */
@@ -114,7 +114,7 @@ export default function Footer() {
               readers (and the stylesheet) "you are here". "end" means the
               link only counts for its exact address. */}
           <li><NavLink to="/" end>Home</NavLink></li>
-          {usingBinders && <li><NavLink to="/binders" end>Binders</NavLink></li>}
+          {usingBinders && <li><NavLink to="/binders" end>Shelf</NavLink></li>}
           {/* (On the Search page itself, it's the current page) */}
           <li><NavLink to={searchTo}>Search</NavLink></li>
           {/* Help shows on every page, even before signing in */}

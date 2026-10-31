@@ -6,9 +6,9 @@
    ===================================================================== */
 
 /*
-  The top bar: the title on the left, the page's own tools in the middle
-  (only the binder page has any) and the Settings button or theme switch
-  on the right.
+  The top bar: the title on the left, the page links (and the page's own
+  tools: only the binder page has any) in the middle, and the Settings
+  button or theme switch on the right.
   It's a "grid" with three columns: the two outer ones ("1fr") share the
   leftover space equally, so the middle one ("auto") lands exactly in
   the center of the bar no matter how long the title is.
@@ -33,9 +33,18 @@
   transition: background-color 0.25s;
 }
 
-/* The middle: the page's own things side by side, lined up on their
-   middles (none on most pages; on a binder page, its name and where
-   it's saved) */
+/* The middle column: the page links, then the page's own things, side
+   by side and lined up on their middles */
+.middle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The page's own things side by side, lined up on their middles (none
+   on most pages; on a binder page, its name and where it's saved) */
 .tools {
   display: flex;
   align-items: center;
@@ -43,25 +52,29 @@
 }
 
 /*
-  Narrow windows (820px or less): there's no room for all three in one
+  Narrow windows (820px or less): there's no room for everything in one
   row, so a page's things (on a binder page: its name and save status)
   move to a second row, lined up under the app's name ("padding-left:
-  42px" skips the 32px back button and the 10px gap beside it).
-  "grid-template-areas" names the spots: title and the right end on row
-  one, the page's things across the whole of row two.
+  42px" skips the 32px back button and the 10px gap beside it). The page
+  links stay in the middle of row one.
+  "display: contents" makes the middle box step aside, so the links and
+  the page's things each get their own spot in the grid.
+  "grid-template-areas" names the spots: title, links and the right end
+  on row one, the page's things across the whole of row two.
   ":has(.tools:not(:empty))" means "only when the box has something in it".
   (The binder page knows the top bar is taller then: see --top-gap in
   BinderPage.module.css.)
 */
 @media (max-width: 820px) {
   .topbar:has(.tools:not(:empty)) {
-    grid-template-columns: 1fr auto;
     grid-template-areas:
-      "title switch"
-      "tools tools";
+      "title links switch"
+      "tools tools tools";
     row-gap: 8px;
   }
+  .topbar:has(.tools:not(:empty)) .middle { display: contents; }
   .topbar:has(.tools:not(:empty)) .titleGroup { grid-area: title; }
+  .topbar:has(.tools:not(:empty)) .pageLinks { grid-area: links; }
   .topbar:has(.tools:not(:empty)) .right { grid-area: switch; }
   .topbar:has(.tools:not(:empty)) .tools {
     grid-area: tools;
@@ -89,6 +102,47 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+/* =====================================================================
+   PAGE LINKS: "The Shelf", "Lists" and "Decks", in the middle of the bar
+   ===================================================================== */
+
+/* The links side by side, centered. "nowrap" keeps "The Shelf" on one
+   line. */
+.pageLinks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+/* Each link: accent color, bold, no underline (like the footer's links) */
+.pageLinks a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Under the mouse, a thin outline makes the letters look bolder without
+   making them wider, so nothing beside them moves (as in the footer) */
+.pageLinks a:hover {
+  -webkit-text-stroke: 0.04em currentColor;
+}
+
+/* The page you're on: plain bold text in the normal text color */
+.pageLinks [aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+/* In dark mode it's solid white (in light mode it keeps the dark text
+   color, since white wouldn't show on the light bar) */
+:global(:root[data-theme="dark"]) .pageLinks [aria-current="page"] { color: #ffffff; }
+
+/* The narrowest phones (360px or less): closer together, smaller text */
+@media (max-width: 360px) {
+  .pageLinks { gap: 10px; font-size: 0.9rem; }
 }
 
 /* =====================================================================

@@ -37,10 +37,10 @@ export const helpTopics: HelpTopic[] = [
   /* ===================== MY BINDERS ===================== */
   {
     id: 'my-binders',
-    title: 'My Binders',
+    title: 'The Shelf',
     lead: (
       <>
-        My Binders is your shelf: every binder you own, shown as a closed
+        The Shelf holds every binder you own, shown as a closed
         binder with its name, cover symbol and color. The number under each
         one is how many cards are in it.
       </>
@@ -68,7 +68,7 @@ export const helpTopics: HelpTopic[] = [
               Either way, you then see your shelf of binders. The site remembers your choice:
               after that, the welcome page (<strong>Home</strong>) shows without the sign-in
               buttons, with a <strong>Go to your binders</strong> link,
-              and <strong>Binders</strong> at the bottom of every page goes straight to your shelf.
+              and <strong>Shelf</strong> at the bottom of every page goes straight to your shelf.
             </p>
           </>
         ),
@@ -200,7 +200,7 @@ export const helpTopics: HelpTopic[] = [
               Older WUBRG'r <strong>.JSON</strong> binder files can be uploaded too.
             </p>
             <p>
-              Binders saved before were .JSON files. The first time you open My Binders, each
+              Binders saved before were .JSON files. The first time you open The Shelf, each
               one is turned into a .CSV file. A backup copy of the old .JSON file is kept in the
               same Google Drive folder.
             </p>
@@ -213,7 +213,7 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <p>
-              The <strong>Search your binders</strong> bar sits at the top of My Binders and
+              The <strong>Search your binders</strong> bar sits at the top of The Shelf and
               above every binder's pages. It only looks at the cards in your binders. Start
               typing a card's name: part of it is enough, and small typos are fine
               ("demnic" still finds Demonic Tutor).
@@ -246,7 +246,7 @@ export const helpTopics: HelpTopic[] = [
               <li><strong>Home</strong>: the welcome page. When you're signed in (or using the
                 site locally), it has no sign-in buttons, just a <strong>Go to your
                 binders</strong> link.</li>
-              <li><strong>Binders</strong>: your shelf of binders (My Binders). Only shown when
+              <li><strong>Shelf</strong>: your shelf of binders (The Shelf). Only shown when
                 you're signed in or using the site locally.</li>
               <li><strong>Search</strong>: the MTG Card Finder, to look up any card.</li>
               <li><strong>Help</strong>: these instructions, opened to the page you were on.</li>
@@ -260,6 +260,13 @@ export const helpTopics: HelpTopic[] = [
               The round <strong>back arrow</strong> to the left of the title takes you back to
               the page you were on before. It's greyed out when there's no earlier page to go
               back to.
+            </p>
+            <p>
+              In the middle of the top bar, <strong>The Shelf</strong>, <strong>Lists</strong> and
+              <strong> Decks</strong> (your decklists) link to those pages (The Shelf only shows when you're signed in or using the site
+              locally). The one for the page you're on is plain white text instead of a link.
+              They're not shown on the Home page, and inside a binder they're hidden to make room
+              for the binder's name.
             </p>
             <p>
               Before you sign in, the <strong>sun and moon switch</strong> at the top right
@@ -332,7 +339,7 @@ export const helpTopics: HelpTopic[] = [
                 between shift along to make room.</li>
             </ol>
             <p>Press <strong>Escape</strong> at any time to put it back where it was.</p>
-            <p>Press <strong>?</strong> anywhere on My Binders to see these keys.</p>
+            <p>Press <strong>?</strong> anywhere on The Shelf to see these keys.</p>
           </>
         ),
       },
@@ -598,7 +605,7 @@ export const helpTopics: HelpTopic[] = [
             </p>
             <p>
               Looking for a card you already own? Use <strong>Search your binders</strong> on
-              My Binders instead (see <HelpLink to="my-binders-search">Searching your binders</HelpLink>).
+              The Shelf instead (see <HelpLink to="my-binders-search">Searching your binders</HelpLink>).
             </p>
             <p>
               Cards with two sides have a <strong>Flip card ↻</strong> button under the picture

@@ -1,6 +1,6 @@
 /* =====================================================================
    SEARCH YOUR BINDERS
-   The search bar at the top of My Binders and above every binder's
+   The search bar at the top of The Shelf and above every binder's
    pages. It only looks at the cards in your binders (this browser's
    copies of them), with the same forgiving search as the MTG Card
    Finder: part of a name, any spacing or punctuation, and small typos

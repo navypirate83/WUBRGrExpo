@@ -2,10 +2,10 @@
    THE "NEW BINDER" WINDOW
    A name (the next free "Binder 3" to start, selected so typing replaces
    it), a cover symbol (None to start) and a cover color (black to start).
-   Used by My Binders (the "+" binder) and the Search page ("New binder"
+   Used by The Shelf (the "+" binder) and the Search page ("New binder"
    in the "Add to which binder?" menu). The page decides what happens
    when "Create binder" is clicked.
-   On My Binders it also has "Upload .CSV": make the binder from a
+   On The Shelf it also has "Upload .CSV": make the binder from a
    binder file downloaded earlier, or a card list exported from ManaBox
    (or a similar app). An older .json binder file works too.
    ===================================================================== */
@@ -27,7 +27,7 @@ type Props = {
   onCreate: (name: string, color: string | null, cover: string) => void;
   // The window closed without making a binder
   onCancel: () => void;
-  // Given on My Binders only: adds the "Upload .CSV" button
+  // Given on The Shelf only: adds the "Upload .CSV" button
   onUpload?: (binder: UploadedBinder) => void;
 };
 

@@ -112,7 +112,7 @@ export default function HelpPage() {
         shortcuts={helpShortcuts}
         note={
           <>
-            Each page has its own keys: press <kbd>?</kbd> on My Binders, inside a binder
+            Each page has its own keys: press <kbd>?</kbd> on The Shelf, inside a binder
             or on the MTG Card Finder to see them.
           </>
         }

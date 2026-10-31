@@ -81,7 +81,7 @@
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-/* A page's link (My Binders, Binder pages, MTG Card Finder): bold */
+/* A page's link (The Shelf, Binder pages, MTG Card Finder): bold */
 .topicLink { font-weight: 700; }
 
 /* The page being shown, and the section picked: in the accent color,

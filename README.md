@@ -17,7 +17,7 @@ of the `.json` (which the original site can still open).
 
 ## What it does
 
-- **My Binders**: a shelf of binders with colored covers and Magic
+- **The Shelf**: all your binders with colored covers and Magic
   symbols. Make, rename, reorder, delete, download and upload them, and
   search the cards in them. Binders are `.csv` files in the same layout
   as a ManaBox export (plus each card's page and pocket, and the binder's

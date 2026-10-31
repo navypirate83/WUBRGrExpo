@@ -293,7 +293,7 @@ export default function BindersPage() {
   return (
     <section className={styles.shelfArea} aria-labelledby="shelfTitle">
       {/* React puts this <title> in the page's <head>: the browser tab's name */}
-      <title>My Binders – WUBRG'r</title>
+      <title>The Shelf – WUBRG'r</title>
 
       {/* Search every card in every binder */}
       <div className={styles.searchRow}>
