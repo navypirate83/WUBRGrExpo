@@ -449,8 +449,8 @@ export const helpTopics: HelpTopic[] = [
             <P>
               <Strong>On a computer, you can also drag one in from Scryfall or EDHREC.</Strong> With
               scryfall.com or edhrec.com open in another browser window beside the binder, drag a
-              card's picture (or its link) onto an <Strong>empty pocket</Strong>. The pocket gets a
-              dashed outline while you're over it; let go, and that exact card (printing, language
+              card's picture (or its link) onto an <Strong>empty pocket</Strong>. The pocket gets an
+              orange outline while you're over it; let go, and that exact card (printing, language
               and side) is added. Pockets that already hold a card don't accept drops.
             </P>
             <P>

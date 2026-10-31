@@ -50,17 +50,17 @@ export default function SetPicker({ sets, current, onChoose }: Props) {
 
   return (
     <>
-      {/* The box showing the current set (greyed out before a card is
-          shown). Opening the list puts the keyboard away first. */}
+      {/* The box showing the current set (greyed out, saying just "Set",
+          before a card is shown). Opening the list puts the keyboard
+          away first. */}
       <PickerButton
-        label="Set"
         disabled={!current}
         accessibilityLabel={current ? `Set: ${current.name}` : `Set: ${EMPTY_PICKER_TEXT}`}
         onPress={() => { Keyboard.dismiss(); setOpen(true); }}
       >
         {current
           ? <SetRow set={current} />
-          : <Text style={[styles.setName, { color: colors.muted }]} numberOfLines={1}>{EMPTY_PICKER_TEXT}</Text>}
+          : <Text style={[styles.setName, { color: colors.muted }]} numberOfLines={1}>Set</Text>}
       </PickerButton>
 
       {/* The list of sets, drawn only while it's open */}

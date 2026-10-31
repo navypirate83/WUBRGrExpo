@@ -26,13 +26,16 @@ export const APP_HEADERS: Record<string, string> =
   Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT };
 
 // A picture to download from Scryfall (or anywhere), with the app's
-// name sent along (see APP_HEADERS). The same picture always gets the
+// name sent along in the phone app (see APP_HEADERS). On the website
+// it's just the address: there, giving headers at all makes the picture
+// load a different way, which some of Scryfall's picture servers don't
+// allow (the card backs went blank). The same picture always gets the
 // same object back, so a picture that hasn't changed isn't downloaded again.
-const pictureSources = new Map<string, { uri: string; headers: Record<string, string> }>();
+const pictureSources = new Map<string, { uri: string; headers?: Record<string, string> }>();
 export function pictureSource(url: string) {
   let source = pictureSources.get(url);
   if (!source) {
-    source = { uri: url, headers: APP_HEADERS };
+    source = Platform.OS === 'web' ? { uri: url } : { uri: url, headers: APP_HEADERS };
     pictureSources.set(url, source);
   }
   return source;

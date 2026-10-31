@@ -429,13 +429,12 @@ export default function CardPanel(props: Props) {
           <SetPicker sets={sets} current={currentSet} onChoose={selectSet} />
         </View>
         <PickerButton
-          label="Version"
           disabled={!currentSet}
           accessibilityLabel={`Version: ${print && currentSet ? versionLabel(print) : EMPTY_PICKER_TEXT}`}
           onPress={() => { Keyboard.dismiss(); setOpenSheet('version'); }}
           style={pickersSideBySide ? styles.half : undefined}
         >
-          <SheetRowText text={print && currentSet ? versionLabel(print) : EMPTY_PICKER_TEXT} />
+          <SheetRowText text={print && currentSet ? versionLabel(print) : 'Version'} muted={!(print && currentSet)} />
         </PickerButton>
       </View>
 

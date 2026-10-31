@@ -202,7 +202,9 @@ export default function SearchBox(props: Props) {
         {/* The line under the box: a status message on the left (read out
             by screen readers when it changes), and on computers the
             shortcuts tip on the right (tapping it opens the Keyboard
-            shortcuts window) */}
+            shortcuts window). With nothing to show, it's left out, so it
+            doesn't leave a gap under the box. */}
+        {(hint || showKeyHints) ? (
         <View style={styles.hintRow}>
           <Text
             style={[styles.hint, { color: hintIsError ? colors.error : colors.muted }]}
@@ -216,6 +218,7 @@ export default function SearchBox(props: Props) {
             </Pressable>
           )}
         </View>
+        ) : null}
 
         {children}
 

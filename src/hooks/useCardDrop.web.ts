@@ -32,32 +32,39 @@ export function useCardDrop(options: CardDropOptions): void {
   const latest = useRef(options);
   latest.current = options;
 
-  // Add the listeners once the binder is on the page, and take them off
-  // again when it goes
+  // Listen on the whole page while the binder screen is open (and stop
+  // when it closes). The binder itself is looked up at each drag, not
+  // once at the start: it's only drawn after the screen has measured
+  // its space, so it isn't there yet when the screen first opens.
   useEffect(() => {
-    const binder = latest.current.binderRef.current as HTMLElement | null;
-    if (!binder) return;
-
-    // The empty pocket under a drag event's point, if any
+    // The empty pocket under a drag event's point, if any (none when the
+    // point isn't over the binder, or the binder isn't showing)
     function pocketFor(event: DragEvent): string | null {
-      const box = binder!.getBoundingClientRect();
-      return latest.current.emptyPocketAt(event.clientX - box.left, event.clientY - box.top);
+      const binder = latest.current.binderRef.current as HTMLElement | null;
+      if (!binder) return null;
+      const box = binder.getBoundingClientRect();
+      const x = event.clientX - box.left;
+      const y = event.clientY - box.top;
+      if (x < 0 || y < 0 || x > box.width || y > box.height) return null;
+      return latest.current.emptyPocketAt(x, y);
     }
 
-    // Over the binder: outline the empty pocket, and allow the drop there
+    // Something from outside is being dragged over the page: outline the
+    // empty pocket under it, and allow a drop only there. (Stopping the
+    // browser's usual handling everywhere also stops it leaving the app
+    // to show a picture dropped somewhere else.)
     function over(event: DragEvent) {
       if (!isOutsideDrag(event.dataTransfer)) return;
+      event.preventDefault();
       const key = pocketFor(event);
       latest.current.onOver(key);
-      if (!key) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'; return; }
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      if (event.dataTransfer) event.dataTransfer.dropEffect = key ? 'copy' : 'none';
     }
-    // Left the binder: no outline
+    // The drag left the window: no outline
     function leave(event: DragEvent) {
-      if (!binder!.contains(event.relatedTarget as Node)) latest.current.onOver(null);
+      if (!event.relatedTarget) latest.current.onOver(null);
     }
-    // Let go over the binder: hand the drop to the screen
+    // Let go: if it's over an empty pocket, hand the drop to the screen
     function drop(event: DragEvent) {
       if (!isOutsideDrag(event.dataTransfer)) return;
       event.preventDefault();
@@ -65,22 +72,14 @@ export function useCardDrop(options: CardDropOptions): void {
       const key = pocketFor(event);
       if (key && event.dataTransfer) latest.current.onDrop(event.dataTransfer, key);
     }
-    // Anywhere else on the page: stop the browser leaving the app
-    function stop(event: DragEvent) {
-      if (isOutsideDrag(event.dataTransfer) && !binder!.contains(event.target as Node)) event.preventDefault();
-    }
 
-    binder.addEventListener('dragover', over);
-    binder.addEventListener('dragleave', leave);
-    binder.addEventListener('drop', drop);
-    window.addEventListener('dragover', stop);
-    window.addEventListener('drop', stop);
+    window.addEventListener('dragover', over);
+    window.addEventListener('dragleave', leave);
+    window.addEventListener('drop', drop);
     return () => {
-      binder.removeEventListener('dragover', over);
-      binder.removeEventListener('dragleave', leave);
-      binder.removeEventListener('drop', drop);
-      window.removeEventListener('dragover', stop);
-      window.removeEventListener('drop', stop);
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('dragleave', leave);
+      window.removeEventListener('drop', drop);
     };
   }, []);
 }

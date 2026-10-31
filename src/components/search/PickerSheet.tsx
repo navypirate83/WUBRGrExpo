@@ -29,10 +29,10 @@ export const ROW_HEIGHT = 52;
 
 /* ----- The button ----- */
 
-// "label" is the small heading above the box ("SET"); "inline" puts it
-// beside the box instead (the Language picker, which is kept short).
+// "label" is the small heading beside the box ("LANGUAGE", with
+// "inline"), or above it; without one, it's just the box (Set and Version).
 export function PickerButton({ label, inline, disabled, onPress, accessibilityLabel, style, children }: {
-  label: string;
+  label?: string;
   inline?: boolean;
   disabled?: boolean;
   onPress: () => void;
@@ -43,8 +43,8 @@ export function PickerButton({ label, inline, disabled, onPress, accessibilityLa
   const colors = useColors();
   return (
     <View style={[inline ? styles.inlineWrap : styles.wrap, style]}>
-      {/* The small heading ("SET", "VERSION", "LANGUAGE") */}
-      <Text style={[styles.fieldLabel, inline && styles.inlineLabel, { color: colors.muted }]}>{label}</Text>
+      {/* The small heading ("LANGUAGE"), if it has one */}
+      {label ? <Text style={[styles.fieldLabel, inline && styles.inlineLabel, { color: colors.muted }]}>{label}</Text> : null}
 
       {/* The box: what's picked now, then the down arrow. Greyed out
           (and not tappable) before a card is shown. */}
@@ -179,11 +179,11 @@ export function PickerSheet<T>(props: SheetProps<T>) {
 /* ----- A row's text, for sheets whose rows are just words ----- */
 
 // One line of text, cut off with "…" if it's too long; bold for the
-// current choice
-export function SheetRowText({ text, bold }: { text: string; bold?: boolean }) {
+// current choice, grey for a box's placeholder word (like "Version")
+export function SheetRowText({ text, bold, muted }: { text: string; bold?: boolean; muted?: boolean }) {
   const colors = useColors();
   return (
-    <Text style={[styles.rowText, { color: colors.text }, bold && styles.bold]} numberOfLines={1}>{text}</Text>
+    <Text style={[styles.rowText, { color: muted ? colors.muted : colors.text }, bold && styles.bold]} numberOfLines={1}>{text}</Text>
   );
 }
 
