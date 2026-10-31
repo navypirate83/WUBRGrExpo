@@ -8,7 +8,7 @@
      presses), TanStack Query (which fetches and remembers Scryfall's
      card data), and the light/dark colors for the navigation bars
    - lays out the screens as a "Stack": the tabs at the bottom, and
-     screens that slide in on top of them (Help, Lists, Decks)
+     screens that slide in on top of them (Help, Decks)
    ===================================================================== */
 
 import { useEffect, useState } from 'react';
@@ -20,6 +20,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { loadStorage } from '@/lib/storage';
 import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
+import AppHeader from '@/components/AppHeader';
 
 // Keep the splash screen showing until we say it can go (below)
 SplashScreen.preventAutoHideAsync().catch(() => { /* already hidden */ });
@@ -106,6 +107,9 @@ function ThemedStack() {
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
+          // Every screen's bar at the top is the app's own, so they're all
+          // the same slim size (see AppHeader.tsx)
+          header: (props) => <AppHeader {...props} />,
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700' },
@@ -117,7 +121,6 @@ function ThemedStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'WUBRG\'r' }} />
         {/* Screens that slide in on top of the tabs */}
         <Stack.Screen name="help" options={{ title: 'Help' }} />
-        <Stack.Screen name="lists" options={{ title: 'Lists' }} />
         <Stack.Screen name="decklists" options={{ title: 'Decks' }} />
       </Stack>
     </ThemeProvider>

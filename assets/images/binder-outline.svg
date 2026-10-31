@@ -1,0 +1,19 @@
+<!--
+  An open binder with no cards, drawn as plain lines (a "wireframe"):
+  like the open binder at the top of the Home screen, seen from above,
+  with its two covers rising toward the outer corners, a page lying on
+  each, and three rings down the middle. The lines are black; the app
+  recolors them to suit the light or dark theme ("tintColor").
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" fill="none" stroke="#000000"
+     stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+  <!-- The left and right covers -->
+  <path d="M30 9 L7 4 Q3 3.5 3 7.5 L3 40.5 Q3 44 7 44.5 L30 46 Z"/>
+  <path d="M34 9 L57 4 Q61 3.5 61 7.5 L61 40.5 Q61 44 57 44.5 L34 46 Z"/>
+  <!-- A page lying on each cover -->
+  <path d="M28 12.5 L9 9 L9 39.5 L28 41.5"/>
+  <path d="M36 12.5 L55 9 L55 39.5 L36 41.5"/>
+  <!-- The spine and its three rings -->
+  <path d="M32 10 L32 45"/>
+  <path d="M28.5 16 H35.5 M28.5 27.5 H35.5 M28.5 39 H35.5"/>
+</svg>

@@ -1,7 +1,7 @@
 /* =====================================================================
    THE SHELF: YOUR BINDERS (/binders)
-   From top to bottom: the search bar (every card in every binder), who's
-   signed in (or "Saved on this device only"), the "Add binder" button
+   From top to bottom: the search bar (every card in every binder),
+   "Saved on this device only" (when it is), the "Add binder" button
    (it opens the New binder window: name, cover symbol and color, or
    upload a .CSV), then the binders themselves: a closed binder for each,
    side by side, as many across as the screen has room for (more rows as
@@ -40,6 +40,7 @@ import { usePointerKind } from '@/hooks/usePointerKind';
 import ShortcutsDialog, { type Shortcut } from '@/components/ShortcutsDialog';
 import NewBinderDialog, { type UploadedBinder } from '@/components/binders/NewBinderDialog';
 import BinderSearch from '@/components/binders/BinderSearch';
+import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import ClosedBinder from '@/components/binders/ClosedBinder';
 import { BinderPropertiesDialog, DeleteBinderDialog, type BinderChanges } from '@/components/binders/BinderWindows';
 import PopupWindow from '@/components/PopupWindow';
@@ -51,7 +52,7 @@ import {
   type Binder,
 } from '@/lib/binderStorage';
 import {
-  DriveError, createBinderFile, getDriveUser, listBinderFiles, nameFromFileName, syncBinder,
+  DriveError, createBinderFile, listBinderFiles, nameFromFileName, syncBinder,
   trashBinderFile, updateBinderDetails,
 } from '@/lib/googleDrive';
 import { hapticTap } from '@/lib/haptics';
@@ -98,8 +99,10 @@ export default function ShelfScreen() {
   const [binders, setBinders] = useState<Binder[]>(loadBinderList);
   // A number that goes up to redraw the card counts after cards change
   const [, setCardsChanged] = useState(0);
-  // The line above the shelf, and the message under it (red if an error)
-  const [account, setAccount] = useState(localMode ? 'Saved on this device only' : '');
+  // The line above the shelf (only when the binders are kept on this
+  // device; signed in, nothing is shown), and the message under the
+  // shelf (red if an error)
+  const account = localMode ? 'Saved on this device only' : '';
   const [message, setMessage] = useState<{ text: string; error?: boolean }>({ text: params.message ?? '' });
   // While a new binder is being made: the Add binder button is greyed out
   const [adding, setAdding] = useState(false);
@@ -181,10 +184,6 @@ export default function ShelfScreen() {
   // Read the list of binder files from Drive, in their shelf order, and
   // bring each one up to date between this device and Drive.
   async function loadFromDrive() {
-    // Who's signed in (shown above the shelf)
-    const user = await getDriveUser();
-    setAccount(`Signed in as ${user.displayName || user.emailAddress}`);
-
     // The binder files in their Drive (oldest first), with each one's
     // cover symbol, cover color, pages and shelf position (labels on
     // the file; an unknown symbol counts as none, no cover color means
@@ -477,9 +476,11 @@ export default function ShelfScreen() {
   const editing = editingId ? binders.find((b) => b.id === editingId) : undefined;
   const deleting = deletingId ? binders.find((b) => b.id === deletingId) : undefined;
 
-  // The part above the binders: search, who's signed in, and Add binder
+  // The part above the binders: the switch, search, "Saved on this device only" (when it is), and Add binder
   const header = (
     <View style={styles.header}>
+      {/* Binders or Lists (this is Binders, so its button is faded) */}
+      <ShelfSwitch current="binders" />
       <BinderSearch />
       {account ? <Text style={[styles.account, { color: colors.muted }]}>{account}</Text> : null}
 

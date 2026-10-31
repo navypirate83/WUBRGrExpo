@@ -3,7 +3,9 @@
    How it works (the same as the original site):
    - "Sign in with Google" uses Google's own sign-in library (loaded from
      accounts.google.com). Google shows its own window where the person
-     picks an account and agrees to let this site use Drive.
+     picks an account and agrees to let this site use Drive. In the phone
+     app, the phone's own Google account picker does the same job (see
+     phoneGoogleSignIn.ts).
    - Google hands back an "access token": a temporary pass (it lasts about
      an hour) that lets this site talk to that person's Google Drive.
    - We only ask for the "drive.file" permission: this site can see and
@@ -13,15 +15,24 @@
      Drive. The file's Drive id is also the binder's id. Binders saved
      before were .json files: those are turned into .csv files (see
      convertOldBinderFiles), and a backup copy of the .json is kept.
-   - The access token is kept in sessionStorage, which is wiped when the
-     browser tab closes, so the pass doesn't stay on the computer.
+   - Each card list is a .csv file too (see listCsv.ts), in a "Lists"
+     folder inside "MTG Card Binder" (so lists never show up among the
+     binders, here or on the original site).
+   - On the website, the access token is kept in sessionStorage, which is
+     wiped when the browser tab closes, so the pass doesn't stay on the
+     computer. In the phone app it's kept in the app's own storage, so
+     the app stays signed in like other apps; when the pass runs out, the
+     app quietly gets a new one from the phone's Google account.
    - LOCAL USE ONLY: the functions below that would change Drive (make,
      rename, delete or save a binder) just skip Drive, so the pages don't
      need to know the difference.
    Plain TypeScript with no React in it.
    ===================================================================== */
 
+import { Platform } from 'react-native';
 import { fetchOrExplain } from './http';
+import { storageGet, storageRemove, storageSet } from './storage';
+import { PHONE_SIGN_IN_AVAILABLE, phoneSignIn, phoneSignOut } from './phoneGoogleSignIn';
 import { accountChanged } from './accountEvents';
 import {
   DEFAULT_COVER, DEFAULT_PAGES,
@@ -30,6 +41,11 @@ import {
   saveBinder, setLocalMode, type Binder, type BinderCards,
 } from './binderStorage';
 import { binderToCsv, cardsFromCsv } from './binderCsv';
+import {
+  addListToDevice, findList, forgetAllLists, forgetList, listDirtyStamp, loadLists, markListSaved,
+  newLocalListId, saveLists, type CardList, type ListCard,
+} from './listStorage';
+import { listCardsFromCsv, listToCsv } from './listCsv';
 import { askYesNo } from './dialogs';
 
 // The site's Google Client ID: it tells Google which site is asking to
@@ -45,7 +61,7 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 // binders, so changing it would make existing binders seem to disappear.
 const DRIVE_FOLDER_NAME = 'MTG Card Binder';
 
-// Where the access token and the folder's id are kept (sessionStorage)
+// Where the access token and the folder's id are kept (see "session" below)
 const TOKEN_KEY = 'googleToken';
 const FOLDER_KEY = 'driveFolderId';
 
@@ -98,11 +114,34 @@ function signedOutError() {
    THE ACCESS TOKEN
    --------------------------------------------------------------------- */
 
+// Where the sign-in pass and the remembered Drive folder ids are kept:
+// on the website, sessionStorage (wiped when the tab closes); in the
+// phone app, the app's own storage (phones keep apps signed in)
+const session = Platform.OS === 'web'
+  ? {
+      get: (key: string) => sessionStorage.getItem(key),
+      set: (key: string, value: string) => sessionStorage.setItem(key, value),
+      remove: (key: string) => sessionStorage.removeItem(key),
+    }
+  : {
+      get: (key: string) => storageGet(key),
+      set: (key: string, value: string) => { storageSet(key, value); },
+      remove: (key: string) => storageRemove(key),
+    };
+
+// Keep a new access token, and when it runs out (in this many seconds)
+function keepAccessToken(accessToken: string, expiresInSeconds: number) {
+  try {
+    session.set(TOKEN_KEY, JSON.stringify({ accessToken, expiresAt: Date.now() + expiresInSeconds * 1000 }));
+  } catch { /* storage blocked: it still works until the page closes */ }
+  accountChanged();
+}
+
 // The current access token, or null if there isn't one or it's about to
 // run out (within a minute), in which case the person must sign in again.
 function getAccessToken(): string | null {
   try {
-    const saved = JSON.parse(sessionStorage.getItem(TOKEN_KEY) ?? 'null');
+    const saved = JSON.parse(session.get(TOKEN_KEY) ?? 'null');
     if (saved && saved.expiresAt > Date.now() + 60 * 1000) return saved.accessToken;
   } catch { /* nothing saved, or storage blocked */ }
   return null;
@@ -116,9 +155,10 @@ export function isSignedIn(): boolean {
 // Forget the access token (it expired, or the person signed out).
 function forgetAccessToken(): void {
   try {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(FOLDER_KEY);
-    sessionStorage.removeItem('settingsFileId');   // the settings file's id (see THE SETTINGS FILE)
+    session.remove(TOKEN_KEY);
+    session.remove(FOLDER_KEY);
+    session.remove('settingsFileId');     // the settings file's id (see THE SETTINGS FILE)
+    session.remove('driveListFolderId');  // the Lists folder's id (see LISTS)
   } catch { /* storage blocked: nothing to forget */ }
   accountChanged();
 }
@@ -172,6 +212,8 @@ function loadGoogleLibrary(): Promise<void> {
 // (browsers only allow pop-up windows right after a click). Calling it
 // again just waits for the first call to finish.
 export function initGoogleSignIn(): Promise<void> {
+  // The phone app's sign-in needs nothing loaded first
+  if (Platform.OS !== 'web') return Promise.resolve();
   if (!googleSignInReady) {
     googleSignInReady = loadGoogleLibrary().then(() => {
       tokenClient = window.google!.accounts!.oauth2!.initTokenClient({
@@ -187,13 +229,7 @@ export function initGoogleSignIn(): Promise<void> {
             return;
           }
           // Keep the pass, and when it runs out (Google says how many seconds).
-          try {
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({
-              accessToken: response.access_token,
-              expiresAt: Date.now() + Number(response.expires_in) * 1000,
-            }));
-          } catch { /* storage blocked: it still works until the page closes */ }
-          accountChanged();
+          keepAccessToken(response.access_token, Number(response.expires_in));
           done.resolve();
         },
         // The sign-in window was closed, or couldn't open (pop-up blocked)
@@ -213,9 +249,22 @@ export function initGoogleSignIn(): Promise<void> {
   return googleSignInReady;
 }
 
-// Open Google's sign-in window. Call this straight from a button click.
-// Resolves when signed in; rejects with a message if not.
+// How long the phone app treats a new pass as good for (seconds). Google's
+// passes last an hour; this is a little less, so a new one is fetched
+// before the old one is refused.
+const PHONE_TOKEN_SECONDS = 55 * 60;
+
+// In the phone app: get a pass from the phone's Google account and keep
+// it ("quiet": only if that needs no questions)
+async function phoneSignInAndKeep(quiet: boolean): Promise<void> {
+  keepAccessToken(await phoneSignIn(GOOGLE_CLIENT_ID, DRIVE_SCOPE, quiet), PHONE_TOKEN_SECONDS);
+}
+
+// Open Google's sign-in window (in the phone app, the phone's account
+// picker). Call this straight from a button click. Resolves when signed
+// in; rejects with a message if not.
 export function signInWithGoogle(): Promise<void> {
+  if (Platform.OS !== 'web') return phoneSignInAndKeep(false);
   return new Promise((resolve, reject) => {
     if (!tokenClient) {
       reject(new Error('Google sign-in is still loading. Please try again in a moment.'));
@@ -230,13 +279,14 @@ export function signInWithGoogle(): Promise<void> {
 //  1. save any binder changes that haven't reached Google Drive yet (if
 //     that fails, ask before throwing those changes away)
 //  2. tell Google to cancel the pass, and forget it here
-//  3. forget the binders kept in this browser, so the next person on
-//     this computer doesn't see them
+//  3. forget the binders and lists kept in this browser, so the next
+//     person on this computer doesn't see them
 // Returns true if signed out, false if the person chose to stay signed in.
 export async function signOutAndForget(): Promise<boolean> {
   const unsaved = loadBinderList().filter((b) => binderDirtyStamp(b.id));
+  const unsavedLists = loadLists().filter((l) => listDirtyStamp(l.id));
   try {
-    await Promise.all(unsaved.map((b) => syncBinder(b.id)));
+    await Promise.all([...unsaved.map((b) => syncBinder(b.id)), ...unsavedLists.map((l) => syncList(l.id))]);
   } catch {
     // (askYesNo shows the phone's or browser's own yes/no box: see dialogs.ts)
     const signOutAnyway = await askYesNo('Sign out anyway?',
@@ -244,9 +294,11 @@ export async function signOutAndForget(): Promise<boolean> {
     if (!signOutAnyway) return false;
   }
   const token = getAccessToken();
-  if (token) window.google?.accounts?.oauth2?.revoke(token, () => {});
+  if (Platform.OS === 'web') { if (token) window.google?.accounts?.oauth2?.revoke(token, () => {}); }
+  else await phoneSignOut();
   forgetAccessToken();
   clearAllBinders();
+  forgetAllLists();
   return true;
 }
 
@@ -258,7 +310,15 @@ export async function signOutAndForget(): Promise<boolean> {
 // a "signed out" error if the token is missing or Google rejects it, and
 // a normal error (with Google's message) for any other problem.
 async function driveRequest(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getAccessToken();
+  let token = getAccessToken();
+  // The phone app: the pass ran out, so quietly get a new one from the
+  // phone's Google account (someone who signed in before)
+  if (!token && PHONE_SIGN_IN_AVAILABLE) {
+    try {
+      await phoneSignInAndKeep(true);
+      token = getAccessToken();
+    } catch { /* not signed in on this phone: carry on to "signed out" */ }
+  }
   if (!token) throw signedOutError();
   const response = await fetchOrExplain(url, {
     ...options,
@@ -289,7 +349,7 @@ export async function getDriveUser(): Promise<{ displayName?: string; emailAddre
 // not there yet. Its id is remembered for this tab so we only look once.
 async function getBinderFolderId(): Promise<string> {
   try {
-    const remembered = sessionStorage.getItem(FOLDER_KEY);
+    const remembered = session.get(FOLDER_KEY);
     if (remembered) return remembered;
   } catch { /* storage blocked: just look it up */ }
 
@@ -307,7 +367,7 @@ async function getBinderFolderId(): Promise<string> {
     folderId = (await created.json()).id as string;
   }
 
-  try { sessionStorage.setItem(FOLDER_KEY, folderId); } catch { /* fine */ }
+  try { session.set(FOLDER_KEY, folderId); } catch { /* fine */ }
   return folderId;
 }
 
@@ -542,14 +602,14 @@ const SETTINGS_ID_KEY = 'settingsFileId';
 // Find the settings file's id, or null if there isn't one yet.
 async function findSettingsFile(): Promise<string | null> {
   try {
-    const remembered = sessionStorage.getItem(SETTINGS_ID_KEY);
+    const remembered = session.get(SETTINGS_ID_KEY);
     if (remembered) return remembered;
   } catch { /* storage blocked: just look it up */ }
   const folderId = await getBinderFolderId();
   const query = `'${folderId}' in parents and name='${SETTINGS_FILE_NAME}' and trashed=false`;
   const found = await driveRequest(`${DRIVE_API}/files?q=${encodeURIComponent(query)}&fields=files(id)&pageSize=1`);
   const id: string | null = (await found.json()).files[0]?.id ?? null;
-  if (id) { try { sessionStorage.setItem(SETTINGS_ID_KEY, id); } catch { /* fine */ } }
+  if (id) { try { session.set(SETTINGS_ID_KEY, id); } catch { /* fine */ } }
   return id;
 }
 
@@ -596,7 +656,7 @@ export async function writeSettingsFile(data: Record<string, unknown>): Promise<
     body,
   });
   const created = await response.json();
-  try { sessionStorage.setItem(SETTINGS_ID_KEY, created.id); } catch { /* fine */ }
+  try { session.set(SETTINGS_ID_KEY, created.id); } catch { /* fine */ }
 }
 
 // The binder's display name from its file name ("Binder 1.csv" → "Binder 1",
@@ -640,8 +700,126 @@ export async function uploadLocalBinders(): Promise<void> {
         alreadyInDrive + index, cleanCover(binder.cover), binderPages(binder.id));
       forgetBinder(binder.id);
     }
+    // Then the lists, the same way (each forgotten here once it's in Drive)
+    for (const list of loadLists()) {
+      const file = await createListFile(list.name, list.cards);
+      forgetList(list.id);
+      addListToDevice(file.id, list.name, list.cards);
+    }
   } catch (err) {
     setLocalMode(true);
-    throw new Error(`Couldn't upload all your binders to Google Drive. ${(err as Error).message}`);
+    throw new Error(`Couldn't upload all your binders and lists to Google Drive. ${(err as Error).message}`);
   }
+}
+
+/* ---------------------------------------------------------------------
+   LISTS
+   Each list is one .csv file in a "Lists" folder inside "MTG Card
+   Binder". Its file name is the list's name ("Trade bait.csv"), and its
+   Drive id is the list's id. This device keeps a copy of every list (see
+   listStorage.ts); syncList brings one up to date either way.
+   LOCAL USE ONLY: these skip Drive, like the binder ones.
+   --------------------------------------------------------------------- */
+
+// The "Lists" folder's name, and where its Drive id is remembered for this tab
+const LIST_FOLDER_NAME = 'Lists';
+const LIST_FOLDER_KEY = 'driveListFolderId';
+
+// Find the "Lists" folder inside "MTG Card Binder", or make it if it's not
+// there yet. Its id is remembered for this tab so we only look once.
+async function getListFolderId(): Promise<string> {
+  try {
+    const remembered = session.get(LIST_FOLDER_KEY);
+    if (remembered) return remembered;
+  } catch { /* storage blocked (or a phone): just look it up */ }
+
+  const parentId = await getBinderFolderId();
+  const query = `name='${LIST_FOLDER_NAME}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const found = await driveRequest(`${DRIVE_API}/files?q=${encodeURIComponent(query)}&fields=files(id)&pageSize=1`);
+  let folderId: string | undefined = (await found.json()).files[0]?.id;
+
+  if (!folderId) {
+    const created = await driveRequest(`${DRIVE_API}/files?fields=id`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: LIST_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
+    });
+    folderId = (await created.json()).id as string;
+  }
+
+  try { session.set(LIST_FOLDER_KEY, folderId); } catch { /* fine */ }
+  return folderId;
+}
+
+// Make a new list file holding these cards (often none). Returns { id }.
+// (Local use only: nothing goes to Drive; the list gets a local id.)
+export async function createListFile(name: string, cards: ListCard[] = []): Promise<{ id: string }> {
+  if (isLocalMode()) return { id: newLocalListId() };
+  const folderId = await getListFolderId();
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
+    method: 'POST',
+    ...multipart({ name: `${name}.csv`, mimeType: CSV_TYPE, parents: [folderId] }, CSV_TYPE,
+      listToCsv({ id: '', name, cards })),
+  });
+  return response.json();
+}
+
+// Replace a list file's name and contents with this device's copy
+async function writeListFile(list: CardList): Promise<void> {
+  await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(list.id)}?uploadType=multipart`, {
+    method: 'PATCH',
+    ...multipart({ name: `${list.name}.csv` }, CSV_TYPE, listToCsv(list)),
+  });
+}
+
+// Read one list file's cards
+async function readListFile(fileId: string): Promise<ListCard[]> {
+  const response = await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`);
+  return listCardsFromCsv(await response.text());
+}
+
+// "Delete" a list: move its file to the Google Drive trash (it can be
+// restored from there for 30 days). (Local use only: nothing to do.)
+export async function trashListFile(fileId: string): Promise<void> {
+  if (isLocalMode()) return;
+  await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  });
+}
+
+// Bring one list up to date between this device and Google Drive:
+//  - if this device has changes Drive doesn't have yet, SEND them
+//  - otherwise, FETCH the list from Drive (it may have been changed on
+//    another device) and keep it as this device's copy
+// (Local use only: this device's copy is the only one, so nothing to do.)
+export async function syncList(id: string): Promise<void> {
+  if (isLocalMode()) return;
+  const list = findList(id);
+  if (!list) return;
+  const stamp = listDirtyStamp(id);
+  if (stamp) {
+    await writeListFile(list);
+    markListSaved(id, stamp);
+    return;
+  }
+  const cards = await readListFile(id);
+  saveLists(loadLists().map((l) => (l.id === id ? { ...l, cards } : l)));
+}
+
+// Every list in Drive, oldest first, kept as this device's copy. A list
+// with changes Drive doesn't have yet keeps this device's version (it's
+// sent the next time it's saved). (Local use only: this device's lists.)
+export async function loadListsFromDrive(): Promise<CardList[]> {
+  if (isLocalMode()) return loadLists();
+  const folderId = await getListFolderId();
+  const files = await listFiles(`'${folderId}' in parents and mimeType='${CSV_TYPE}' and trashed=false`);
+  const lists = await Promise.all(files.map(async (file): Promise<CardList> => {
+    const here = findList(file.id);
+    if (here && listDirtyStamp(file.id)) return here;
+    return { id: file.id, name: nameFromFileName(file.name), cards: await readListFile(file.id) };
+  }));
+  saveLists(lists);
+  return lists;
 }

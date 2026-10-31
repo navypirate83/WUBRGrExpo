@@ -15,6 +15,7 @@ import type { ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HelpButton from '@/components/HelpButton';
 import AppTitle from '@/components/AppTitle';
+import AppHeader from '@/components/AppHeader';
 import { useColors } from '@/hooks/useTheme';
 
 // One tab's icon: an outline normally, filled in when it's the tab you're on
@@ -28,6 +29,9 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        // Every screen's bar at the top is the app's own, so they're all
+        // the same slim size (see AppHeader.tsx)
+        header: (props) => <AppHeader {...props} />,
         // The tab you're on is orange; the others are the quieter gray
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,

@@ -35,6 +35,8 @@ export type ImageUris = {
 export type CardFace = {
   name: string;
   image_uris?: ImageUris;
+  mana_cost?: string;     // its casting cost, like "{1}{U}{U}"
+  type_line?: string;     // like "Creature — Elf Druid"
 };
 
 // One printing of a card: a card in one set, one version, one language
@@ -46,6 +48,11 @@ export type ScryfallCard = {
   set_name: string;
   collector_number: string;
   rarity?: string;
+  // The casting cost, like "{1}{U}{U}", and the type line, like
+  // "Creature — Elf Druid" (a two-sided card has these on each side,
+  // in card_faces, instead)
+  mana_cost?: string;
+  type_line?: string;
   released_at: string;
   artist?: string;
   scryfall_uri: string;

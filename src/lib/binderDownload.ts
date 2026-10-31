@@ -1,8 +1,9 @@
 /* =====================================================================
-   SAVING A BINDER AS A .CSV FILE (on phones)
+   SAVING A BINDER OR A LIST AS A .CSV FILE (on phones)
    Saves one binder as a .csv file: its cards (one per line, with the
    page and pocket each is in) and its name, cover symbol, cover color
-   and pages, the same as its Google Drive file (see binderCsv.ts).
+   and pages, the same as its Google Drive file (see binderCsv.ts). A
+   list is saved the same way, as its own Drive file is (see listCsv.ts).
    Phones have no "Downloads" folder like a computer, so the file is
    written to the app's own temporary folder (the "cache"), then the
    phone's Share menu opens, where the person can save it to Files,
@@ -16,6 +17,8 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { binderDetails, loadBinder } from './binderStorage';
 import { binderToCsv } from './binderCsv';
+import { findList } from './listStorage';
+import { listToCsv } from './listCsv';
 
 // The file name: the binder's name (characters not allowed in file
 // names removed) and today's date, like "Binder 1 2026-10-16.csv"
@@ -23,17 +26,29 @@ function fileNameFor(name: string): string {
   return `${name.replace(/[\\/:*?"<>|]/g, '')} ${new Date().toISOString().slice(0, 10)}.csv`;
 }
 
-// Save the binder as it is on this device (its newest copy: every change
-// is saved here first), then open the Share menu for it.
-export async function downloadBinderCsv(id: string): Promise<void> {
-  const details = binderDetails(id);
-  const file = new File(Paths.cache, fileNameFor(details.name));
+// Write a .csv file with this name (before the date) and text into the
+// app's temporary folder, then open the Share menu for it
+async function shareCsv(name: string, text: string): Promise<void> {
+  const file = new File(Paths.cache, fileNameFor(name));
   // A file of the same name from earlier would make "create" fail, so
   // remove it first
   if (file.exists) file.delete();
   file.create();
-  file.write(binderToCsv(details, loadBinder(id)));
+  file.write(text);
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, { dialogTitle: `Save ${details.name}`, mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' });
+    await Sharing.shareAsync(file.uri, { dialogTitle: `Save ${name}`, mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' });
   }
+}
+
+// Save the binder as it is on this device (its newest copy: every change
+// is saved here first), then open the Share menu for it.
+export async function downloadBinderCsv(id: string): Promise<void> {
+  const details = binderDetails(id);
+  await shareCsv(details.name, binderToCsv(details, loadBinder(id)));
+}
+
+// The same for a list
+export async function downloadListCsv(id: string): Promise<void> {
+  const list = findList(id);
+  if (list) await shareCsv(list.name, listToCsv(list));
 }

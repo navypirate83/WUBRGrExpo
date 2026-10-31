@@ -1,0 +1,19 @@
+<!--
+  A notebook drawn as plain lines (a "wireframe"): a page with a spiral
+  binding along the top (five wire loops through the top edge) and a
+  few ruled lines to write on. The lines are black; the app recolors
+  them to suit the light or dark theme ("tintColor").
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56" fill="none" stroke="#000000"
+     stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+  <!-- The page -->
+  <rect x="5" y="9" width="38" height="44" rx="3"/>
+  <!-- The spiral: five wire loops through the top edge -->
+  <rect x="9.5" y="3" width="4" height="11" rx="2"/>
+  <rect x="16.5" y="3" width="4" height="11" rx="2"/>
+  <rect x="23.5" y="3" width="4" height="11" rx="2"/>
+  <rect x="30.5" y="3" width="4" height="11" rx="2"/>
+  <rect x="37.5" y="3" width="4" height="11" rx="2"/>
+  <!-- Ruled lines to write on -->
+  <path d="M11 24 H37 M11 32 H37 M11 40 H37 M11 48 H29"/>
+</svg>

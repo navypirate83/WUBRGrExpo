@@ -28,7 +28,7 @@ type Place = {
 const SHELF: Place = { to: '/binders', icon: 'library-outline', name: 'The Shelf', about: 'Your binders' };
 const PLACES: Place[] = [
   { to: '/search', icon: 'search-outline', name: 'Card Finder', about: 'Look up any Magic card' },
-  { to: '/lists', icon: 'list-outline', name: 'Lists', about: 'Card lists (still being built)' },
+  { to: '/binders/lists', icon: 'list-outline', name: 'Lists', about: 'Your card lists' },
   { to: '/decklists', icon: 'albums-outline', name: 'Decks', about: 'Your decklists (still being built)' },
   { to: '/help', icon: 'help-circle-outline', name: 'Help', about: 'How everything works' },
 ];

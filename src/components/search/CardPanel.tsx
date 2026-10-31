@@ -22,10 +22,11 @@ import { useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { loadLanguages, type ScryfallCard } from '@/lib/scryfall';
 import {
-  CARD_BACK, cardSearchParams, faceName, foilChoices, foilFor, groupBySet, imageFor,
+  CARD_BACK, cardSearchParams, costAndType, faceName, foilChoices, foilFor, groupBySet, imageFor,
   isDoubleSided, languageName, versionLabel, type SetGroup,
 } from '@/lib/cards';
 import type { BinderCard } from '@/lib/binderStorage';
+import type { ListCard } from '@/lib/listStorage';
 import { openLink, shareLink } from '@/lib/links';
 import { hapticTap } from '@/lib/haptics';
 import { useShortcutKeys } from '@/hooks/useShortcutKeys';
@@ -73,6 +74,8 @@ type Props = {
   // The binder this screen was opened from, and the pocket to fill, if any
   fromBinder: string | null;
   pocket: { page: number; slot: number } | null;
+  // The list this screen was opened from, if any (the "+" adds to it)
+  toList: string | null;
   // Show a message under the search box (red if it's a problem), or
   // clear it (null)
   onMessage: (text: string | null, isError?: boolean) => void;
@@ -80,7 +83,7 @@ type Props = {
 
 export default function CardPanel(props: Props) {
   const { result, startFace, startLang, setIcons, foil, setFoil, busy, announce } = props;
-  const { usingBinders, fromBinder, pocket, onMessage } = props;
+  const { usingBinders, fromBinder, pocket, toList, onMessage } = props;
   const colors = useColors();
   // The "+" Add to binder button (the A key presses it)
   const addRef = useRef<AddToBinderHandle>(null);
@@ -216,6 +219,12 @@ export default function CardPanel(props: Props) {
     };
   }
 
+  // The card being shown, as a list saves it: the same as for a binder,
+  // plus its casting cost and type line (shown under its name in the list)
+  function listEntry(): ListCard {
+    return { ...cardEntry(), ...costAndType(print!, isDoubleSided(print!) ? face : 0) };
+  }
+
   /* ----- Shortcut keys for the card (computers only: see the Keyboard shortcuts window) ----- */
 
   // Show the version a step before (-1) or after (+1) the one showing,
@@ -252,6 +261,11 @@ export default function CardPanel(props: Props) {
   useShortcutKeys((event) => {
     const key = event.key;
     if (key === 'b' || key === 'B') {
+      if (toList) {
+        event.preventDefault();
+        router.navigate(`/binders/list/${encodeURIComponent(toList)}` as never);
+        return;
+      }
       if (!usingBinders || !fromBinder) { announce('There\'s no binder to go back to.'); return; }
       event.preventDefault();
       router.navigate(`/binders/${encodeURIComponent(fromBinder)}`);
@@ -321,10 +335,12 @@ export default function CardPanel(props: Props) {
         )}
       </View>
 
-      {/* "+": only for someone using the binders, once a card is showing */}
-      {usingBinders && (
+      {/* "+": for someone using the binders, or opened from a list (lists
+          are kept on this device), once a card is showing */}
+      {(usingBinders || toList) && (
         <View style={[styles.spot, styles.twoThirds, buttonSide]}>
-          <AddToBinder ref={addRef} cardEntry={cardEntry} fromBinder={fromBinder} pocket={pocket} onMessage={onMessage} />
+          <AddToBinder ref={addRef} cardEntry={cardEntry} listEntry={listEntry} fromBinder={fromBinder} pocket={pocket}
+                       toList={toList} onMessage={onMessage} />
         </View>
       )}
     </>

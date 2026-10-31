@@ -132,6 +132,30 @@ export function faceName(print: ScryfallCard, face: number): string {
   return isDoubleSided(print) ? print.card_faces![face].name : print.name;
 }
 
+// The casting cost (like "{1}{U}{U}") and type line (like "Creature — Elf
+// Druid") of the side showing. A two-sided card keeps these on each side;
+// a split card (like Fire // Ice) has both halves' costs on the card
+// itself, joined with " // ". Empty text if Scryfall doesn't give one
+// (a land has no casting cost).
+export function costAndType(print: ScryfallCard, face: number): { manaCost: string; typeLine: string } {
+  const side = isDoubleSided(print) ? print.card_faces?.[face] : undefined;
+  return {
+    manaCost: side?.mana_cost ?? print.mana_cost ?? '',
+    typeLine: side?.type_line ?? print.type_line ?? '',
+  };
+}
+
+// A casting cost as Scryfall's symbol pictures: "{2}{W/U}" becomes the
+// pictures for "2" and "WU" (the "/" is left out of the picture's name).
+// A split card's halves come back as separate groups.
+export function manaSymbolGroups(cost: string): { symbol: string; url: string }[][] {
+  return cost.split(' // ').filter(Boolean).map((half) =>
+    [...half.matchAll(/\{([^}]+)\}/g)].map(([, symbol]) => ({
+      symbol,
+      url: `https://svgs.scryfall.io/card-symbols/${encodeURIComponent(symbol.replace(/\//g, ''))}.svg`,
+    })));
+}
+
 /* ---------------------------------------------------------------------
    FOIL
    Scryfall lists the finishes each printing was made in ("finishes"):

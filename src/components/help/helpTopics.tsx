@@ -52,6 +52,9 @@ export const helpTopics: HelpTopic[] = [
         name, cover symbol and color), with how many cards it has under it. As many fit
         across as the screen has room for, and more rows appear as you make more. Tap <Strong>The
         Shelf</Strong> (the row of books) at the bottom of the screen to get to it.
+        The two picture buttons at the top switch between your <Strong>Binders</Strong> (the open
+        binder) and your <Strong>Lists</Strong> (the spiral notebook); the faded one is the page
+        you're on. (See <HelpLink to="my-binders-lists">Lists</HelpLink>.)
       </>
     ),
     sections: [
@@ -137,6 +140,44 @@ export const helpTopics: HelpTopic[] = [
               <Strong>Load again</Strong>: pull the shelf down and let go. When signed in, your binders
               are fetched fresh from Google Drive (handy after changing them on another device).
             </Bullet>
+          </>
+        ),
+      },
+      {
+        id: 'my-binders-lists',
+        title: 'Lists',
+        body: (
+          <>
+            <P>
+              Lists keep cards without pockets or pages: a want list, cards to trade, upgrades for
+              a deck. Tap the <Strong>notebook</Strong> button at the top of The Shelf to see them.
+              Each list shows its name and how many cards it has.
+            </P>
+            <Bullet><Strong>Make a list</Strong>: tap <Strong>Add list</Strong>, type its name, then tap <Strong>Save</Strong>.</Bullet>
+            <Bullet><Strong>Open it</Strong>: tap it.</Bullet>
+            <Bullet>
+              <Strong>Rename or delete it</Strong>: hold it for a moment, then tap <Strong>Rename</Strong> (type
+              the new name and tap <Strong>Save</Strong>) or <Strong>Delete</Strong> (it asks first).
+            </Bullet>
+            <Bullet><Strong>Load again</Strong>: pull the lists down and let go.</Bullet>
+            <P>
+              Inside a list, each card shows a small picture, its name, its casting cost and its
+              type. Tap <Strong>Add card</Strong> to find one in the Card Finder, then tap
+              its <Strong>+</Strong> to put it in the list. Tap a card to open it in the Card Finder.
+              The search box narrows the list to the cards whose name or type matches.
+            </P>
+            <P>
+              <Strong>Hold a card</Strong> for its window: a big picture of it, <Strong>Move to a
+              binder</Strong> (pick a binder: the card goes into its first empty pocket and leaves the
+              list) and <Strong>Delete from list</Strong> (it asks first).
+            </P>
+            <P>
+              Lists are saved like binders: to Google Drive when you're signed in (as .csv files, in
+              a "Lists" folder inside "MTG Card Binder"), or on this device when you use the app
+              locally. The check mark beside the list's name is green when it's saved and red while
+              it isn't (tap it to see why). The <Strong>down arrow</Strong> at the top right
+              downloads the list as a .CSV file.
+            </P>
           </>
         ),
       },
@@ -277,8 +318,8 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               <Strong>Home</Strong> (the house): the welcome screen. When you're signed in (or using the app
               locally), it has no sign-in buttons, just a <Strong>Go to your binders</Strong> button.
-              It also has buttons for <Strong>Lists</Strong> and <Strong>Decks</Strong> (your
-              decklists), which are still being built.
+              It also has buttons for <Strong>Lists</Strong> (your card lists)
+              and <Strong>Decks</Strong> (your decklists, still being built).
             </Bullet>
             <Bullet><Strong>The Shelf</Strong> (the row of books): your shelf of binders.</Bullet>
             <Bullet><Strong>Card Finder</Strong> (the magnifying glass): the MTG Card Finder, to look up any card.</Bullet>
@@ -714,21 +755,24 @@ export const helpTopics: HelpTopic[] = [
       },
       {
         id: 'finder-add',
-        title: 'Adding to a binder',
+        title: 'Adding to a binder or a list',
         body: (
           <>
-            <P>The round <Strong>+</Strong> button beside the card adds it to a binder:</P>
+            <P>The round <Strong>+</Strong> button beside the card adds it to a binder or a list:</P>
             <Bullet><Strong>Came from a binder's pocket?</Strong> The card goes straight into that pocket.</Bullet>
+            <Bullet><Strong>Came from a list (its Add card button)?</Strong> The card goes straight to the end of that list.</Bullet>
             <Bullet>
-              <Strong>Opened the finder on its own?</Strong> A menu asks <Strong>Add to which
-              binder?</Strong> with each binder's card count. Pick one, and the card goes into its
-              first empty pocket. Full binders can't be picked. <Strong>New binder</Strong> at the
-              bottom makes a new binder with the card in it.
+              <Strong>Opened the finder on its own?</Strong> It first asks <Strong>Add to a binder or a
+              list?</Strong> Tap <Strong>Binder</Strong> or <Strong>List</Strong>, then pick which one:
+              each binder or list shows its card count. A binder's card goes into its first empty
+              pocket (full binders can't be picked); a list's goes at the end (a list that already
+              has the card can't be picked). <Strong>New binder</Strong> or <Strong>New list</Strong> at
+              the bottom makes a new one with the card in it.
             </Bullet>
-            <P>Either way, you're taken to the binder, opened to the page with the new card.</P>
+            <P>Afterwards you're taken to the binder (opened to the page with the new card) or the list.</P>
             <P>
               The <Strong>+</Strong> button only shows when you're signed in or using the app
-              locally. When you came from a binder, the <Strong>back arrow</Strong> at the top
+              locally. When you came from a binder or a list, the <Strong>back arrow</Strong> at the top
               left<OnComputer> (or the <Key>B</Key> key on a computer)</OnComputer> takes you back to it. When you're not
               signed in, <Strong>Home</Strong> (the house at the bottom) goes back to the welcome
               screen, where you can sign in.

@@ -8,7 +8,9 @@
    remembers each answer so nothing is downloaded twice.
    Opened from a binder, the address also says which binder (and maybe
    which pocket) the "+" Add to binder button fills, and a back arrow
-   beside the screen's title leads back to that binder.
+   beside the screen's title leads back to that binder. Opened from a
+   list ("?list=<id>"), the "+" puts the card into that list instead,
+   and the back arrow leads back to the list.
    The card area shows one of four clearly different states: Searching…
    (loading), a red-edged box with "Try again" (error), "No cards found"
    (empty), or the card itself (data). See SearchStates.tsx.
@@ -17,11 +19,11 @@
    keyboard never covers the search box or its list of suggestions.
    ===================================================================== */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
-  KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, type TextInput,
+  BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, type TextInput,
 } from 'react-native';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -31,6 +33,7 @@ import {
 import { prepareNames } from '@/lib/nameSearch';
 import { plural } from '@/lib/cards';
 import { binderName, findBinder } from '@/lib/binderStorage';
+import { findList } from '@/lib/listStorage';
 import { RequestError } from '@/lib/http';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { useAnnouncer } from '@/hooks/useAnnouncer';
@@ -142,6 +145,10 @@ export default function CardFinderScreen() {
   const binderParam = addressValue(params.binder);
   const fromBinder = binderParam && findBinder(binderParam) ? binderParam : null;
   const pocket = pocketFromAddress(params);
+  // Or was it opened from a list ("?list=<id>")? (A list that no longer
+  // exists is ignored.)
+  const listParam = addressValue(params.list);
+  const fromList = listParam && findList(listParam) ? listParam : null;
 
   // What's typed in the search box, and a handle on the box
   const [text, setText] = useState('');
@@ -232,21 +239,30 @@ export default function CardFinderScreen() {
 
   /* ----- Going back to the binder this screen was opened from ----- */
 
+  // Where "back" goes when this screen was opened from a list or a
+  // binder (that list or binder), and what screen readers call it; null
+  // when it was opened on its own
+  const back = fromList
+    ? { to: `/binders/list/${encodeURIComponent(fromList)}`, name: findList(fromList)?.name ?? 'the list' }
+    : usingBinders && fromBinder
+      ? { to: `/binders/${encodeURIComponent(fromBinder)}`, name: binderName(fromBinder) }
+      : null;
+  const backTo = back?.to ?? null;
+
   // The back arrow at the top left, beside the title "Card Finder". It
-  // only shows when this screen was opened from a binder, and takes you
-  // back to it (the touch version of the B key on a computer, in
-  // CardPanel). "useLayoutEffect" sets it before the screen is drawn.
+  // only shows when there's somewhere to go back to, and takes you there
+  // (the touch version of the B key on a computer, in CardPanel).
+  // "useLayoutEffect" sets it before the screen is drawn.
   const navigation = useNavigation();
   useLayoutEffect(() => {
-    const showBack = usingBinders && fromBinder;
     navigation.setOptions({
-      headerLeft: showBack
+      headerLeft: back
         ? () => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Back to ${binderName(fromBinder)}`}
+              accessibilityLabel={`Back to ${back.name}`}
               hitSlop={6}
-              onPress={() => router.navigate(`/binders/${encodeURIComponent(fromBinder)}`)}
+              onPress={() => router.navigate(back.to as never)}
               style={({ pressed }) => [styles.backArrow, pressed && styles.pressed]}
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -254,7 +270,21 @@ export default function CardFinderScreen() {
           )
         : undefined,
     });
-  }, [navigation, usingBinders, fromBinder, colors.text]);
+  }, [navigation, back?.to, back?.name, colors.text]);
+
+  // Android's own Back (the swipe in from the screen's edge, or the Back
+  // button) does the same as the arrow while this screen is showing:
+  // back to the list or binder it was opened from. (Without this, it
+  // would jump to the Home tab instead.) "useFocusEffect" listens only
+  // while this screen is in view; returning true says "handled".
+  useFocusEffect(useCallback(() => {
+    if (!backTo) return undefined;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.navigate(backTo as never);
+      return true;
+    });
+    return () => listener.remove();
+  }, [backTo]));
 
   /* ----- Shortcut keys that work even before a card is shown (computers) ----- */
 
@@ -332,6 +362,7 @@ export default function CardFinderScreen() {
               usingBinders={usingBinders}
               fromBinder={fromBinder}
               pocket={pocket}
+              toList={fromList}
               onMessage={(message, isError = false) => setAddMessage(message === null ? null : { text: message, isError })}
             />
           )}
