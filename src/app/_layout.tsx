@@ -21,6 +21,7 @@ import { loadStorage } from '@/lib/storage';
 import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
 import AppHeader from '@/components/AppHeader';
+import SyncChoiceHost from '@/components/SyncChoiceHost';
 
 // Keep the splash screen showing until we say it can go (below)
 SplashScreen.preventAutoHideAsync().catch(() => { /* already hidden */ });
@@ -123,6 +124,9 @@ function ThemedStack() {
         <Stack.Screen name="help" options={{ title: 'Help' }} />
         <Stack.Screen name="decklists" options={{ title: 'Decks' }} />
       </Stack>
+      {/* The "Phone and Google Drive don't match" window: invisible until
+          the sync code asks which way to sync (see lib/driveSync.ts) */}
+      <SyncChoiceHost />
     </ThemeProvider>
   );
 }

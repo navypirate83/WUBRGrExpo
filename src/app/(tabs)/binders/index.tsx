@@ -47,14 +47,15 @@ import PopupWindow from '@/components/PopupWindow';
 import Button from '@/components/Button';
 import {
   DEFAULT_PAGES,
-  binderCardCount, binderPages, cardCountText, cleanCover, cleanPageCount, fitCardsIntoPages, forgetBinder,
-  loadBinderList, manaColor, minPagesFor, saveBinder, saveBinderList, setLocalMode,
+  binderCardCount, binderPages, cardCountText, fitCardsIntoPages, forgetBinder,
+  loadBinderList, minPagesFor, saveBinder, saveBinderList, setLocalMode,
   type Binder,
 } from '@/lib/binderStorage';
 import {
-  DriveError, createBinderFile, listBinderFiles, nameFromFileName, syncBinder,
+  DriveError, createBinderFile, syncBinder,
   trashBinderFile, updateBinderDetails,
 } from '@/lib/googleDrive';
+import { reconcileWithDrive } from '@/lib/driveSync';
 import { hapticTap } from '@/lib/haptics';
 import { RADIUS } from '@/theme/colors';
 
@@ -181,35 +182,15 @@ export default function ShelfScreen() {
 
   /* ----- Loading the binders from Google Drive ----- */
 
-  // Read the list of binder files from Drive, in their shelf order, and
-  // bring each one up to date between this device and Drive.
-  async function loadFromDrive() {
-    // The binder files in their Drive (oldest first), with each one's
-    // cover symbol, cover color, pages and shelf position (labels on
-    // the file; an unknown symbol counts as none, no cover color means
-    // black, and no page count means 10)
-    const files = await listBinderFiles();
-    const list = files.map((file) => {
-      const labels = file.appProperties ?? {};
-      return {
-        id: file.id,
-        name: nameFromFileName(file.name),
-        color: manaColor(labels.color) ? labels.color : null,
-        cover: cleanCover(labels.cover),
-        pages: cleanPageCount(labels.pages),
-        order: labels.order !== undefined ? Number(labels.order) : Infinity,
-      };
-    });
-    // Put them in the order they were arranged. Binders without a saved
-    // position go after the others, oldest first.
-    list.sort((a, b) => a.order - b.order);
-    const ordered: Binder[] = list.map(({ id, name, color, cover, pages }) => ({ id, name, color, cover, pages }));
-
-    // Bring each binder up to date between this device and Drive (all
-    // at once), which also gives each binder's card count.
-    saveBinderList(ordered);
-    await Promise.all(ordered.map((b) => syncBinder(b.id)));
-    setBinders(ordered);
+  // Compare this device with Google Drive (see lib/driveSync.ts): if they
+  // match, any waiting changes are sent to Drive; if they differ (a
+  // binder added on the website, say), a window asks which way to sync.
+  // Nothing on this device is removed unless the person chooses "Drive to
+  // phone". Then show the shelf as it now stands. "fromUser" is true when
+  // pulling the shelf down, which asks again after a "Not now".
+  async function loadFromDrive(fromUser = false) {
+    await reconcileWithDrive({ fromUser });
+    setBinders(loadBinderList());
     setCardsChanged((n) => n + 1);
   }
 
@@ -229,7 +210,7 @@ export default function ShelfScreen() {
   async function refresh() {
     setRefreshing(true);
     try {
-      if (signedIn) await loadFromDrive();
+      if (signedIn) await loadFromDrive(true);
       else { setBinders(loadBinderList()); setCardsChanged((n) => n + 1); }
       setMessage({ text: '' });
     } catch (err) {

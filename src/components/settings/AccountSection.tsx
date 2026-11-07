@@ -3,9 +3,10 @@
    How you're using the app, and the buttons to sign in or out (these
    used to be the link at the bottom right of every page):
    - signed in with Google: your Google name and email, and "Sign out"
-   - using the app locally: "Sign in with Google", which copies this
-     device's binders to your Google Drive
-   - your Google sign-in has run out: "Sign in again" and "Sign out"
+   - using the app locally: "Sign in with Google", which compares this
+     device's binders with your Google Drive (asking which way to sync)
+   - your Google sign-in has run out (or you signed out): "Sign in with
+     Google". Your binders and lists stay on this device either way.
    - not using the binders yet: a button to Home, where you start
    Signing in with Google only works on the website for now: on a phone
    the button explains that (see lib/googleSignInNote.ts).
@@ -16,8 +17,9 @@ import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAccount } from '@/hooks/useAccount';
 import {
-  getDriveUser, initGoogleSignIn, signInWithGoogle, signOutAndForget, uploadLocalBinders,
+  getDriveUser, initGoogleSignIn, signInWithGoogle, signOutKeepingCollection,
 } from '@/lib/googleDrive';
+import { reconcileWithDrive } from '@/lib/driveSync';
 import { syncSettings } from '@/lib/settings';
 import { showMessage } from '@/lib/dialogs';
 import { GOOGLE_SIGN_IN_WORKS, explainPhoneSignIn } from '@/lib/googleSignInNote';
@@ -55,10 +57,10 @@ export default function AccountSection() {
     if ((localMode || expired) && GOOGLE_SIGN_IN_WORKS) initGoogleSignIn().catch(() => { /* the tap explains */ });
   }, [localMode, expired]);
 
-  // "Sign in with Google" (using the app locally): sign in, upload this
-  // device's binders to Google Drive, then show the whole collection.
-  // "Sign in again" (the sign-in ran out): just sign in, then bring the
-  // settings up to date with Drive.
+  // "Sign in with Google": sign in, then compare this device's binders and
+  // lists with Google Drive (a window asks which way to sync if they
+  // differ; nothing is removed from this device unless "Drive to phone"
+  // is chosen), then bring the settings up to date with Drive.
   async function signIn() {
     if (!GOOGLE_SIGN_IN_WORKS) {
       explainPhoneSignIn();
@@ -67,29 +69,26 @@ export default function AccountSection() {
     setBusyText('Signing in…');
     try {
       await signInWithGoogle();
-      if (localMode) {
-        setBusyText('Uploading your binders…');
-        await uploadLocalBinders();
-        setBusyText(null);
-        router.navigate('/binders');
-      } else {
-        setBusyText(null);
-        await syncSettings();
-      }
+      setBusyText('Comparing with Google Drive…');
+      await reconcileWithDrive({ fromUser: true });
+      await syncSettings();
+      setBusyText(null);
+      if (localMode) router.navigate('/binders');
     } catch (err) {
       setBusyText(null);
       showMessage('Couldn\'t sign in', (err as Error).message);
     }
   }
 
-  // "Sign out": save any unsaved changes, sign out, forget the binders on
-  // this device, then go to Home, which says "You're signed out."
+  // "Sign out": send any unsaved changes to Drive if possible, disconnect
+  // from Google, then go to Home, which says "You're signed out." The
+  // binders and lists stay on this device.
   async function signOut() {
     setBusyText('Signing out…');
     try {
-      const signedOut = await signOutAndForget();
+      await signOutKeepingCollection();
       setBusyText(null);
-      if (signedOut) router.navigate({ pathname: '/', params: { message: 'You\'re signed out.' } });
+      router.navigate({ pathname: '/', params: { message: 'You\'re signed out. Your binders and lists are still on this device.' } });
     } catch (err) {
       setBusyText(null);
       showMessage('Couldn\'t sign out', (err as Error).message);
@@ -124,17 +123,17 @@ export default function AccountSection() {
         </View>
       )}
 
-      {/* THE SIGN-IN RAN OUT: "Sign in again" or "Sign out" */}
+      {/* NOT CONNECTED (the sign-in ran out, or signed out): "Sign in with
+          Google". The binders and lists stay on this device. */}
       {expired && (
         <SettingRow
-          name="Google sign-in has run out"
-          description="Your binders are still on this device. Sign in again to carry on saving to Google Drive."
+          name="Not connected to Google"
+          description="Your binders and lists are still on this device. Sign in with Google to sync them with your Google Drive."
         />
       )}
       {expired && (
         <View style={styles.buttons}>
-          <Button label={busyText ?? 'Sign in again'} icon="logo-google" disabled={busy} onPress={signIn} />
-          <Button label="Sign out" kind="secondary" icon="log-out-outline" disabled={busy} onPress={signOut} />
+          <Button label={busyText ?? 'Sign in with Google'} icon="logo-google" disabled={busy} onPress={signIn} />
         </View>
       )}
 

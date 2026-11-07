@@ -21,8 +21,8 @@ import { Image } from 'expo-image';
 import { useAccount } from '@/hooks/useAccount';
 import { useColors } from '@/hooks/useTheme';
 import { initGoogleSignIn, signInWithGoogle } from '@/lib/googleDrive';
-import { binderDirtyStamp, clearAllBinders, loadBinderList, setLocalMode } from '@/lib/binderStorage';
-import { askYesNo } from '@/lib/dialogs';
+import { setLocalMode } from '@/lib/binderStorage';
+import { reconcileWithDrive } from '@/lib/driveSync';
 import { GOOGLE_SIGN_IN_WORKS, explainPhoneSignIn } from '@/lib/googleSignInNote';
 import { MAX_CONTENT_WIDTH, SPACE } from '@/theme/colors';
 import Button from '@/components/Button';
@@ -76,6 +76,10 @@ export default function HomeScreen() {
     setBusy(true);
     try {
       await signInWithGoogle();
+      // Compare this phone with Google Drive (asking which way to sync if
+      // they differ: a first install with a collection already in Drive,
+      // for one), then show the shelf
+      await reconcileWithDrive({ fromUser: true });
       router.push('/binders');
     } catch (err) {
       setMessage((err as Error).message);
@@ -85,20 +89,10 @@ export default function HomeScreen() {
   }
 
   // "Skip login, local use only": use the app without signing in, with
-  // the binders saved on this device only. If this device still has
-  // binders from someone's Google account (their sign-in ran out but they
-  // never signed out), those belong in Drive, not here: forget them first
-  // (asking before losing changes not yet saved to Drive).
-  async function skipLogin() {
-    const leftover = loadBinderList();
-    if (leftover.some((b) => binderDirtyStamp(b.id))) {
-      const goOn = await askYesNo('Use the app locally?',
-        'This device has binder changes that haven\'t been saved to Google Drive yet. ' +
-        'Using the app locally will forget them. Continue?', 'Continue', 'Cancel');
-      if (!goOn) return;
-    }
+  // the binders saved on this device only. Binders already on this device
+  // are kept (nothing but "Reset phone memory" in Settings removes them).
+  function skipLogin() {
     setMessage('');
-    clearAllBinders();
     setLocalMode(true);
     router.push('/binders');
   }

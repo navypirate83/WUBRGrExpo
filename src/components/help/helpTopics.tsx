@@ -77,7 +77,8 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               <Strong>Skip login, local use only</Strong> to start right away without an
               account. Your binders are saved on this device only. You can sign in later,
-              and your binders will be copied to Google Drive then.
+              and the app will compare this device with your Google Drive and ask which
+              way to sync (see <HelpLink to="settings-account">Your account</HelpLink>).
             </Bullet>
             <P>
               Either way, you then see your shelf of binders. The app remembers your choice:
@@ -402,14 +403,14 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <Bullet>
               When you're signed in, it shows your Google account and a <Strong>Sign out</Strong> button.
-              Signing out saves any changes to Google Drive first, then removes your binders from
-              this device, so the next person to use it can't see them. They're still safe in
-              your Google Drive.
+              Signing out sends any waiting changes to Google Drive, then disconnects Google.
+              Your binders and lists stay on this device: only <Strong>Reset phone memory</Strong> removes them.
             </Bullet>
             <Bullet>
-              When using the app locally, there's a <Strong>Sign in with Google</Strong> button
-              instead. Signing in copies the binders on this device to your Google Drive. (On
-              phones, this is coming in the full app build; it works on the website now.)
+              When using the app locally, or after signing out, there's a <Strong>Sign in with Google</Strong> button
+              instead. Signing in compares this device with your Google Drive and asks which way to
+              sync if they differ. (On phones, this is coming in the full app build; it works on the
+              website now.)
             </Bullet>
           </>
         ),
@@ -444,7 +445,8 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet>
               Or tap (or click) the small <Strong>‹</Strong> or <Strong>›</Strong> buttons under the binder. The
-              page number between them shows where you are.
+              page number between them shows where you are. <Strong>Tap the page number</Strong> to
+              type a page and go straight to it.
             </Bullet>
             <OnComputer><Bullet>On a computer, the <Key>←</Key> <Key>→</Key> arrow keys and <Key>Page Up</Key> / <Key>Page Down</Key> turn pages too.</Bullet></OnComputer>
             <Bullet>
@@ -614,7 +616,7 @@ export const helpTopics: HelpTopic[] = [
               in, or on this device when using the app locally), <Strong>red</Strong> while a change
               is still being saved or couldn't be. Tap the check mark to see which. If your Google
               sign-in has run out, tapping it offers <Strong>Connect Drive</Strong> to sign in again
-              and finish saving.
+              and finish saving. Your changes stay safe on this device in the meantime.
             </P>
             <P>
               No internet? You can keep working: the check mark stays red, your changes are kept
@@ -962,20 +964,49 @@ export const helpTopics: HelpTopic[] = [
             <P><Strong>Account</Strong> shows how you're using the app:</P>
             <Bullet>
               <Strong>Signed in with Google</Strong>: your Google name and email address, and
-              a <Strong>Sign out</Strong> button. Signing out saves any changes to Google Drive
-              first, then removes your binders from this device (they're still safe in your
-              Google Drive), and takes you back to Home.
+              a <Strong>Sign out</Strong> button. Signing out sends any waiting changes to
+              Google Drive, disconnects Google, and takes you back to Home. Your binders and
+              lists stay on this device.
             </Bullet>
             <Bullet>
               <Strong>On this device only</Strong>: a <Strong>Sign in with Google</Strong> button,
-              which copies the binders on this device to your Google Drive. (This works on the
+              which compares the binders on this device with your Google Drive. (This works on the
               website now; on phones, it's coming in the full app build.)
             </Bullet>
             <Bullet>
-              <Strong>Sign-in has run out</Strong>: Google sign-ins last about an hour.
-              Tap <Strong>Sign in again</Strong> to carry on saving to Google Drive,
-              or <Strong>Sign out</Strong>.
+              <Strong>Not connected to Google</Strong>: Google sign-ins last about an hour, and
+              you may have signed out. Your binders and lists are still on this device. Tap{' '}
+              <Strong>Sign in with Google</Strong> to sync again.
             </Bullet>
+            <P>
+              <Strong>Which way to sync?</Strong> Your phone keeps your collection for good. Each
+              time the app reads Google Drive (signing in, opening The Shelf or Lists, or pulling a
+              screen down), it compares the two. If they match, waiting changes just go to Drive.
+              If they don't (for example, this is a new install and Drive already has your
+              collection, or you changed a binder on the website), a window asks, once for
+              everything:
+            </P>
+            <Bullet>
+              <Strong>Phone to Drive</Strong>: Google Drive becomes a copy of this phone.
+              Binders and lists that are only in Drive are deleted (moved to the Drive trash,
+              where Google keeps them for 30 days).
+            </Bullet>
+            <Bullet>
+              <Strong>Drive to phone</Strong>: this phone becomes a copy of Google Drive.
+              Binders and lists that are only on this phone are removed from it.
+            </Bullet>
+            <Bullet>
+              <Strong>Not now</Strong>: nothing changes. You're asked again the next time you
+              sign in or pull a screen down.
+            </Bullet>
+            <P>
+              <Strong>Phone memory</Strong>, under Account, has <Strong>Reset phone memory</Strong>:
+              the only way to clear your collection from this phone. It asks "Are you sure?",
+              removes every binder and list from this phone, and signs you out of Google. Your
+              files in Google Drive are not touched, and your settings (theme, page layout) are
+              kept. Afterwards the app is like a new install: sign in with Google and, if
+              Drive has a collection, you choose which way to sync.
+            </P>
             <P>
               <Strong>About</Strong>, under it, shows the app's version and where its card
               information comes from.

@@ -23,6 +23,11 @@
      computer. In the phone app it's kept in the app's own storage, so
      the app stays signed in like other apps; when the pass runs out, the
      app quietly gets a new one from the phone's Google account.
+   - THE PHONE KEEPS YOUR COLLECTION FOR GOOD. The device's copy never
+     goes away because the Google pass ran out, you signed out, or Drive
+     looked empty. Only "Reset phone memory" in Settings clears it. When
+     you connect, driveSync.ts compares the phone with Drive and asks
+     which way to sync if they differ.
    - LOCAL USE ONLY: the functions below that would change Drive (make,
      rename, delete or save a binder) just skip Drive, so the pages don't
      need to know the difference.
@@ -36,17 +41,16 @@ import { PHONE_SIGN_IN_AVAILABLE, phoneSignIn, phoneSignOut } from './phoneGoogl
 import { accountChanged } from './accountEvents';
 import {
   DEFAULT_COVER, DEFAULT_PAGES,
-  binderDetails, binderDirtyStamp, binderPages, cleanCards, cleanCover, cleanPageCount, clearAllBinders,
-  forgetBinder, isLocalMode, loadBinder, loadBinderList, manaColor, markBinderSaved, newLocalBinderId,
-  saveBinder, setLocalMode, type Binder, type BinderCards,
+  binderDetails, binderDirtyStamp, cleanCards, cleanCover, cleanPageCount,
+  hasBinderCopy, isLocalMode, loadBinder, loadBinderList, manaColor, markBinderSaved, newLocalBinderId,
+  saveBinder, type Binder, type BinderCards,
 } from './binderStorage';
 import { binderToCsv, cardsFromCsv } from './binderCsv';
 import {
-  addListToDevice, findList, forgetAllLists, forgetList, listDirtyStamp, loadLists, markListSaved,
-  newLocalListId, saveLists, type CardList, type ListCard,
+  findList, listDirtyStamp, loadLists, markListSaved, newLocalListId, type CardList, type ListCard,
 } from './listStorage';
 import { listCardsFromCsv, listToCsv } from './listCsv';
-import { askYesNo } from './dialogs';
+import { noteDriveTime } from './driveSnapshot';
 
 // The site's Google Client ID: it tells Google which site is asking to
 // sign in (it comes from Google Cloud Console, and isn't a secret).
@@ -165,8 +169,8 @@ function forgetAccessToken(): void {
 
 // Is someone using the binders? True when signed in to Google in this
 // tab, OR when using the site locally, OR when their binders are still
-// kept in this browser (the Google pass may have run out, but they
-// haven't signed out: Sign out is what clears the binders).
+// kept on this device (the Google pass may have run out, or they signed
+// out: the binders stay until "Reset phone memory").
 export function isUsingBinders(): boolean {
   return isSignedIn() || isLocalMode() || loadBinderList().length > 0;
 }
@@ -275,31 +279,30 @@ export function signInWithGoogle(): Promise<void> {
   });
 }
 
-// The full "Sign out" (the link at the bottom right of every page):
-//  1. save any binder changes that haven't reached Google Drive yet (if
-//     that fails, ask before throwing those changes away)
-//  2. tell Google to cancel the pass, and forget it here
-//  3. forget the binders and lists kept in this browser, so the next
-//     person on this computer doesn't see them
-// Returns true if signed out, false if the person chose to stay signed in.
-export async function signOutAndForget(): Promise<boolean> {
+// Disconnect from Google: tell Google to cancel the pass, and forget it
+// here (and the Drive folder ids remembered with it). Your binders and
+// lists on this device are NOT touched.
+export async function disconnectGoogle(): Promise<void> {
+  try {
+    const token = getAccessToken();
+    if (Platform.OS === 'web') { if (token) window.google?.accounts?.oauth2?.revoke(token, () => {}); }
+    else await phoneSignOut();
+  } finally {
+    forgetAccessToken();
+  }
+}
+
+// "Sign out": first try to send any changes that haven't reached Google
+// Drive yet, then disconnect. Your binders and lists STAY on this device,
+// so if the sending fails nothing is lost: the changes are still here and
+// go to Drive the next time you sign in.
+export async function signOutKeepingCollection(): Promise<void> {
   const unsaved = loadBinderList().filter((b) => binderDirtyStamp(b.id));
   const unsavedLists = loadLists().filter((l) => listDirtyStamp(l.id));
   try {
     await Promise.all([...unsaved.map((b) => syncBinder(b.id)), ...unsavedLists.map((l) => syncList(l.id))]);
-  } catch {
-    // (askYesNo shows the phone's or browser's own yes/no box: see dialogs.ts)
-    const signOutAnyway = await askYesNo('Sign out anyway?',
-      'Some changes couldn\'t be saved to Google Drive and will be lost if you sign out.', 'Sign out', 'Cancel');
-    if (!signOutAnyway) return false;
-  }
-  const token = getAccessToken();
-  if (Platform.OS === 'web') { if (token) window.google?.accounts?.oauth2?.revoke(token, () => {}); }
-  else await phoneSignOut();
-  forgetAccessToken();
-  clearAllBinders();
-  forgetAllLists();
-  return true;
+  } catch { /* couldn't send them now: they stay on this device for later */ }
+  await disconnectGoogle();
 }
 
 /* ---------------------------------------------------------------------
@@ -375,8 +378,9 @@ async function getBinderFolderId(): Promise<string> {
 // the small labels this site stores on it, like { color: "U", pages:
 // "10", order: "2" } (see createBinderFile and updateBinderDetails).
 // The labels let the shelf show every binder's cover and order without
-// opening every file.
-export type BinderFile = { id: string; name: string; appProperties?: Record<string, string> };
+// opening every file. "modifiedTime" is when Drive last changed the file
+// (see driveSnapshot.ts: it's how a change made elsewhere is noticed).
+export type BinderFile = { id: string; name: string; appProperties?: Record<string, string>; modifiedTime?: string };
 
 // The file type Drive is told a binder file is (a .csv file)
 const CSV_TYPE = 'text/csv';
@@ -412,7 +416,7 @@ async function listFiles(query: string): Promise<BinderFile[]> {
   do {
     const response = await driveRequest(
       `${DRIVE_API}/files?q=${encodeURIComponent(query)}` +
-      '&fields=nextPageToken,files(id,name,appProperties)&orderBy=createdTime&pageSize=1000' +
+      '&fields=nextPageToken,files(id,name,appProperties,modifiedTime)&orderBy=createdTime&pageSize=1000' +
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''));
     const batch = await response.json();
     files.push(...batch.files);
@@ -482,7 +486,7 @@ export async function listBinderFiles(): Promise<BinderFile[]> {
 
 // Read one binder file's cards. A file that can't be read (damaged)
 // gets a clear message instead of a confusing one.
-async function readBinderFile(fileId: string): Promise<BinderCards> {
+export async function readBinderFile(fileId: string): Promise<BinderCards> {
   const response = await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`);
   try {
     return cardsFromCsv(await response.text());
@@ -494,11 +498,32 @@ async function readBinderFile(fileId: string): Promise<BinderCards> {
 // Replace one binder file's contents with the binder as it is in this
 // browser: its cards, name, cover and pages, as a .csv file.
 async function writeBinderFile(fileId: string): Promise<void> {
-  await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}?uploadType=media`, {
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}?uploadType=media&fields=modifiedTime`, {
     method: 'PATCH',
     headers: { 'Content-Type': `${CSV_TYPE}; charset=UTF-8` },
     body: binderToCsv(binderDetails(fileId), loadBinder(fileId)),
   });
+  noteDriveTime(fileId, (await response.json()).modifiedTime);   // our own save isn't "a change made elsewhere"
+}
+
+// Make a binder's file in Drive exactly match this device's copy: its
+// cards, name, cover symbol, cover color, pages and shelf position
+// ("order": 0 is first). Used when "Phone to Drive" is chosen (see driveSync.ts).
+export async function overwriteBinderFile(fileId: string, order: number): Promise<void> {
+  const binder = binderDetails(fileId);
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=modifiedTime`, {
+    method: 'PATCH',
+    ...multipart(
+      {
+        name: `${binder.name}.csv`,
+        // (null removes a label: no cover symbol means no "color" label)
+        appProperties: { color: binder.color, cover: binder.cover, pages: String(binder.pages), order: String(order) },
+      },
+      CSV_TYPE,
+      binderToCsv(binder, loadBinder(fileId)),
+    ),
+  });
+  noteDriveTime(fileId, (await response.json()).modifiedTime);
 }
 
 // Make a new binder file in the folder, holding these cards (often none).
@@ -524,11 +549,13 @@ export async function createBinderFile(
   if (pages !== DEFAULT_PAGES) labels.pages = String(pages);   // (and so is DEFAULT_PAGES)
   if (order !== null) labels.order = String(order);
   if (Object.keys(labels).length) details.appProperties = labels;
-  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id,name`, {
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id,name,modifiedTime`, {
     method: 'POST',
     ...multipart(details, CSV_TYPE, binderToCsv({ name, color, cover, pages }, cards)),
   });
-  return response.json();
+  const created = await response.json();
+  noteDriveTime(created.id, created.modifiedTime);
+  return created;
 }
 
 // Change a binder file's details. Only the details passed in change:
@@ -557,21 +584,23 @@ export async function updateBinderDetails(
 
   // Only the shelf position changed: just the labels
   if (name === undefined && color === undefined && cover === undefined && pages === undefined) {
-    await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
+    const labelsOnly = await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=modifiedTime`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(details),
     });
+    noteDriveTime(fileId, (await labelsOnly.json()).modifiedTime);
     return;
   }
   // Otherwise the labels and the file's contents, together
   await syncBinder(fileId);
   const binder = { ...binderDetails(fileId), ...(name !== undefined && { name }),
     ...(color !== undefined && { color }), ...(cover !== undefined && { cover }), ...(pages !== undefined && { pages }) };
-  await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}?uploadType=multipart`, {
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=modifiedTime`, {
     method: 'PATCH',
     ...multipart(details, CSV_TYPE, binderToCsv(binder, loadBinder(fileId))),
   });
+  noteDriveTime(fileId, (await response.json()).modifiedTime);
 }
 
 // "Delete" a binder: move its file to the Google Drive trash (it can be
@@ -665,10 +694,13 @@ export function nameFromFileName(fileName: string): string {
   return fileName.replace(/\.(csv|json)$/i, '');
 }
 
-// Bring one binder up to date between this browser and Google Drive:
-//  - if this browser has changes Drive doesn't have yet, SEND them
-//  - otherwise, FETCH the binder from Drive (it may have been changed on
-//    another computer) and keep it as this browser's working copy
+// Send one binder's waiting changes to Google Drive:
+//  - if this device has changes Drive doesn't have yet, SEND them
+//  - otherwise there's nothing to send, and this device's copy is kept
+//    as it is. Changes made in Drive (say, on the website) are NOT pulled
+//    in quietly here: driveSync.ts notices them and asks which way to
+//    sync first, so nothing is overwritten without your say-so. (Only a
+//    binder this device has no copy of at all is fetched.)
 // Returns the binder's cards as they now stand.
 // (Local use only: this device's copy is the only one, so just return it.)
 export async function syncBinder(id: string): Promise<BinderCards> {
@@ -679,37 +711,10 @@ export async function syncBinder(id: string): Promise<BinderCards> {
     markBinderSaved(id, stamp);
     return loadBinder(id);
   }
+  if (hasBinderCopy(id)) return loadBinder(id);
   const cards = await readBinderFile(id);
   saveBinder(cards, id, { dirty: false });
   return cards;
-}
-
-// Signing in after using the site locally: upload every binder made on
-// this device to the person's Google Drive, after the binders already
-// there (so they come at the end of the shelf, in the same order), then
-// switch "local use only" off. Each binder is forgotten here as soon as
-// it's safely uploaded, so if something goes wrong part way, trying
-// again only uploads the rest (and the site stays in local use).
-export async function uploadLocalBinders(): Promise<void> {
-  const localBinders = loadBinderList();
-  setLocalMode(false);   // so createBinderFile really saves to Drive
-  try {
-    const alreadyInDrive = (await listBinderFiles()).length;
-    for (const [index, binder] of localBinders.entries()) {
-      await createBinderFile(binder.name, loadBinder(binder.id), binder.color,
-        alreadyInDrive + index, cleanCover(binder.cover), binderPages(binder.id));
-      forgetBinder(binder.id);
-    }
-    // Then the lists, the same way (each forgotten here once it's in Drive)
-    for (const list of loadLists()) {
-      const file = await createListFile(list.name, list.cards);
-      forgetList(list.id);
-      addListToDevice(file.id, list.name, list.cards);
-    }
-  } catch (err) {
-    setLocalMode(true);
-    throw new Error(`Couldn't upload all your binders and lists to Google Drive. ${(err as Error).message}`);
-  }
 }
 
 /* ---------------------------------------------------------------------
@@ -727,7 +732,7 @@ const LIST_FOLDER_KEY = 'driveListFolderId';
 
 // Find the "Lists" folder inside "MTG Card Binder", or make it if it's not
 // there yet. Its id is remembered for this tab so we only look once.
-async function getListFolderId(): Promise<string> {
+export async function getListFolderId(): Promise<string> {
   try {
     const remembered = session.get(LIST_FOLDER_KEY);
     if (remembered) return remembered;
@@ -756,24 +761,33 @@ async function getListFolderId(): Promise<string> {
 export async function createListFile(name: string, cards: ListCard[] = []): Promise<{ id: string }> {
   if (isLocalMode()) return { id: newLocalListId() };
   const folderId = await getListFolderId();
-  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id,modifiedTime`, {
     method: 'POST',
     ...multipart({ name: `${name}.csv`, mimeType: CSV_TYPE, parents: [folderId] }, CSV_TYPE,
       listToCsv({ id: '', name, cards })),
   });
-  return response.json();
+  const created = await response.json();
+  noteDriveTime(created.id, created.modifiedTime);
+  return created;
 }
 
 // Replace a list file's name and contents with this device's copy
-async function writeListFile(list: CardList): Promise<void> {
-  await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(list.id)}?uploadType=multipart`, {
+export async function writeListFile(list: CardList): Promise<void> {
+  const response = await driveRequest(`${DRIVE_UPLOAD_API}/files/${encodeURIComponent(list.id)}?uploadType=multipart&fields=modifiedTime`, {
     method: 'PATCH',
     ...multipart({ name: `${list.name}.csv` }, CSV_TYPE, listToCsv(list)),
   });
+  noteDriveTime(list.id, (await response.json()).modifiedTime);
+}
+
+// Every list file in Drive, oldest first
+export async function listListFiles(): Promise<BinderFile[]> {
+  const folderId = await getListFolderId();
+  return listFiles(`'${folderId}' in parents and mimeType='${CSV_TYPE}' and trashed=false`);
 }
 
 // Read one list file's cards
-async function readListFile(fileId: string): Promise<ListCard[]> {
+export async function readListFile(fileId: string): Promise<ListCard[]> {
   const response = await driveRequest(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`);
   return listCardsFromCsv(await response.text());
 }
@@ -789,10 +803,9 @@ export async function trashListFile(fileId: string): Promise<void> {
   });
 }
 
-// Bring one list up to date between this device and Google Drive:
-//  - if this device has changes Drive doesn't have yet, SEND them
-//  - otherwise, FETCH the list from Drive (it may have been changed on
-//    another device) and keep it as this device's copy
+// Send one list's waiting changes to Google Drive. If this device has no
+// changes waiting there's nothing to do: changes made in Drive are not
+// pulled in quietly (driveSync.ts asks which way to sync first).
 // (Local use only: this device's copy is the only one, so nothing to do.)
 export async function syncList(id: string): Promise<void> {
   if (isLocalMode()) return;
@@ -802,24 +815,5 @@ export async function syncList(id: string): Promise<void> {
   if (stamp) {
     await writeListFile(list);
     markListSaved(id, stamp);
-    return;
   }
-  const cards = await readListFile(id);
-  saveLists(loadLists().map((l) => (l.id === id ? { ...l, cards } : l)));
-}
-
-// Every list in Drive, oldest first, kept as this device's copy. A list
-// with changes Drive doesn't have yet keeps this device's version (it's
-// sent the next time it's saved). (Local use only: this device's lists.)
-export async function loadListsFromDrive(): Promise<CardList[]> {
-  if (isLocalMode()) return loadLists();
-  const folderId = await getListFolderId();
-  const files = await listFiles(`'${folderId}' in parents and mimeType='${CSV_TYPE}' and trashed=false`);
-  const lists = await Promise.all(files.map(async (file): Promise<CardList> => {
-    const here = findList(file.id);
-    if (here && listDirtyStamp(file.id)) return here;
-    return { id: file.id, name: nameFromFileName(file.name), cards: await readListFile(file.id) };
-  }));
-  saveLists(lists);
-  return lists;
 }

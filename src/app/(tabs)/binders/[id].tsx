@@ -39,6 +39,7 @@ import { usePointerKind } from '@/hooks/usePointerKind';
 import ShortcutsDialog, { type Shortcut } from '@/components/ShortcutsDialog';
 import PopupWindow from '@/components/PopupWindow';
 import Button from '@/components/Button';
+import TextField from '@/components/TextField';
 import HelpButton from '@/components/HelpButton';
 import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
@@ -465,6 +466,42 @@ function BinderView({ binderId }: { binderId: string }) {
   }
   const turnRef = useRef(turnPage);
   turnRef.current = turnPage;
+
+  /* ----- Going straight to a page you type in ----- */
+
+  // Tapping the page number opens a small window with a box to type a page
+  // number in. "goText" is what's typed so far, and "goError" the red
+  // message under the box when it isn't a page this binder has.
+  const [goOpen, setGoOpen] = useState(false);
+  const [goText, setGoText] = useState('');
+  const [goError, setGoError] = useState('');
+
+  // Open the window, with the box empty
+  function openGoToPage() {
+    setGoText('');
+    setGoError('');
+    setGoOpen(true);
+  }
+
+  // Jump to the typed page. It must be a whole number from 1 to the last
+  // page. The binder jumps straight there, with no page-turn swing (it
+  // could be many pages away), and starts at the top of the page. (On a
+  // wide screen two pages show, always starting on an odd one, so typing
+  // 4 shows pages 3 and 4.)
+  function goToPage() {
+    const typed = goText.trim();
+    const target = Number(typed);
+    if (!/^\d+$/.test(typed) || target < 1 || target > totalPages) {
+      setGoError(`Type a page number from 1 to ${totalPages}.`);
+      return;
+    }
+    if (turning.current) return;   // a page is mid-turn: wait for it to finish
+    setGoOpen(false);
+    setCurrentPage(target);
+    currentRef.current = perView === 2 && target % 2 === 0 ? target - 1 : target;
+    scrollToTop();
+    announce(`Page ${target} of ${totalPages}`);
+  }
 
   // The swing, as a style: a 3D turn ("rotateY") seen from a little way
   // off ("perspective"), dimming as it goes edge-on, plus the small
@@ -1107,10 +1144,14 @@ function BinderView({ binderId }: { binderId: string }) {
                                                   pressed && styles.pressed, currentPage <= 1 && styles.navOff]}>
                 <Ionicons name="chevron-back" size={14} color={colors.text} />
               </Pressable>
-              {/* "Page 3 of 10" on a phone, "Pages 3–4 of 10" on wider screens */}
-              <Text style={[styles.pageStatus, { color: colors.text }]} accessibilityLiveRegion="polite">
-                {currentPage === lastShown ? `Page ${currentPage} of ${totalPages}` : `Pages ${currentPage}–${lastShown} of ${totalPages}`}
-              </Text>
+              {/* "Page 3 of 10" on a phone, "Pages 3–4 of 10" on wider screens.
+                  Tapping it opens "Go to page", to type a page number. */}
+              <Pressable accessibilityRole="button" accessibilityLabel="Go to page" hitSlop={8}
+                         onPress={openGoToPage} style={styles.pageStatusButton}>
+                <Text style={[styles.pageStatus, { color: colors.text }]} accessibilityLiveRegion="polite">
+                  {currentPage === lastShown ? `Page ${currentPage} of ${totalPages}` : `Pages ${currentPage}–${lastShown} of ${totalPages}`}
+                </Text>
+              </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Next page" hitSlop={10}
                          disabled={lastShown >= totalPages} onPress={() => turnPage(1)}
                          style={({ pressed }) => [styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border },
@@ -1196,6 +1237,32 @@ function BinderView({ binderId }: { binderId: string }) {
         </PopupWindow>
       )}
 
+      {/* "Go to page": type a page number (the window moves up out of the
+          keyboard's way: see PopupWindow). Enter on the keyboard goes too. */}
+      {goOpen && (
+        <PopupWindow title="Go to page" onClose={() => setGoOpen(false)}
+                     buttons={[
+                       { label: 'Cancel', onPress: () => setGoOpen(false), kind: 'secondary' },
+                       { label: 'Go', onPress: goToPage },
+                     ]}>
+          <TextField
+            label={`Page number (1 to ${totalPages})`}
+            value={goText}
+            onChangeText={(text) => { setGoText(text); setGoError(''); }}
+            onSubmitEditing={goToPage}
+            keyboardType="number-pad"
+            returnKeyType="go"
+            autoFocus
+            maxLength={6}
+            style={goError ? { borderColor: colors.error } : undefined}
+          />
+          {/* A red message when it isn't a page this binder has */}
+          {goError !== '' && (
+            <Text style={[styles.dialogText, { color: colors.error }]} accessibilityLiveRegion="polite">{goError}</Text>
+          )}
+        </PopupWindow>
+      )}
+
       <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} shortcuts={binderShortcuts} />
     </View>
   );
@@ -1225,7 +1292,9 @@ const styles = StyleSheet.create({
   page: { borderRadius: 4, padding: PAD, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start' },
   bar: { justifyContent: 'center' },
   pageNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  pageStatus: { fontSize: 12, fontWeight: '600', textAlign: 'center', flexShrink: 1 },
+  pageStatus: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  // The tappable area around the page number (it can shrink between the arrows)
+  pageStatusButton: { flexShrink: 1 },
   // Previous / Next: small rounded buttons with an arrow (faded when
   // there's no page that way)
   navButton: { width: 40, height: 18, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

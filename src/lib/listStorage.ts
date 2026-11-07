@@ -129,9 +129,16 @@ export function forgetList(id: string) {
   storageRemove(DIRTY_KEY_PREFIX + id);
 }
 
-// Forget every list on this device (signing out)
-export function forgetAllLists() {
+// Clear every list's "needs saving" marker (used when this device's lists
+// have just been made the same as Drive's, in either direction)
+export function clearAllListDirty() {
   for (const key of storageKeys(DIRTY_KEY_PREFIX)) storageRemove(key);
+}
+
+// Forget every list on this device. Only "Reset phone memory" in Settings
+// uses this: signing out keeps your lists.
+export function forgetAllLists() {
+  clearAllListDirty();
   storageRemove(LISTS_KEY);
 }
 

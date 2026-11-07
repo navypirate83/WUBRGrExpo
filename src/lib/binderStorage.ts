@@ -7,13 +7,17 @@
    which binders have changes that haven't reached Drive yet.
    Everything is saved with AsyncStorage (see storage.ts): the cards
    (see cardStore.ts), the list of binders, and the markers.
+   THIS DEVICE KEEPS YOUR COLLECTION FOR GOOD: an expired Google sign-in,
+   signing out, or an empty Google Drive never removes it. Only "Reset
+   phone memory" in Settings does. Comparing with Drive, and asking which
+   way to sync when they differ, is in driveSync.ts.
    LOCAL USE ONLY: someone can skip signing in ("Skip login, local use
    only" on the welcome page). Then this device's copy is the ONLY copy,
    until they sign in (which uploads them: see uploadLocalBinders).
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import { storageGet, storageRemove, storageSet } from './storage';
+import { storageGet, storageKeys, storageRemove, storageSet } from './storage';
 import { accountChanged } from './accountEvents';
 import { clearCards, countCards, deleteCards, hasCards, readCards, writeCards } from './cardStore';
 import { pocketsPerPage } from './pageLayout';
@@ -299,6 +303,12 @@ export function markBinderSaved(id: string, stamp: string): void {
   if (binderDirtyStamp(id) === stamp) storageRemove(DIRTY_KEY_PREFIX + id);
 }
 
+// Clear a binder's "needs saving" marker no matter what (used when this
+// device's copy has just been made the same as Drive's, in either direction)
+export function clearBinderDirty(id: string): void {
+  storageRemove(DIRTY_KEY_PREFIX + id);
+}
+
 /* ---------------------------------------------------------------------
    THE LIST OF BINDERS
    --------------------------------------------------------------------- */
@@ -374,12 +384,13 @@ export function forgetBinder(id: string): void {
   saveBinderList(loadBinderList().filter((b) => b.id !== id));
 }
 
-// Forget every binder saved on this device (used when signing out, so
-// the next person on this computer doesn't see them).
+// Forget every binder saved on this device. Only "Reset phone memory" in
+// Settings uses this: signing out keeps your binders.
 export function clearAllBinders(): void {
   const ids = loadBinderList().map((binder) => binder.id);
   clearCards(ids);
-  for (const id of ids) storageRemove(DIRTY_KEY_PREFIX + id);
+  // Every "needs saving" marker, even one for a binder no longer listed
+  for (const key of storageKeys(DIRTY_KEY_PREFIX)) storageRemove(key);
   storageRemove(BINDER_LIST_KEY);
   // Earlier versions of the site also remembered the binder opened last.
   storageRemove('lastBinderId');

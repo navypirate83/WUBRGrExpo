@@ -10,7 +10,7 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import { storageGet, storageRemove, storageSet } from './storage';
+import { storageGet, storageKeys, storageRemove, storageSet } from './storage';
 import type { BinderCards } from './binderStorage';
 
 // The saved names: "binderCards:" plus the binder's id
@@ -67,9 +67,11 @@ export function deleteCards(id: string): void {
   storageRemove(CARDS_KEY_PREFIX + id);
 }
 
-// Forget every binder's cards (signing out, so the next person on this
-// device doesn't see them).
+// Forget every binder's cards ("Reset phone memory"). It removes every
+// saved set of cards, not only those of the binders in the list, so cards
+// left behind by an older version don't linger either.
 export function clearCards(ids: string[]): void {
   for (const id of ids) deleteCards(id);
+  for (const key of storageKeys(CARDS_KEY_PREFIX)) storageRemove(key);
   cardsInMemory.clear();
 }

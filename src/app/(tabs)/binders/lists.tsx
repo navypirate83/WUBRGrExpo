@@ -33,7 +33,8 @@ import Button from '@/components/Button';
 import {
   addListToDevice, forgetList, loadLists, nextListName, renameList, type CardList,
 } from '@/lib/listStorage';
-import { DriveError, createListFile, loadListsFromDrive, syncList, trashListFile } from '@/lib/googleDrive';
+import { DriveError, createListFile, syncList, trashListFile } from '@/lib/googleDrive';
+import { reconcileWithDrive } from '@/lib/driveSync';
 import { cardCountText } from '@/lib/binderStorage';
 import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
@@ -74,13 +75,17 @@ export default function ListsScreen() {
       : `${what} ${(err as Error).message}`);
   }
 
-  // Load the lists again: from Drive when signed in (they may have
-  // changed on another device), or this device's copy
-  const reload = useCallback(async () => {
+  // Load the lists again: this device's copy first, then compare with
+  // Google Drive (see lib/driveSync.ts). If they differ, a window asks
+  // which way to sync; no list on this device is removed unless the
+  // person chooses "Drive to phone". "fromUser" is true when pulling the
+  // page down, which asks again after a "Not now".
+  const reload = useCallback(async (fromUser = false) => {
     setLists(loadLists());
     if (localMode) return;
     try {
-      setLists(await loadListsFromDrive());
+      await reconcileWithDrive({ fromUser });
+      setLists(loadLists());
       setMessage('');
     } catch (err) {
       problem(err, 'Couldn\'t load your lists from Google Drive.');
@@ -93,7 +98,7 @@ export default function ListsScreen() {
   // Pulling the page down: load again, with the spinning wheel showing
   async function refresh() {
     setRefreshing(true);
-    await reload();
+    await reload(true);
     setRefreshing(false);
   }
 
