@@ -33,14 +33,38 @@ export function loadConfig() {
   };
 }
 
+// Describe a MongoDB address WITHOUT revealing any secret part: does it
+// start correctly, is there a user and password, a database name, stray
+// quotes or spaces? Used only to help fix a bad MONGODB_URI setting.
+function describe(uri) {
+  if (!uri) return 'MONGODB_URI is empty or missing';
+  const afterScheme = uri.replace(/^mongodb(\+srv)?:\/\//, '');
+  const atCount = (uri.match(/@/g) ?? []).length;
+  const dbName = afterScheme.split('@').pop().split('?')[0].split('/')[1] ?? '';
+  return JSON.stringify({
+    length: uri.length,
+    startsCorrectly: /^mongodb(\+srv)?:\/\//.test(uri),
+    hasQuotesOrSpaces: /["'\s]/.test(uri),
+    startsWithName: /^MONGODB_URI\s*=/i.test(uri),
+    atSigns: atCount,
+    hasUserAndPassword: /^[^:@/]+:[^@]+@/.test(afterScheme),
+    hasDatabaseName: dbName !== '',
+  });
+}
+
 // Connect to MongoDB and say clearly whether it worked
 export async function connectDB() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB connection SUCCESS');
   } catch (err) {
-    // Only the short reason is printed, never the address with its password
-    console.error('MongoDB connection FAILED:', err.name);
+    // Print the reason, but never the address or its password. The message
+    // has the address blanked out, and describe() shows only the "shape"
+    // of the address (not its secret parts) so a typo can be spotted.
+    const uri = process.env.MONGODB_URI ?? '';
+    const safeMessage = uri ? String(err.message).split(uri).join('[address hidden]') : String(err.message);
+    console.error('MongoDB connection FAILED:', err.name, '-', safeMessage);
+    console.error('Address shape:', describe(uri));
     process.exit(1);
   }
 }

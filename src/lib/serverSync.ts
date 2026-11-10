@@ -18,7 +18,10 @@
    If the same binder changed in both places, THIS device wins (the last
    device to sync keeps its changes). Nothing is ever deleted by guessing:
    a binder that is on the server but unknown here is brought down, and a
-   name that is already taken gets a number added.
+   name that is already taken gets a number added. The exception: a binder
+   or list on the server with the same name AND exactly the same cards is
+   the same one (logging out and in forgets the links), so it is linked
+   up instead of copied.
    Having no internet isn't a problem: it just tries again later.
    Plain TypeScript with no React in it.
    ===================================================================== */
@@ -131,6 +134,14 @@ async function syncBinders(memory: Memory): Promise<void> {
         delete memory.binders[binder.id];
         continue;
       }
+      // Never linked, but the server already has this very binder (same
+      // name, same cards)? That happens after logging out and in again,
+      // which forgets the links. Link them up instead of making a copy.
+      const twin = link ? undefined : await findBinderTwin(binder, cards, onServer, memory);
+      if (twin) {
+        await pushBinder(binder, cards, twin._id, memory);
+        continue;
+      }
       await createBinderOnServer(binder, cards, memory);
       continue;
     }
@@ -163,6 +174,40 @@ async function syncBinders(memory: Memory): Promise<void> {
     });
     delete memory.binders[localId];
   }
+}
+
+// The same text for the same card, whatever order its fields were written
+// in (so two copies of one card always compare as equal)
+function stableText(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : v);
+}
+
+// Do two binders hold exactly the same cards in the same pockets?
+// (Ours is first turned into the shape the server gives back.)
+function sameCards(mine: BinderCards, theirs: BinderCards): boolean {
+  const keys = Object.keys(mine);
+  if (keys.length !== Object.keys(theirs).length) return false;
+  return keys.every((key) => {
+    const other = theirs[key];
+    if (!other) return false;
+    const mineAsServerSendsIt = cardFromServer(cardToServer(key, mine[key]) as unknown as ServerCard);
+    return stableText(mineAsServerSendsIt) === stableText(other);
+  });
+}
+
+// A binder on the server that is the same one as this device's binder: it
+// has the same name, holds the same cards, and isn't linked to anything
+// here yet. Returns nothing if there isn't one.
+async function findBinderTwin(binder: Binder, cards: BinderCards, onServer: ServerItem[], memory: Memory): Promise<ServerItem | undefined> {
+  const linked = new Set(Object.values(memory.binders).map((link) => link.serverId));
+  for (const remote of onServer) {
+    if (linked.has(remote._id) || remote.name.toLowerCase() !== binder.name.toLowerCase()) continue;
+    if (sameCards(cards, await downloadCards(`/binders/${remote._id}/cards`))) return remote;
+  }
+  return undefined;
 }
 
 // Make a binder on the server, then send its cards. If the name is taken
@@ -262,8 +307,11 @@ async function syncLists(memory: Memory): Promise<void> {
         delete memory.lists[list.id];
         continue;
       }
-      const created = await createListOnServer(list);
-      await pushList(list, created._id, memory);
+      // Never linked, but the server already has this very list (same
+      // name, same cards): link them up instead of making a copy
+      const twin = link ? undefined : await findListTwin(list, onServer, memory);
+      const target = twin ?? await createListOnServer(list);
+      await pushList(list, target._id, memory);
       continue;
     }
 
@@ -306,6 +354,19 @@ function uniqueListName(name: string): string {
   let candidate = name;
   for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${name} ${n}`;
   return candidate;
+}
+
+// A list on the server that is the same one as this device's list: same
+// name, same cards (in any order), not linked to anything here yet
+async function findListTwin(list: CardList, onServer: ServerItem[], memory: Memory): Promise<ServerItem | undefined> {
+  const linked = new Set(Object.values(memory.lists).map((link) => link.serverId));
+  const mine = list.cards.map((card) => stableText(listCardFromServer(card as unknown as ServerCard))).sort().join('|');
+  for (const remote of onServer) {
+    if (linked.has(remote._id) || remote.name.toLowerCase() !== list.name.toLowerCase()) continue;
+    const theirs = (await apiRequest<ServerCard[]>(`/lists/${remote._id}/cards`)).map((card) => stableText(listCardFromServer(card))).sort().join('|');
+    if (mine === theirs) return remote;
+  }
+  return undefined;
 }
 
 // Make a list on the server (a number is added to the name if it's taken)
