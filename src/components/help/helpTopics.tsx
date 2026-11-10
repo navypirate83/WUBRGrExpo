@@ -20,6 +20,7 @@
 import type { ReactNode } from 'react';
 import { Bullet, Em, HelpLink, Key, OnComputer, P, Step, Strong } from './HelpText';
 
+import { SITE_NAME } from '@/lib/site';
 // One section of instructions: its id, its heading, and its text.
 // "computerOnly" sections (the keyboard ones) are left out of Help in
 // the phone app, where there are no shortcut keys.
@@ -39,7 +40,7 @@ export type HelpTopic = {
 };
 
 // The website's address (the app also runs in any web browser)
-const WEBSITE = 'navypirate83.github.io/WUBRGrExpo';
+const WEBSITE = SITE_NAME;
 
 export const helpTopics: HelpTopic[] = [
   /* ===================== THE SHELF ===================== */

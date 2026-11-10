@@ -23,7 +23,7 @@
    ===================================================================== */
 
 // Who we are, so Scryfall can contact us if we ever misbehave
-const USER_AGENT = 'WUBRGr/1.0 (+https://github.com/navypirate83/WUBRGrExpo)';
+const USER_AGENT = 'WUBRGr/1.0 (+https://github.com/navypirate83/wubrgr)';
 
 // An error from Scryfall, or from not being able to reach it.
 //  - status: Scryfall's own number (404 not found, 429 slow down...), or

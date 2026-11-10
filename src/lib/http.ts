@@ -21,7 +21,7 @@ const REQUEST_TIMEOUT_MS = 20000;
 // the phone app sends this with every request, and with every card
 // picture it downloads. (A web browser always sends its own name and
 // won't let a website change it, so the website leaves this out.)
-const APP_USER_AGENT = 'WUBRGr/0.2 (+https://github.com/navypirate83/WUBRGrExpo)';
+const APP_USER_AGENT = 'WUBRGr/0.2 (+https://github.com/navypirate83/wubrgr)';
 export const APP_HEADERS: Record<string, string> =
   Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT };
 

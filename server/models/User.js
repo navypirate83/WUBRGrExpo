@@ -34,9 +34,13 @@ const userSchema = new mongoose.Schema(
       maxlength: 254,
       validate: {
         // A chosen username must match the pattern; the defaulted one (the
-        // email itself) is also fine
+        // email itself) is also fine. When a person is made by an "upsert"
+        // (Google sign-up), there is no document yet, so "this" is the
+        // update itself, and the email is read from what is being inserted.
         validator(value) {
-          return value === this.email || USERNAME_PATTERN.test(value);
+          const email = this?.email ?? this?.getUpdate?.()?.$setOnInsert?.email;
+          return (typeof email === 'string' && String(value).toLowerCase() === email.toLowerCase())
+            || USERNAME_PATTERN.test(value);
         },
         message: 'Username must be 3 to 30 letters, numbers, dots, underscores or dashes',
       },

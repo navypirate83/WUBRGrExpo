@@ -52,7 +52,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "baseUrl": "/WUBRGrExpo"
+      "baseUrl": "/wubrgr"
     },
     "extra": {
       "router": {

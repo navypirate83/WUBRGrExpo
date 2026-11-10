@@ -3,10 +3,10 @@
   "version": "0.2.0",
   "private": true,
   "description": "WUBRG'r: a Magic: The Gathering card binder app for phones (iPhone and Android) and the web, built with Expo.",
-  "homepage": "https://navypirate83.github.io/WUBRGrExpo/",
+  "homepage": "https://navypirate83.github.io/wubrgr/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/navypirate83/WUBRGrExpo.git"
+    "url": "git+https://github.com/navypirate83/wubrgr.git"
   },
   "main": "expo-router/entry",
   "scripts": {

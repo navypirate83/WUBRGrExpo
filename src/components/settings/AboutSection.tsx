@@ -11,10 +11,11 @@ import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
 import { SPACE } from '@/theme/colors';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { SettingRow, SettingsSection } from './SettingsParts';
 
 // The web addresses linked to
-const WEBSITE_URL = 'https://navypirate83.github.io/WUBRGrExpo/';
+const WEBSITE_URL = SITE_URL;
 const SCRYFALL_URL = 'https://scryfall.com/';
 const FAN_POLICY_URL = 'https://company.wizards.com/en/legal/fancontentpolicy';
 
@@ -53,7 +54,7 @@ export default function AboutSection() {
       <SettingRow name="WUBRG'r" description={VERSION ? `Version ${VERSION}` : undefined} />
 
       {/* The website, and where the cards come from */}
-      <LinkRow name="Website" description="navypirate83.github.io/WUBRGrExpo" url={WEBSITE_URL} />
+      <LinkRow name="Website" description={SITE_NAME} url={WEBSITE_URL} />
       <LinkRow name="Card information and pictures" description="From Scryfall (scryfall.com)" url={SCRYFALL_URL} />
 
       {/* The fan content notice, with a link to Wizards' policy */}

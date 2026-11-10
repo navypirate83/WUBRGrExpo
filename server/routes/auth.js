@@ -18,7 +18,7 @@ import bcrypt from 'bcryptjs';
 import User, { USERNAME_PATTERN } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import PasswordReset from '../models/PasswordReset.js';
-import { mailIsConfigured, sendMail } from '../utils/mail.js';
+import { mailIsConfigured, sendMail, sendWelcomeEmail } from '../utils/mail.js';
 import { requireAuth } from '../middleware/auth.js';
 import { handleDbError } from '../middleware/errorHandler.js';
 import { checkText } from '../utils/validate.js';
@@ -77,6 +77,8 @@ router.post('/signup', async (req, res) => {
     }
     // create() runs the model's rules, so the password is scrambled here
     const user = await User.create({ email: cleanEmail, password, name: name.trim(), username: chosenUsername });
+    // Say welcome by email (not waited for, and never a reason signing up fails)
+    sendWelcomeEmail(user);
     return res.status(201).json(await issueSession(user));
   } catch (err) {
     // Two signups at the same instant can both pass the checks above; the
@@ -146,11 +148,15 @@ router.post('/google', async (req, res) => {
         // A brand-new person. One upsert, so two simultaneous first sign-ins
         // can't create two users. Upserts skip model hooks, so set the
         // username (the email) and other fields ourselves.
-        user = await User.findOneAndUpdate(
+        // (includeResultMetadata tells us whether this call made the person
+        // or somebody else's simultaneous call did, so only one welcome is sent)
+        const result = await User.findOneAndUpdate(
           { googleId: google.sub },
           { $setOnInsert: { googleId: google.sub, email: google.email, username: google.email, name: google.name, role: 'user' } },
-          { upsert: true, returnDocument: 'after', runValidators: true },
+          { upsert: true, returnDocument: 'after', runValidators: true, includeResultMetadata: true },
         );
+        user = result.value;
+        if (result.lastErrorObject?.updatedExisting === false) sendWelcomeEmail(user);
       }
     }
     return res.status(200).json(await issueSession(user));

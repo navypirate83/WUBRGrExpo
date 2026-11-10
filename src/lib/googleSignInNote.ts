@@ -11,6 +11,8 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
+import { SITE_NAME } from './site';
+
 import { Platform } from 'react-native';
 import { showMessage } from './dialogs';
 import { PHONE_SIGN_IN_AVAILABLE } from './phoneGoogleSignIn';
@@ -26,6 +28,6 @@ export function explainPhoneSignIn(): void {
     'Expo Go can\'t sign in with Google: the WUBRG\'r app itself can.\n\n' +
     'For now, use "Skip login, local use only": everything works, with your binders ' +
     'saved on this device. You can sign in later, and they\'ll be copied to Google Drive then. ' +
-    '(Google sign-in also works on the website: navypirate83.github.io/WUBRGrExpo.)',
+    '(Google sign-in also works on the website: ' + SITE_NAME + '.)',
   );
 }

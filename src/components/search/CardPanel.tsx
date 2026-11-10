@@ -41,13 +41,14 @@ import PricePanel from './PricePanel';
 import { PickerButton, PickerSheet, SheetRowText } from './PickerSheet';
 import { PAGE_WIDTH } from './SearchBox';
 
+import { SITE_URL } from '@/lib/site';
 // How long "Link copied!" stays visible (2 seconds)
 const TOAST_MS = 2000;
 
 // The app's public web address for the Card Finder. A shared link
 // always points here, so it opens in any browser, even when it was
 // shared from the phone app.
-const PUBLIC_SEARCH_ADDRESS = 'https://navypirate83.github.io/WUBRGrExpo/search';
+const PUBLIC_SEARCH_ADDRESS = `${SITE_URL}search`;
 
 // The card picture is never wider than this (in points)
 const CARD_MAX_WIDTH = 400;
