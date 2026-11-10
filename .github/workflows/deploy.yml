@@ -42,7 +42,12 @@ jobs:
       # Install the exact packages listed in package-lock.json
       - run: npm ci
       # Check the code and build the finished site into "dist"
+      # (The website talks to the WUBRG'r server at this address. It is set
+      # as a "variable" in the repository's Settings → Secrets and variables
+      # → Actions → Variables, named API_URL.)
       - run: npm run build
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.API_URL }}
       # Get GitHub Pages ready, then hand it the "dist" folder
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

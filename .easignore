@@ -40,3 +40,4 @@ expo-env.d.ts
 # your own code-only folder, and the old website's code
 code-only/
 legacy-web/
+server/

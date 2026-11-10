@@ -64,13 +64,16 @@ export class RequestError extends Error {
 //  - anything else (no internet, a blocked or broken connection)
 // A reply that says something went wrong (like "not found") is still a
 // reply: it's returned, and the caller decides what to say.
+// "timeoutMs" is how long to wait; most callers use the usual 20 seconds,
+// but our own server on a free host may need a minute to wake up (api.ts).
 export async function fetchOrExplain(
   url: string,
   options: RequestInit = {},
   service = 'the server',
+  timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // The request, with the app's name added to its headers (see APP_HEADERS)
     const headers = { ...APP_HEADERS, ...(options.headers as Record<string, string> | undefined) };

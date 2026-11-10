@@ -1,0 +1,7 @@
+# Files git should NOT save or upload to GitHub.
+# Secrets (database address, login-token key) live in .env
+.env
+.env.*
+!.env.example
+# Downloaded packages (npm install brings them back)
+node_modules/

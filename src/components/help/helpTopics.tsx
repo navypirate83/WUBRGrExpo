@@ -65,20 +65,25 @@ export const helpTopics: HelpTopic[] = [
           <>
             <P>
               When you first open the app, you see the <Strong>Home</Strong> screen: a picture
-              of an open binder full of cards, with two choices under it:
+              of an open binder full of cards, with these choices under it:
             </P>
             <Bullet>
-              <Strong>Sign in with Google</Strong> to save your binders in your own Google
-              Drive (in a folder called "MTG Card Binder", one .CSV file per binder: see <HelpLink to="my-binders-backup">Binder files</HelpLink>).
-              You can then open them on any phone or computer by signing in there. (This
-              works on the website now. On phones, Google sign-in is coming in the full app
-              build: until then, use the choice below.)
+              <Strong>Login</Strong> to your WUBRG'r account with your username (or email) and
+              password. Your binders and lists are saved in your account and on this device, so you
+              can open them on any phone or computer, and the app still works with no internet.
+              On the login screen, <Strong>Forgot username/password?</Strong> emails you your
+              username and a 6-digit code to set a new password.
+            </Bullet>
+            <Bullet>
+              <Strong>Create account</Strong> (the link under Login): type your name, email, a
+              password of at least 8 characters, and optionally a username (left empty, your
+              email is your username). The binders and lists already on this device are
+              saved to your new account.
             </Bullet>
             <Bullet>
               <Strong>Skip login, local use only</Strong> to start right away without an
-              account. Your binders are saved on this device only. You can sign in later,
-              and the app will compare this device with your Google Drive and ask which
-              way to sync (see <HelpLink to="settings-account">Your account</HelpLink>).
+              account. Your binders are saved on this device only. You can log in later
+              (see <HelpLink to="settings-account">Your account</HelpLink>).
             </Bullet>
             <P>
               Either way, you then see your shelf of binders. The app remembers your choice:
@@ -962,6 +967,20 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P><Strong>Account</Strong> shows how you're using the app:</P>
+            <Bullet>
+              <Strong>Logged in</Strong>: your username, name and email, a <Strong>Log out</Strong> button
+              and <Strong>Log out everywhere</Strong> (which also logs out your other phones and
+              computers). Your binders and lists stay on this device. Not logged in, there are{' '}
+              <Strong>Log in</Strong> and <Strong>Create account</Strong> buttons. While you're logged
+              in, changes are sent to your account every few seconds, and changes from your other
+              devices arrive every couple of minutes. With no internet, they wait and are sent later.
+              If the same binder was changed on two devices, the device that syncs last keeps its version.
+            </Bullet>
+            <Bullet>
+              <Strong>Google Drive backup</Strong> is optional: sign in with Google to also keep a copy
+              of your binders in your own Google Drive, so you can reach your files outside the app.
+              The Google items below are about this backup.
+            </Bullet>
             <Bullet>
               <Strong>Signed in with Google</Strong>: your Google name and email address, and
               a <Strong>Sign out</Strong> button. Signing out sends any waiting changes to

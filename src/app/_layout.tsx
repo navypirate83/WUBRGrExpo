@@ -18,6 +18,8 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { loadStorage } from '@/lib/storage';
+import { loadSession } from '@/lib/session';
+import { useAutoSync } from '@/hooks/useAutoSync';
 import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
 import AppHeader from '@/components/AppHeader';
@@ -56,9 +58,11 @@ export default function RootLayout() {
   // Has everything saved on this device been read yet?
   const [ready, setReady] = useState(false);
 
-  // Read it all once, when the app starts, then hide the splash screen
+  // Read it all once, when the app starts, then hide the splash screen.
+  // Then pick up a saved login to the WUBRG'r server (it doesn't wait for
+  // the internet: the app opens straight away)
   useEffect(() => {
-    loadStorage().finally(() => {
+    loadStorage().then(loadSession).finally(() => {
       setReady(true);
       SplashScreen.hideAsync().catch(() => { /* already hidden */ });
     });
@@ -81,6 +85,8 @@ export default function RootLayout() {
 // The screens, colored for the theme. (A separate piece, because it
 // needs useColors, which only works once the saved theme has been read.)
 function ThemedStack() {
+  // While signed in to the server, keep it and this device the same
+  useAutoSync();
   const theme = useTheme();
   const colors = useColors();
 
@@ -123,6 +129,7 @@ function ThemedStack() {
         {/* Screens that slide in on top of the tabs */}
         <Stack.Screen name="help" options={{ title: 'Help' }} />
         <Stack.Screen name="decklists" options={{ title: 'Decks' }} />
+        <Stack.Screen name="login" options={{ title: 'Account' }} />
       </Stack>
       {/* The "Phone and Google Drive don't match" window: invisible until
           the sync code asks which way to sync (see lib/driveSync.ts) */}

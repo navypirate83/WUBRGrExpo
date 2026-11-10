@@ -1,7 +1,7 @@
 /* =====================================================================
    HOME: THE WELCOME SCREEN (the first tab)
    A picture of an open binder full of cards, then a box with:
-   - signed out: "Sign in with Google" and "Skip login, local use only"
+   - signed out: "Login", a "Create account" link and "Skip login, local use only"
    - signed in (or using the app locally): where the binders are kept,
      and a "Go to your binders" button
    Under that, a list of places to go: The Shelf, Card Finder, Lists,
@@ -9,9 +9,7 @@
    Another screen can send a message to show here, like "You're signed
    out." (Settings does, after signing out): it comes in the address, as
    /?message=...
-   Signing in with Google only works on the website for now: on a phone
-   the button explains that (see lib/googleSignInNote.ts), and "Skip
-   login" works everywhere.
+   Google sign-in is now a backup in Settings (Drive), not the main login.
    ===================================================================== */
 
 import { useEffect, useState } from 'react';
@@ -20,21 +18,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAccount } from '@/hooks/useAccount';
 import { useColors } from '@/hooks/useTheme';
-import { initGoogleSignIn, signInWithGoogle } from '@/lib/googleDrive';
 import { setLocalMode } from '@/lib/binderStorage';
-import { reconcileWithDrive } from '@/lib/driveSync';
-import { GOOGLE_SIGN_IN_WORKS, explainPhoneSignIn } from '@/lib/googleSignInNote';
 import { MAX_CONTENT_WIDTH, SPACE } from '@/theme/colors';
 import Button from '@/components/Button';
-import GoogleSignInButton from '@/components/home/GoogleSignInButton';
 import HomeLinks from '@/components/home/HomeLinks';
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { signedIn, localMode, usingBinders } = useAccount();
+  const { signedIn, serverSignedIn, localMode, usingBinders } = useAccount();
   // Already signed in, or using the app locally? Then it's "welcome back"
   // (no sign-in buttons).
-  const welcomeBack = signedIn || localMode;
+  const welcomeBack = serverSignedIn || signedIn || localMode;
 
   /* ----- The message under the buttons ----- */
 
@@ -42,8 +36,6 @@ export default function HomeScreen() {
   const { message: sentMessage } = useLocalSearchParams<{ message?: string }>();
   // The message showing (sign-in problems are shown here too)
   const [message, setMessage] = useState(sentMessage ?? '');
-  // Is signing in under way? (The Google button fades while it is.)
-  const [busy, setBusy] = useState(false);
 
   // When a message arrives, show it, then take it out of the address, so
   // the same message sent again later still shows
@@ -53,40 +45,7 @@ export default function HomeScreen() {
     router.setParams({ message: undefined });
   }, [sentMessage]);
 
-  /* ----- Signing in, or skipping it ----- */
-
-  // Signed out, on the website: get Google's sign-in ready now, so tapping
-  // the button can open Google's window straight away (browsers only
-  // allow pop-up windows right after a click). If it can't load, say why.
-  useEffect(() => {
-    if (!welcomeBack && GOOGLE_SIGN_IN_WORKS) {
-      initGoogleSignIn().catch((err: Error) => setMessage(err.message));
-    }
-  }, [welcomeBack]);
-
-  // "Sign in with Google": on the website, open Google's sign-in window,
-  // and once signed in, show the binders. On a phone, explain that it's
-  // coming in the full app build.
-  async function signIn() {
-    if (!GOOGLE_SIGN_IN_WORKS) {
-      explainPhoneSignIn();
-      return;
-    }
-    setMessage('');
-    setBusy(true);
-    try {
-      await signInWithGoogle();
-      // Compare this phone with Google Drive (asking which way to sync if
-      // they differ: a first install with a collection already in Drive,
-      // for one), then show the shelf
-      await reconcileWithDrive({ fromUser: true });
-      router.push('/binders');
-    } catch (err) {
-      setMessage((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  /* ----- Logging in, or skipping it ----- */
 
   // "Skip login, local use only": use the app without signing in, with
   // the binders saved on this device only. Binders already on this device
@@ -99,9 +58,11 @@ export default function HomeScreen() {
 
   // The line under the heading: what happens to your binders
   const explanation = !welcomeBack
-    ? 'Sign in with your Google account. Your binders are saved in your own Google Drive, so you can open them on any computer or phone.'
-    : localMode
-      ? 'Your binders are saved on this device. Sign in with Google (in Settings) any time to keep them in your Google Drive too.'
+    ? 'Log in to keep your binders and lists in your account, so you can open them on any phone or computer. They always stay on this device too, so the app works without internet.'
+    : serverSignedIn
+      ? 'You\'re logged in. Your binders and lists are saved in your account and on this device, so they work without internet.'
+      : localMode
+      ? 'Your binders are saved on this device. Log in (in Settings) any time to keep them in your account too.'
       : 'You\'re signed in. Your binders are saved in your own Google Drive, so you can open them on any computer or phone.';
 
   return (
@@ -127,8 +88,9 @@ export default function HomeScreen() {
             <Button label="Go to your binders" icon="arrow-forward" onPress={() => router.push('/binders')} />
           ) : (
             <>
-              {/* "Sign in with Google", styled the way Google asks */}
-              <GoogleSignInButton onPress={signIn} busy={busy} />
+              {/* "Login", and "Create account" as a link below it */}
+              <Button label="Login" icon="log-in-outline" onPress={() => router.push('/login')} />
+              <Button label="Create account" kind="plain" onPress={() => router.push({ pathname: '/login', params: { mode: 'create' } })} style={styles.skip} />
 
               {/* Use the app without signing in: a plain text button */}
               <Button label="Skip login, local use only" kind="plain" onPress={skipLogin} style={styles.skip} />
