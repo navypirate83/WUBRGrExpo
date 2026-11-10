@@ -19,6 +19,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { loadStorage } from '@/lib/storage';
 import { loadSession } from '@/lib/session';
+import { loadPictureCache } from '@/lib/pictureCache';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
@@ -62,6 +63,9 @@ export default function RootLayout() {
   // Then pick up a saved login to the WUBRG'r server (it doesn't wait for
   // the internet: the app opens straight away)
   useEffect(() => {
+    // Read which card pictures are saved on this phone. The app doesn't
+    // wait for it: until it's done, pictures simply load from the internet.
+    loadPictureCache().catch(() => { /* nothing saved yet, or unreadable */ });
     loadStorage().then(loadSession).finally(() => {
       setReady(true);
       SplashScreen.hideAsync().catch(() => { /* already hidden */ });

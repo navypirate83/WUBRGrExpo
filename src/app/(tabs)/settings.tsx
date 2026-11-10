@@ -31,6 +31,7 @@ import LayoutPicker from '@/components/settings/LayoutPicker';
 import FormatSwitches from '@/components/settings/FormatSwitches';
 import AccountSection from '@/components/settings/AccountSection';
 import PhoneMemorySection from '@/components/settings/PhoneMemorySection';
+import PicturesSection from '@/components/settings/PicturesSection';
 import AboutSection from '@/components/settings/AboutSection';
 
 export default function SettingsScreen() {
@@ -123,6 +124,9 @@ export default function SettingsScreen() {
 
         {/* ACCOUNT: who's signed in, and signing in or out */}
         <AccountSection />
+
+        {/* CARD PICTURES: how much is saved on the phone, save all, clear (phone only) */}
+        {usingBinders && <PicturesSection />}
 
         {/* DEVICE MEMORY: "Reset device memory", the only way to clear the
             collection kept on this device */}

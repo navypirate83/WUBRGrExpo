@@ -15,6 +15,7 @@ dotenv.config({ quiet: true });
 process.env.JWT_SECRET = 'test-only-secret-not-the-real-one';
 process.env.RATE_LIMIT_MAX = '100000';
 process.env.AUTH_RATE_LIMIT_MAX = '100000';
+process.env.SCRYFALL_RATE_LIMIT_MAX = '100000';
 // The tests use a few fixed website addresses
 process.env.CORS_ORIGINS = 'https://navypirate83.github.io,http://localhost:8081';
 // Google sign-in is not set up in tests (it would call Google)

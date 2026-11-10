@@ -5,9 +5,14 @@
    It's plain TypeScript with no React in it, so a future phone app can
    reuse it. (The Search page asks for these through TanStack Query,
    which remembers the answers so the same thing isn't downloaded twice.)
+   Every lookup goes through lookup() in cardLookup.ts. Logged out, that
+   asks Scryfall directly, as always. Logged in, it uses our server (which
+   remembers answers for everybody and keeps to Scryfall's limits) and
+   saves the answers on the device, so cards still work with no internet.
    ===================================================================== */
 
 import { fetchOrExplain, RequestError } from './http';
+import { lookup, serverFailed, serverGet, serverPost, serverUsable } from './cardLookup';
 
 // The address of the Scryfall API
 const API = 'https://api.scryfall.com';
@@ -15,6 +20,10 @@ const API = 'https://api.scryfall.com';
 // Scryfall asks for at least this much time between requests (in
 // milliseconds: 1000 ms = 1 second)
 const REQUEST_GAP_MS = 100;
+
+// One day, in milliseconds: how long most saved card information counts
+// as fresh (prices change about daily)
+const DAY = 24 * 60 * 60 * 1000;
 
 /* ---------------------------------------------------------------------
    WHAT SCRYFALL SENDS
@@ -161,9 +170,16 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
 
 // The full list of card names (about 35,000), downloaded once so the
 // search can run instantly on the device as you type.
-export async function loadCardNames(): Promise<string[]> {
-  const catalog = await scryfall<{ data: string[] }>('/catalog/card-names');
-  return catalog.data;
+export function loadCardNames(): Promise<string[]> {
+  return lookup({
+    key: 'names',
+    freshMs: DAY,
+    server: async () => {
+      const reply = await serverGet<{ names: string[]; stale: boolean }>('/scryfall/names');
+      return { data: reply.names, stale: reply.stale };
+    },
+    direct: async () => (await scryfall<{ data: string[] }>('/catalog/card-names')).data,
+  });
 }
 
 // Scryfall's own name suggestions (at most 20), used until the full list
@@ -179,8 +195,19 @@ export async function autocomplete(text: string): Promise<string[]> {
 
 // Every set's symbol picture, as a lookup from set code to picture address
 export async function loadSetIcons(): Promise<Map<string, string>> {
-  const sets = await scryfall<{ data: ScryfallSet[] }>('/sets');
-  return new Map(sets.data.map((set) => [set.code, set.icon_svg_uri]));
+  const icons = await lookup<Record<string, string>>({
+    key: 'sets',
+    freshMs: 7 * DAY,
+    server: async () => {
+      const reply = await serverGet<{ icons: Record<string, string>; stale: boolean }>('/scryfall/sets');
+      return { data: reply.icons, stale: reply.stale };
+    },
+    direct: async () => {
+      const sets = await scryfall<{ data: ScryfallSet[] }>('/sets');
+      return Object.fromEntries(sets.data.map((set) => [set.code, set.icon_svg_uri]));
+    },
+  });
+  return new Map(Object.entries(icons));
 }
 
 // The addresses that look up one card:
@@ -195,18 +222,52 @@ export function cardBySetPath(setCode: string, number: string): string {
   return `/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(number)}`;
 }
 
+// Which of OUR server's addresses answers for one of the Scryfall
+// addresses above (or "/cards/<id>"). null = our server has no such thing.
+// (The names inside are already encoded for web addresses.)
+function serverPathFor(path: string): string | null {
+  const named = /^\/cards\/named\?(exact|fuzzy)=(.*)$/.exec(path);
+  if (named) return `/scryfall/cards/named?${named[1]}=${named[2]}`;
+  const byId = /^\/cards\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(path);
+  if (byId) return `/scryfall/cards/id/${byId[1]}`;
+  const bySet = /^\/cards\/([^/?]+)\/([^/?]+)$/.exec(path);
+  if (bySet) return `/scryfall/cards/set/${bySet[1]}/${bySet[2]}`;
+  return null;
+}
+
 // Look up a card, then every printing of it (in every set).
-export async function loadCard(path: string): Promise<{ card: ScryfallCard; prints: ScryfallCard[] }> {
-  const card = await scryfall<ScryfallCard>(path);
-  const prints = await fetchAllPages<ScryfallCard>(card.prints_search_uri);
-  return { card, prints };
+export function loadCard(path: string): Promise<{ card: ScryfallCard; prints: ScryfallCard[] }> {
+  const serverPath = serverPathFor(path);
+  return lookup({
+    key: `cardandprints:${path.toLowerCase()}`,
+    freshMs: DAY,
+    server: serverPath ? async () => {
+      const one = await serverGet<{ card: ScryfallCard; stale: boolean }>(serverPath);
+      const all = await serverGet<{ cards: ScryfallCard[]; stale: boolean }>(`/scryfall/cards/id/${one.card.id}/prints`);
+      return { data: { card: one.card, prints: all.cards }, stale: one.stale || all.stale };
+    } : undefined,
+    direct: async () => {
+      const card = await scryfall<ScryfallCard>(path);
+      const prints = await fetchAllPages<ScryfallCard>(card.prints_search_uri);
+      return { card, prints };
+    },
+  });
 }
 
 // Look up just one card, by a Scryfall address like "/cards/<id>" or
 // "/cards/named?fuzzy=sol%20ring" (used when a card picture is dropped
 // on a binder pocket).
 export function loadOneCard(path: string): Promise<ScryfallCard> {
-  return scryfall<ScryfallCard>(path);
+  const serverPath = serverPathFor(path);
+  return lookup({
+    key: `card:${path.toLowerCase()}`,
+    freshMs: DAY,
+    server: serverPath ? async () => {
+      const reply = await serverGet<{ card: ScryfallCard; stale: boolean }>(serverPath);
+      return { data: reply.card, stale: reply.stale };
+    } : undefined,
+    direct: () => scryfall<ScryfallCard>(path),
+  });
 }
 
 // Look up many exact printings at once, by set code and collector number
@@ -216,6 +277,33 @@ export function loadOneCard(path: string): Promise<ScryfallCard> {
 // requests. Returns a lookup from "set/number" (lowercase) to the card;
 // cards Scryfall doesn't know are just missing from it.
 export async function loadPrintings(wanted: { set: string; number: string }[]): Promise<Map<string, ScryfallCard>> {
+  // Not logged in, or our server isn't answering: straight from Scryfall
+  if (!serverUsable()) return loadPrintingsDirect(wanted);
+
+  // Logged in: our server looks up to 150 at a time (and already knows
+  // many of them). Any it couldn't check go to Scryfall directly.
+  const found = new Map<string, ScryfallCard>();
+  const leftOver: { set: string; number: string }[] = [];
+  for (let start = 0; start < wanted.length; start += 150) {
+    const batch = wanted.slice(start, start + 150);
+    try {
+      const reply = await serverPost<{ cards: ScryfallCard[]; unavailable: { set: string; number: string }[] }>(
+        '/scryfall/cards/collection', { identifiers: batch });
+      for (const card of reply.cards) found.set(`${card.set}/${card.collector_number}`.toLowerCase(), card);
+      leftOver.push(...reply.unavailable);
+    } catch (err) {
+      serverFailed(err);
+      leftOver.push(...batch);
+    }
+  }
+  if (leftOver.length > 0) {
+    for (const [key, card] of await loadPrintingsDirect(leftOver)) found.set(key, card);
+  }
+  return found;
+}
+
+// The same lookup, straight from Scryfall (the original way)
+async function loadPrintingsDirect(wanted: { set: string; number: string }[]): Promise<Map<string, ScryfallCard>> {
   const found = new Map<string, ScryfallCard>();
   for (let start = 0; start < wanted.length; start += 75) {
     const batch = wanted.slice(start, start + 75);
@@ -236,7 +324,17 @@ export async function loadPrintings(wanted: { set: string; number: string }[]): 
 
 // The official rulings for a card, oldest first (the order Scryfall sends)
 export function loadRulings(rulingsUrl: string): Promise<Ruling[]> {
-  return fetchAllPages<Ruling>(rulingsUrl);
+  const id = /\/cards\/([0-9a-f-]{36})\/rulings/i.exec(rulingsUrl)?.[1];
+  if (!id) return fetchAllPages<Ruling>(rulingsUrl);
+  return lookup({
+    key: `rulings:${id.toLowerCase()}`,
+    freshMs: 7 * DAY,
+    server: async () => {
+      const reply = await serverGet<{ rulings: Ruling[]; stale: boolean }>(`/scryfall/cards/id/${id}/rulings`);
+      return { data: reply.rulings, stale: reply.stale };
+    },
+    direct: () => fetchAllPages<Ruling>(rulingsUrl),
+  });
 }
 
 // One exact printing in every language it was made in. Scryfall treats
@@ -250,7 +348,18 @@ export async function loadLanguages(
   let versions: ScryfallCard[];
   try {
     const query = `set:${print.set} cn:"${print.collector_number}" lang:any`;
-    versions = await fetchAllPages<ScryfallCard>(`/cards/search?unique=prints&q=${encodeURIComponent(query)}`);
+    // (a copy, because the list is changed below and the original may be
+    // one that was saved for next time)
+    versions = [...await lookup<ScryfallCard[]>({
+      key: `languages:${print.set}/${print.collector_number}`.toLowerCase(),
+      freshMs: 7 * DAY,
+      server: async () => {
+        const reply = await serverGet<{ cards: ScryfallCard[]; stale: boolean }>(
+          `/scryfall/cards/set/${encodeURIComponent(print.set)}/${encodeURIComponent(print.collector_number)}/languages`);
+        return { data: reply.cards, stale: reply.stale };
+      },
+      direct: () => fetchAllPages<ScryfallCard>(`/cards/search?unique=prints&q=${encodeURIComponent(query)}`),
+    })];
   } catch {
     versions = [];
   }

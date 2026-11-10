@@ -86,7 +86,11 @@ export function refreshOnce(): Promise<boolean> {
 }
 
 // One trip to the server, no retrying. Returns the reply.
-async function sendOnce(path: string, method: string, body: unknown, useToken: boolean): Promise<Response> {
+// (timeoutMs is how long to wait for this one request. Most use the full
+// minute; card lookups give up sooner, see scryfall.ts.)
+async function sendOnce(
+  path: string, method: string, body: unknown, useToken: boolean, timeoutMs: number,
+): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (useToken && accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -110,19 +114,20 @@ async function sendOnce(path: string, method: string, body: unknown, useToken: b
 //   apiRequest('/binders')                       → a list
 //   apiRequest('/auth/login', { method: 'POST', body: {...}, auth: false })
 // auth: false is for sign-in and sign-up, which have no token yet.
+// timeoutMs: how long to wait before giving up (a minute if left out).
 // Throws ApiError (the server said no) or RequestError (no reply).
 export async function apiRequest<T = unknown>(
   path: string,
-  options: { method?: string; body?: unknown; auth?: boolean } = {},
+  options: { method?: string; body?: unknown; auth?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, timeoutMs = SERVER_TIMEOUT_MS } = options;
 
-  let response = await sendOnce(path, method, body, auth);
+  let response = await sendOnce(path, method, body, auth, timeoutMs);
 
   // The token ran out: get a new one and try once more
   if (auth && response.status === 401) {
     if (await refreshOnce()) {
-      response = await sendOnce(path, method, body, auth);
+      response = await sendOnce(path, method, body, auth, timeoutMs);
     } else {
       handlers.signedOut();
     }

@@ -31,8 +31,27 @@ export const APP_HEADERS: Record<string, string> =
 // load a different way, which some of Scryfall's picture servers don't
 // allow (the card backs went blank). The same picture always gets the
 // same object back, so a picture that hasn't changed isn't downloaded again.
+// On the phone, a picture that was saved on the device earlier (see
+// pictureCache.ts) is used from there instead: pictureCache.ts plugs in
+// a function that says where (or null if it isn't saved yet). That way
+// pictures need no internet and no data the second time.
+let localPictureLookup: ((url: string) => string | null) | null = null;
+export function setLocalPictureLookup(lookup: (url: string) => string | null): void {
+  localPictureLookup = lookup;
+}
+const localSources = new Map<string, { uri: string }>();
+
 const pictureSources = new Map<string, { uri: string; headers?: Record<string, string> }>();
 export function pictureSource(url: string) {
+  const local = localPictureLookup?.(url);
+  if (local) {
+    let source = localSources.get(local);
+    if (!source) {
+      source = { uri: local };
+      localSources.set(local, source);
+    }
+    return source;
+  }
   let source = pictureSources.get(url);
   if (!source) {
     source = Platform.OS === 'web' ? { uri: url } : { uri: url, headers: APP_HEADERS };

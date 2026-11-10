@@ -384,7 +384,10 @@ export const helpTopics: HelpTopic[] = [
             <P>
               With no internet, your binders on this device still open and work as usual
               (changes are saved to Google Drive when you're back online). Searching for cards
-              needs the internet, and card pictures that haven't been seen before show the back
+              needs the internet, except that when you're logged in, the card names and any card
+              you've looked at before are saved on this device and still work without it. On the
+              phone app, card pictures are saved too once you've seen them (Settings →
+              Card pictures can save them all ahead of time); pictures not saved yet show the back
               of a Magic card.
             </P>
           </>
@@ -694,7 +697,9 @@ export const helpTopics: HelpTopic[] = [
         The MTG Card Finder (the <Strong>Card Finder</Strong> tab) looks up any Magic card
         (using Scryfall's card list), shows its picture and details, and adds it to your
         binders. You can use it without signing in; adding to a binder needs you to be signed
-        in or using the app locally.
+        in or using the app locally. When you're logged in, card information comes through the
+        WUBRG'r server and is saved on your device, so cards you've already looked at open
+        quickly and still work with no internet.
       </>
     ),
     sections: [
@@ -1033,7 +1038,17 @@ export const helpTopics: HelpTopic[] = [
               removes every binder and list from this device, and signs you out of Google. Your
               files in Google Drive are not touched, and your settings (theme, page layout) are
               kept. Afterwards the app is like a new install: sign in with Google and, if
-              Drive has a collection, you choose which way to sync.
+              Drive has a collection, you choose which way to sync. It also clears the card
+              information saved for offline use (it downloads again when needed).
+            </P>
+            <P>
+              <Strong>Card pictures</Strong> (on the phone app only) shows how much space the
+              saved card pictures take. Every picture is saved on the phone the first time you see
+              it, so it opens instantly, uses no data and works with no internet. The limit is 3 GB;
+              when it's full, the pictures you haven't looked at for the longest time are removed
+              first. <Strong>Save all my binder pictures</Strong> downloads every picture in your
+              binders and lists right now (use Wi-Fi), so everything works offline, and
+              {' '}<Strong>Clear saved pictures</Strong> deletes them to free space.
             </P>
             <P>
               <Strong>About</Strong>, under it, shows the app's version and where its card

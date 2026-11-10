@@ -40,6 +40,7 @@ import {
 import { clearSnapshot, readSnapshot, writeSnapshot, type Snapshot } from './driveSnapshot';
 import { askSyncDirection, type SyncQuestion } from './syncChoice';
 import { storageRemove } from './storage';
+import { clearSaved } from './cardCache';
 
 // How a reconcile ended: nothing to do, one of the two directions, or
 // "Not now"
@@ -257,7 +258,9 @@ async function phoneToDrive(binderFiles: BinderFile[], listFiles: BinderFile[]):
 
 // Clear this phone's collection and Google sign-in: every binder and
 // list, their waiting-changes markers, the "using the app locally" mode,
-// and the memory of the last sync. Settings (theme, page layout...) stay.
+// and the memory of the last sync, plus the card information saved for
+// offline use (it downloads again when needed). Settings (theme, page
+// layout...) stay.
 // Google Drive is NOT touched. Afterwards the app is like a fresh
 // install: connecting to Google asks which way to sync if Drive has files.
 export async function resetPhoneMemory(): Promise<void> {
@@ -269,5 +272,6 @@ export async function resetPhoneMemory(): Promise<void> {
   setLocalMode(false);
   clearSnapshot();
   storageRemove('lastBinderId');
+  await clearSaved();
   declined = false;
 }

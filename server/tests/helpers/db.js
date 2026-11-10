@@ -14,6 +14,7 @@ import '../../models/Binder.js';
 import '../../models/Card.js';
 import '../../models/List.js';
 import '../../models/ListCard.js';
+import '../../models/ScryfallCache.js';
 
 // The safety lock: stop unless we're connected to a "...test" database
 function assertTestDatabase() {

@@ -19,6 +19,7 @@ import authRouter from './routes/auth.js';
 import bindersRouter from './routes/binders.js';
 import listsRouter from './routes/lists.js';
 import adminRouter from './routes/admin.js';
+import makeScryfallRouter from './routes/scryfall.js';
 
 // Read the settings (also loads the .env file)
 export const config = loadConfig();
@@ -101,6 +102,9 @@ app.use('/auth', authRouter);
 // forget it (a route without it would crash on a missing req.user)
 app.use('/binders', requireAuth, bindersRouter);
 app.use('/lists', requireAuth, listsRouter);
+// Card information from Scryfall, for logged-in people only (each person
+// has their own limit per minute, so nobody can use up the shared allowance)
+app.use('/scryfall', requireAuth, makeScryfallRouter(config.scryfallRateLimitMax));
 app.use('/admin', requireAuth, requireAdmin, adminRouter);
 
 // Anything else: a plain 404 that never repeats the address back
