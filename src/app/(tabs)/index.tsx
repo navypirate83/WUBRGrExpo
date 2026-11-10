@@ -3,7 +3,8 @@
    A picture of an open binder full of cards, then a box with:
    - signed out: "Login", a "Create account" link and "Skip login, local use only"
    - signed in (or using the app locally): where the binders are kept,
-     and a "Go to your binders" button
+     and a "Go to your binders" button. Anyone not logged in (even when
+     using the app locally) still sees "Login" and "Create account".
    Under that, a list of places to go: The Shelf, Card Finder, Lists,
    Decks and Help.
    Another screen can send a message to show here, like "You're signed
@@ -29,6 +30,9 @@ export default function HomeScreen() {
   // Already signed in, or using the app locally? Then it's "welcome back"
   // (no sign-in buttons).
   const welcomeBack = serverSignedIn || signedIn || localMode;
+  // Logged in to an account (a WUBRG'r login, or Google Drive). Using the
+  // app locally is NOT logged in, so the Login button keeps showing then.
+  const loggedIn = serverSignedIn || signedIn;
 
   /* ----- The message under the buttons ----- */
 
@@ -62,7 +66,7 @@ export default function HomeScreen() {
     : serverSignedIn
       ? 'You\'re logged in. Your binders and lists are saved in your account and on this device, so they work without internet.'
       : localMode
-      ? 'Your binders are saved on this device. Log in (in Settings) any time to keep them in your account too.'
+      ? 'Your binders are saved on this device. Log in below any time to keep them in your account too.'
       : 'You\'re signed in. Your binders are saved in your own Google Drive, so you can open them on any computer or phone.';
 
   return (
@@ -83,18 +87,29 @@ export default function HomeScreen() {
           <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Your Magic card binders</Text>
           <Text style={[styles.text, { color: colors.muted }]}>{explanation}</Text>
 
-          {welcomeBack ? (
-            // Already signed in (or using the app locally): a button to the shelf
+          {/* Already signed in, or using the app locally: a button to the shelf */}
+          {welcomeBack && (
             <Button label="Go to your binders" icon="arrow-forward" onPress={() => router.push('/binders')} />
-          ) : (
-            <>
-              {/* "Login", and "Create account" as a link below it */}
-              <Button label="Login" icon="log-in-outline" onPress={() => router.push('/login')} />
-              <Button label="Create account" kind="plain" onPress={() => router.push({ pathname: '/login', params: { mode: 'create' } })} style={styles.skip} />
+          )}
 
-              {/* Use the app without signing in: a plain text button */}
-              <Button label="Skip login, local use only" kind="plain" onPress={skipLogin} style={styles.skip} />
+          {/* Not logged in (including when using the app locally): always
+              offer "Login", with "Create account" as a link below it */}
+          {!loggedIn && (
+            <>
+              <Button
+                label="Login"
+                icon="log-in-outline"
+                kind={welcomeBack ? 'secondary' : 'primary'}
+                onPress={() => router.push('/login')}
+                style={welcomeBack ? styles.skip : undefined}
+              />
+              <Button label="Create account" kind="plain" onPress={() => router.push({ pathname: '/login', params: { mode: 'create' } })} style={styles.skip} />
             </>
+          )}
+
+          {/* Not started yet: use the app without signing in (a plain text button) */}
+          {!welcomeBack && (
+            <Button label="Skip login, local use only" kind="plain" onPress={skipLogin} style={styles.skip} />
           )}
 
           {/* Messages (like "You're signed out." or "Sign-in was
