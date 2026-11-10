@@ -1,10 +1,10 @@
 /* =====================================================================
-   SETTINGS → PHONE MEMORY
-   The one and only way to clear this phone's collection: "Reset phone
+   SETTINGS → DEVICE MEMORY
+   The one and only way to clear this device's collection: "Reset device
    memory". Everything else (an expired Google sign-in, signing out,
    an empty Google Drive) leaves your binders and lists alone.
    Tapping it asks "Are you sure?" first. It then removes every binder and
-   list from THIS phone and signs out of Google. Your files in Google
+   list from THIS device and signs out of Google. Your files in Google
    Drive are not touched. After a reset the app is like a fresh install:
    signing in with Google asks which way to sync, if Drive has a
    collection (see lib/driveSync.ts).
@@ -22,7 +22,7 @@ import Button from '@/components/Button';
 import { SettingRow, SettingsSection } from './SettingsParts';
 
 export default function PhoneMemorySection() {
-  // "Reset phone memory": ask "Are you sure?" (saying how many changes
+  // "Reset device memory": ask "Are you sure?" (saying how many changes
   // haven't reached Drive yet, since those would be lost), then reset
   // and go to Home.
   async function reset() {
@@ -30,8 +30,8 @@ export default function PhoneMemorySection() {
       loadBinderList().filter((b) => binderDirtyStamp(b.id)).length +
       loadLists().filter((l) => listDirtyStamp(l.id)).length;
     const sure = await askYesNo(
-      'Reset phone memory?',
-      'Are you sure? This removes every binder and list from this phone and signs you out of Google. ' +
+      'Reset device memory?',
+      'Are you sure? This removes every binder and list from this device and signs you out of Google. ' +
       'Your files in Google Drive are not touched, and signing in again brings your collection back.' +
       (waiting > 0 ? `\n\n${waiting} binder${waiting === 1 ? '' : 's'} or list${waiting === 1 ? '' : 's'} with changes not yet saved to Google Drive will be lost.` : ''),
       'Reset', 'Cancel',
@@ -39,20 +39,20 @@ export default function PhoneMemorySection() {
     if (!sure) return;
     try {
       await resetPhoneMemory();
-      router.navigate({ pathname: '/', params: { message: 'Phone memory reset. Sign in with Google to bring your collection back.' } });
+      router.navigate({ pathname: '/', params: { message: 'Device memory reset. Sign in with Google to bring your collection back.' } });
     } catch (err) {
       showMessage('Couldn\'t reset', (err as Error).message);
     }
   }
 
   return (
-    <SettingsSection title="Phone memory">
+    <SettingsSection title="Device memory">
       <SettingRow
-        name="Reset phone memory"
-        description="Your binders and lists are kept on this phone for good, even when your Google sign-in runs out. This is the only way to clear them. It never touches Google Drive."
+        name="Reset device memory"
+        description="Your binders and lists are kept on this device for good, even when your Google sign-in runs out. This is the only way to clear them. It never touches Google Drive."
       />
       <View style={styles.buttons}>
-        <Button label="Reset phone memory" kind="secondary" icon="trash-outline" onPress={reset} />
+        <Button label="Reset device memory" kind="secondary" icon="trash-outline" onPress={reset} />
       </View>
     </SettingsSection>
   );

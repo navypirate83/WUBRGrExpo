@@ -13,10 +13,17 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wubrgr-server.onrender.com"
+      },
       "android": {
         "buildType": "apk"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wubrgr-server.onrender.com"
+      }
+    }
   }
 }

@@ -53,7 +53,7 @@ export default function HomeScreen() {
 
   // "Skip login, local use only": use the app without signing in, with
   // the binders saved on this device only. Binders already on this device
-  // are kept (nothing but "Reset phone memory" in Settings removes them).
+  // are kept (nothing but "Reset device memory" in Settings removes them).
   function skipLogin() {
     setMessage('');
     setLocalMode(true);

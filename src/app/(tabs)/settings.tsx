@@ -6,7 +6,7 @@
    - Binders: the page layout (pockets across and down each page)
    - Search: which formats show in the Card Finder's Format Legality box
    - Account: who's signed in, and signing in or out
-   - Phone memory: "Reset phone memory", the only way to clear the collection
+   - Device memory: "Reset device memory", the only way to clear the collection
    - About: the app's version, links, and the fan content notice
    Binders and Search only show for someone using the binders (signed
    in, or using the app locally): before that there's nowhere to save
@@ -124,7 +124,7 @@ export default function SettingsScreen() {
         {/* ACCOUNT: who's signed in, and signing in or out */}
         <AccountSection />
 
-        {/* PHONE MEMORY: "Reset phone memory", the only way to clear the
+        {/* DEVICE MEMORY: "Reset device memory", the only way to clear the
             collection kept on this device */}
         {(usingBinders || signedIn || localMode) && <PhoneMemorySection />}
 

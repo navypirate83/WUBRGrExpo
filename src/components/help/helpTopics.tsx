@@ -418,7 +418,7 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               When you're signed in, it shows your Google account and a <Strong>Sign out</Strong> button.
               Signing out sends any waiting changes to Google Drive, then disconnects Google.
-              Your binders and lists stay on this device: only <Strong>Reset phone memory</Strong> removes them.
+              Your binders and lists stay on this device: only <Strong>Reset device memory</Strong> removes them.
             </Bullet>
             <Bullet>
               When using the app locally, or after signing out, there's a <Strong>Sign in with Google</Strong> button
@@ -1028,9 +1028,9 @@ export const helpTopics: HelpTopic[] = [
               sign in or pull a screen down.
             </Bullet>
             <P>
-              <Strong>Phone memory</Strong>, under Account, has <Strong>Reset phone memory</Strong>:
-              the only way to clear your collection from this phone. It asks "Are you sure?",
-              removes every binder and list from this phone, and signs you out of Google. Your
+              <Strong>Device memory</Strong>, under Account, has <Strong>Reset device memory</Strong>:
+              the only way to clear your collection from this device. It asks "Are you sure?",
+              removes every binder and list from this device, and signs you out of Google. Your
               files in Google Drive are not touched, and your settings (theme, page layout) are
               kept. Afterwards the app is like a new install: sign in with Google and, if
               Drive has a collection, you choose which way to sync.
