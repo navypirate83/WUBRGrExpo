@@ -134,7 +134,8 @@ export const helpTopics: HelpTopic[] = [
               (or a swipe in from the left edge on an iPhone) brings you back to the shelf.</Bullet>
             <Bullet>
               <Strong>Its options</Strong>: press and hold a binder still for half a second (with a
-              small buzz on most phones): <Strong>Edit</Strong> and <Strong>Delete</Strong>.
+              small buzz on most phones), or <Strong>right-click</Strong> it with a mouse:{' '}
+              <Strong>Edit</Strong> and <Strong>Delete</Strong>.
             </Bullet>
             <Bullet>
               <Strong>Change the order</Strong>: drag a binder to a new spot. With a finger, rest it
@@ -213,7 +214,8 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Hold the binder still on The Shelf for a moment, then tap <Strong>Delete</Strong>.
+              Hold the binder still on The Shelf for a moment (or right-click it with a mouse), then
+              tap <Strong>Delete</Strong>.
               You'll be asked if you're sure (with how many cards are in it).
               Tap <Strong>Yes, delete</Strong> to delete it, or <Strong>No</Strong> to keep it.
               With no binders left, The Shelf says it's empty and offers to make one.

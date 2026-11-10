@@ -603,7 +603,8 @@ export default function ShelfScreen() {
    Moving it: with a finger, rest it on the binder for a moment (REST_MS)
    then slide; moving sooner scrolls the shelf instead. With a mouse,
    press the button and move. Holding it still (a finger, or the mouse
-   button) for half a second shows its options instead.
+   button) for half a second shows its options instead, and so does a
+   right-click with a mouse.
    While a binder is being dragged, each one is drawn "shiftX / shiftY"
    points from its spot (to make room), and the dragged one is faded,
    showing where it will land.
@@ -678,6 +679,11 @@ function BinderTile(props: {
           }}
           onPress={props.onOpen}
           onLongPress={withMouse ? props.onHold : undefined}
+          // On a computer a right-click shows the same options (Edit and
+          // Delete) instead of the browser's own menu. (The website's
+          // "contextmenu" event is not in the phone types, so it's added
+          // through a plain object.)
+          {...(withMouse ? { onContextMenu: (event: { preventDefault: () => void }) => { event.preventDefault(); props.onHold(); } } : {})}
           delayLongPress={MENU_HOLD_MS}
           style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
         >
