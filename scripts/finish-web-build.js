@@ -4,7 +4,7 @@
    finished website in the "dist" folder. Then this little script adds
    two files GitHub Pages needs:
    - 404.html: a copy of index.html. GitHub Pages shows 404.html for any
-     address it has no file for (like /WUBRGrExpo/binders/abc), and since
+     address it has no file for (like /wubrgr/binders/abc), and since
      it's the app itself, the app opens and shows the right page instead
      of "page not found".
    - .nojekyll: an empty file that tells GitHub Pages not to run Jekyll

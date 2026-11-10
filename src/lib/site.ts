@@ -9,8 +9,8 @@
    ===================================================================== */
 
 // The full address, with https:// and a / on the end
-export const SITE_URL = 'https://navypirate83.github.io/wubrgr/';
+export const SITE_URL = 'https://navypirate83.com/wubrgr/';
 
 // The same without https:// and without the / on the end, for showing
-// to people ("navypirate83.github.io/wubrgr")
+// to people ("navypirate83.com/wubrgr")
 export const SITE_NAME = SITE_URL.replace(/^https:\/\//, '').replace(/\/$/, '');

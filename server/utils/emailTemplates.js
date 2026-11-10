@@ -10,7 +10,7 @@
 // Where the website is (the link in the welcome email). Set APP_URL in
 // the server's settings to change it.
 export function appUrl() {
-  return (process.env.APP_URL || 'https://navypirate83.github.io/wubrgr/').trim();
+  return (process.env.APP_URL || 'https://navypirate83.com/wubrgr/').trim();
 }
 
 // Make text safe to put inside HTML: "<" and "&" would otherwise be read
