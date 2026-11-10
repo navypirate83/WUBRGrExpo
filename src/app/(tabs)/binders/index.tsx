@@ -11,8 +11,12 @@
    - DRAG a binder to move it to another spot on the shelf (the others
      shift along to make room). With a finger: rest it on the binder for
      a moment, then slide. With a mouse: press the button and move.
-   - press and HOLD a binder still for its options: Edit and Delete (the
-     phone gives a little buzz when they open)
+   - press and HOLD a binder still for its options: Edit, Copy and Delete
+     (the phone gives a little buzz when they open). A right-click with a
+     mouse shows them too.
+   - on a computer, hold CTRL and click several binders to pick them (each
+     gets a frame and a tick). Letting go of Ctrl asks: Copy them or
+     Delete them. Esc drops the picks.
    - pull the shelf DOWN to load the binders again (from Google Drive,
      when signed in)
    With no binders yet, the shelf says so and offers to make the first.
@@ -37,6 +41,7 @@ import { useAnnouncer } from '@/hooks/useAnnouncer';
 import { useColors } from '@/hooks/useTheme';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { usePointerKind } from '@/hooks/usePointerKind';
+import { useCtrlSelect } from '@/hooks/useCtrlSelect';
 import ShortcutsDialog, { type Shortcut } from '@/components/ShortcutsDialog';
 import NewBinderDialog, { type UploadedBinder } from '@/components/binders/NewBinderDialog';
 import BinderSearch from '@/components/binders/BinderSearch';
@@ -47,8 +52,8 @@ import PopupWindow from '@/components/PopupWindow';
 import Button from '@/components/Button';
 import {
   DEFAULT_PAGES,
-  binderCardCount, binderPages, cardCountText, fitCardsIntoPages, forgetBinder,
-  loadBinderList, minPagesFor, saveBinder, saveBinderList, setLocalMode,
+  binderCardCount, binderPages, cardCountText, fitCardsIntoPages, forgetBinder, freeBinderName,
+  hasBinderCopy, loadBinder, loadBinderList, minPagesFor, saveBinder, saveBinderList, setLocalMode,
   type Binder,
 } from '@/lib/binderStorage';
 import {
@@ -57,6 +62,7 @@ import {
 } from '@/lib/googleDrive';
 import { reconcileWithDrive } from '@/lib/driveSync';
 import { hapticTap } from '@/lib/haptics';
+import { askYesNo } from '@/lib/dialogs';
 import { RADIUS } from '@/theme/colors';
 
 // The shelf's binders: how wide each one is, and the space between them
@@ -116,6 +122,18 @@ export default function ShelfScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Binders picked with Ctrl held (their ids, in the order picked), and
+  // whether the "Copy or Delete" window for them is open
+  const [selected, setSelected] = useState<string[]>([]);
+  const [selectionOpen, setSelectionOpen] = useState(false);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  // Ctrl let go: if binders were picked, ask what to do with them. Esc
+  // drops the picks. (Computers only: see hooks/useCtrlSelect.)
+  const { ctrlHeld } = useCtrlSelect(
+    () => { if (selectedRef.current.length > 0) setSelectionOpen(true); },
+    () => setSelected([]),
+  );
   // Mouse or finger? (They drag binders differently: see BinderTile.)
   const withMouse = usePointerKind() === 'mouse';
   // The binder being moved: its id, its spot on the shelf when the drag
@@ -137,7 +155,7 @@ export default function ShelfScreen() {
   const screenRef = useRef<ComponentRef<typeof View>>(null);
   const screenAt = useRef({ x: 0, y: 0 });
   // What the binders depend on besides the list (see the list's "extraData")
-  const tileExtras = useMemo(() => ({ drag, withMouse }), [drag, withMouse]);
+  const tileExtras = useMemo(() => ({ drag, withMouse, selected }), [drag, withMouse, selected]);
 
   const { announce } = useAnnouncer();
   // Set once loading from Drive has started, so it only runs once (React
@@ -336,6 +354,84 @@ export default function ShelfScreen() {
     }
   }
 
+  /* ----- Copying binders ----- */
+
+  // Make a copy of each of these binders (in the order they sit on the
+  // shelf). A copy has the same cover, color, pages and cards, a name
+  // with a number added, like "Black (1)", and goes at the end of the shelf.
+  async function copyBinders(ids: string[]) {
+    const originals = loadBinderList().filter((b) => ids.includes(b.id));
+    if (originals.length === 0) return;
+    const what = originals.length === 1 ? originals[0].name : `${originals.length} binders`;
+    setAdding(true);
+    setMessage({ text: `Copying ${what}…` });
+    try {
+      for (const original of originals) {
+        // Its cards, from this device (or from Drive if this device
+        // doesn't have them yet)
+        const cards = hasBinderCopy(original.id) ? loadBinder(original.id) : await syncBinder(original.id);
+        // The shelf as it is now, so each copy's number is free
+        const list = loadBinderList();
+        const name = freeBinderName(original.name);
+        const file = await createBinderFile(name, cards, original.color, list.length, original.cover, original.pages);
+        saveBinder(cards, file.id, { dirty: false });   // Drive already has these cards
+        showBinders([...list, { id: file.id, name, color: original.color, cover: original.cover, pages: original.pages }]);
+      }
+      setMessage({ text: `✓ Copied ${what}.` });
+      announce(`Copied ${what}`);
+    } catch (err) {
+      problem(err, 'Couldn\'t copy the binders.');
+    }
+    setAdding(false);
+  }
+
+  /* ----- Deleting several binders at once ----- */
+
+  // Ask first (nothing is deleted without a yes), then delete each one
+  // the same way as deleting a single binder
+  async function deleteBinders(ids: string[]) {
+    const doomed = loadBinderList().filter((b) => ids.includes(b.id));
+    if (doomed.length === 0) return;
+    const names = doomed.map((b) => `"${b.name}"`).join(', ');
+    const yes = await askYesNo(
+      doomed.length === 1 ? 'Delete this binder?' : `Delete these ${doomed.length} binders?`,
+      `${names} and ${doomed.length === 1 ? 'its' : 'their'} cards will be deleted. ` +
+      (localMode
+        ? 'They\'re only saved on this device, so they can\'t be brought back.'
+        : 'They go to your Google Drive trash, where they can be restored for 30 days.'),
+      'Yes, delete',
+      'No',
+    );
+    if (!yes) return;
+    setMessage({ text: 'Deleting…' });
+    try {
+      for (const binder of doomed) {
+        await trashBinderFile(binder.id);
+        forgetBinder(binder.id);
+        setBinders(loadBinderList());
+      }
+      const what = doomed.length === 1 ? doomed[0].name : `${doomed.length} binders`;
+      setMessage({ text: `✓ Deleted ${what}.` });
+      announce(`Deleted ${what}`);
+    } catch (err) {
+      setBinders(loadBinderList());
+      problem(err, 'Couldn\'t delete the binders.');
+    }
+  }
+
+  /* ----- Picking several binders (hold Ctrl and click, on a computer) ----- */
+
+  // Ctrl-click: pick the binder, or take it off the picked ones again
+  function toggleSelected(id: string) {
+    setSelected((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
+  }
+
+  // The window that asks "Copy or Delete?" closed (any way): nothing stays picked
+  function closeSelection() {
+    setSelectionOpen(false);
+    setSelected([]);
+  }
+
   /* ----- Keys on a computer: ? for the shortcuts list, N for a new binder ----- */
 
   useShortcutKeys((event) => {
@@ -530,9 +626,12 @@ export default function ShelfScreen() {
               onDragStart={(absX, absY) => startDrag(binder.id, index, absX, absY)}
               onDragMove={moveDrag}
               onDragEnd={endDrag}
-              onOpen={() => openBinder(binder.id)}
+              selected={selected.includes(binder.id)}
+              // With Ctrl held, a click picks the binder instead of opening it
+              onOpen={() => (ctrlHeld.current ? toggleSelected(binder.id) : openBinder(binder.id))}
               onHold={() => { hapticTap(); setMenuId(binder.id); }}
               onEdit={() => setEditingId(binder.id)}
+              onCopy={() => copyBinders([binder.id])}
               onDelete={() => setDeletingId(binder.id)}
               onMove={(by) => moveBinder(binder.id, by)}
             />
@@ -565,12 +664,29 @@ export default function ShelfScreen() {
       {menuBinder && (
         <PopupWindow title={menuBinder.name} onClose={() => setMenuId(null)}
                      buttons={[{ label: 'Close', onPress: () => setMenuId(null), kind: 'secondary' }]}>
-          {/* Its options: Edit (name, pages, cover) and Delete */}
+          {/* Its options: Edit (name, pages, cover), Copy and Delete */}
           <View style={styles.menu}>
             <Button label="Edit" icon="create-outline" kind="secondary"
                     onPress={() => { setMenuId(null); setEditingId(menuBinder.id); }} />
+            <Button label="Copy" icon="copy-outline" kind="secondary" disabled={adding}
+                    onPress={() => { setMenuId(null); copyBinders([menuBinder.id]); }} />
             <Button label="Delete" icon="trash-outline" kind="danger"
                     onPress={() => { setMenuId(null); setDeletingId(menuBinder.id); }} />
+          </View>
+        </PopupWindow>
+      )}
+      {/* Several binders picked with Ctrl: copy them or delete them */}
+      {selectionOpen && (
+        <PopupWindow title={`${selected.length} binder${selected.length === 1 ? '' : 's'} selected`} onClose={closeSelection}
+                     buttons={[{ label: 'Cancel', onPress: closeSelection, kind: 'secondary' }]}>
+          <Text style={[styles.selectionText, { color: colors.text }]}>
+            {binders.filter((b) => selected.includes(b.id)).map((b) => b.name).join(', ')}
+          </Text>
+          <View style={styles.menu}>
+            <Button label={selected.length === 1 ? 'Copy it' : 'Copy them'} icon="copy-outline" kind="secondary" disabled={adding}
+                    onPress={() => { const ids = selected; closeSelection(); copyBinders(ids); }} />
+            <Button label={selected.length === 1 ? 'Delete it' : 'Delete them'} icon="trash-outline" kind="danger"
+                    onPress={() => { const ids = selected; closeSelection(); deleteBinders(ids); }} />
           </View>
         </PopupWindow>
       )}
@@ -619,6 +735,7 @@ function BinderTile(props: {
   shiftX: number;
   shiftY: number;
   lifted: boolean;            // it's the one being dragged
+  selected: boolean;          // it's picked (Ctrl-click): drawn with a frame and a tick
   onMeasure: (height: number) => void;
   onDragStart: (absX: number, absY: number) => void;
   onDragMove: (dx: number, dy: number, absX: number, absY: number) => void;
@@ -626,10 +743,11 @@ function BinderTile(props: {
   onOpen: () => void;
   onHold: () => void;
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onMove: (by: -1 | 1) => void;
 }) {
-  const { binder, count, width, position, withMouse, shiftX, shiftY, lifted } = props;
+  const { binder, count, width, position, withMouse, shiftX, shiftY, lifted, selected } = props;
   const colors = useColors();
 
   // The drag. With a finger it only starts once the finger has rested
@@ -667,6 +785,7 @@ function BinderTile(props: {
           accessibilityHint="Opens the binder. Hold for its options."
           accessibilityActions={[
             { name: 'edit', label: 'Edit' },
+            { name: 'copy', label: 'Copy' },
             { name: 'delete', label: 'Delete' },
             { name: 'earlier', label: 'Move earlier' },
             { name: 'later', label: 'Move later' },
@@ -674,6 +793,7 @@ function BinderTile(props: {
           onAccessibilityAction={(event) => {
             const action = event.nativeEvent.actionName;
             if (action === 'edit') props.onEdit();
+            else if (action === 'copy') props.onCopy();
             else if (action === 'delete') props.onDelete();
             else props.onMove(action === 'earlier' ? -1 : 1);
           }}
@@ -687,7 +807,17 @@ function BinderTile(props: {
           delayLongPress={MENU_HOLD_MS}
           style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
         >
-          <ClosedBinder width={width} name={binder.name} colorCode={binder.color} cover={binder.cover} />
+          {/* The binder, with a frame and a tick over it while it's picked */}
+          <View>
+            <ClosedBinder width={width} name={binder.name} colorCode={binder.color} cover={binder.cover} />
+            {selected && (
+              <View pointerEvents="none" style={[styles.pickedFrame, { borderColor: colors.accent }]}>
+                <View style={[styles.pickedTick, { backgroundColor: colors.accent }]}>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                </View>
+              </View>
+            )}
+          </View>
           <Text style={[styles.caption, { color: colors.muted }]} numberOfLines={1}>{cardCountText(count)}</Text>
         </Pressable>
       </View>
@@ -738,6 +868,11 @@ const styles = StyleSheet.create({
   // The floating copy of a dragged binder
   floating: { position: 'absolute', zIndex: 50 },
   menu: { gap: 8 },
+  // The names of the picked binders, above the Copy and Delete buttons
+  selectionText: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
+  // A picked binder: a frame over it, and a tick in its top corner
+  pickedFrame: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: RADIUS, alignItems: 'flex-end' },
+  pickedTick: { margin: 4, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: 10, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS * 1.4, marginTop: 8 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center', marginBottom: 6 },

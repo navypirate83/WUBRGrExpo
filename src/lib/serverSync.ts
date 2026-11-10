@@ -20,14 +20,15 @@
    a binder that is on the server but unknown here is brought down, and a
    name that is already taken gets a number added. The exception: a binder
    or list on the server with the same name AND exactly the same cards is
-   the same one (logging out and in forgets the links), so it is linked
-   up instead of copied.
+   the same one (for example after the browser's saved data was cleared),
+   so it is linked up instead of copied. The links are kept for each
+   account on this device, so logging out and in again is quick.
    Having no internet isn't a problem: it just tries again later.
    Plain TypeScript with no React in it.
    ===================================================================== */
 
 import { apiRequest, isOffline } from './api';
-import { isServerSignedIn } from './session';
+import { getServerUser, isServerSignedIn } from './session';
 import {
   cleanCover, cleanPageCount, forgetBinder, freeBinderName, loadBinder, loadBinderList, newLocalBinderId,
   pocketKey, saveBinder, saveBinderList, setLocalMode, type Binder, type BinderCard, type BinderCards,
@@ -35,7 +36,7 @@ import {
 import {
   forgetList, loadLists, newLocalListId, saveLists, type CardList, type ListCard,
 } from './listStorage';
-import { storageGet, storageRemove, storageSet } from './storage';
+import { storageGet, storageSet } from './storage';
 
 /* ---------- what we remember between syncs ---------- */
 
@@ -44,23 +45,22 @@ import { storageGet, storageRemove, storageSet } from './storage';
 type Link = { serverId: string; fingerprint: string; version: string };
 type Memory = { binders: Record<string, Link>; lists: Record<string, Link> };
 
-const MEMORY_KEY = 'serverSync';
+// Each account has its own memory on this device, so logging out and in
+// again (even as someone else in between) never mixes links up, and a
+// later login doesn't have to compare and re-send everything
+function memoryKey(): string {
+  return `serverSync:${getServerUser()?.id ?? 'nobody'}`;
+}
 
 function readMemory(): Memory {
   try {
-    const saved = JSON.parse(storageGet(MEMORY_KEY) ?? 'null');
+    const saved = JSON.parse(storageGet(memoryKey()) ?? 'null');
     if (saved && typeof saved === 'object') return { binders: saved.binders ?? {}, lists: saved.lists ?? {} };
   } catch { /* unreadable: start fresh */ }
   return { binders: {}, lists: {} };
 }
 function writeMemory(memory: Memory): void {
-  storageSet(MEMORY_KEY, JSON.stringify(memory));
-}
-
-// Forget everything (after signing out, so the next person to sign in on
-// this device starts fresh and never gets someone else's links)
-export function forgetServerLinks(): void {
-  storageRemove(MEMORY_KEY);
+  storageSet(memoryKey(), JSON.stringify(memory));
 }
 
 // A short number worked out from some text. The same text always gives
@@ -139,7 +139,7 @@ async function syncBinders(memory: Memory): Promise<void> {
       // which forgets the links. Link them up instead of making a copy.
       const twin = link ? undefined : await findBinderTwin(binder, cards, onServer, memory);
       if (twin) {
-        await pushBinder(binder, cards, twin._id, memory);
+        await linkBinderTwin(binder, cards, twin, memory);
         continue;
       }
       await createBinderOnServer(binder, cards, memory);
@@ -208,6 +208,17 @@ async function findBinderTwin(binder: Binder, cards: BinderCards, onServer: Serv
     if (sameCards(cards, await downloadCards(`/binders/${remote._id}/cards`))) return remote;
   }
   return undefined;
+}
+
+// Link a binder to its twin on the server. The cards are already the same,
+// so nothing is sent unless the look (name, color, cover, pages) differs.
+async function linkBinderTwin(binder: Binder, cards: BinderCards, twin: ServerItem, memory: Memory): Promise<void> {
+  const sameLook = stableText(detailsToServer(withDetails(binder, twin))) === stableText(detailsToServer(binder));
+  if (!sameLook) {
+    await pushBinder(binder, cards, twin._id, memory);
+    return;
+  }
+  memory.binders[binder.id] = { serverId: twin._id, fingerprint: fingerprintOf([detailsToServer(binder), cards]), version: twin.updatedAt };
 }
 
 // Make a binder on the server, then send its cards. If the name is taken
@@ -310,6 +321,11 @@ async function syncLists(memory: Memory): Promise<void> {
       // Never linked, but the server already has this very list (same
       // name, same cards): link them up instead of making a copy
       const twin = link ? undefined : await findListTwin(list, onServer, memory);
+      if (twin && twin.name === list.name) {
+        // Exactly the same name and cards: just link them, nothing to send
+        memory.lists[list.id] = { serverId: twin._id, fingerprint, version: twin.updatedAt };
+        continue;
+      }
       const target = twin ?? await createListOnServer(list);
       await pushList(list, target._id, memory);
       continue;

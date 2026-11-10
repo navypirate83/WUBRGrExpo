@@ -135,7 +135,14 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               <Strong>Its options</Strong>: press and hold a binder still for half a second (with a
               small buzz on most phones), or <Strong>right-click</Strong> it with a mouse:{' '}
-              <Strong>Edit</Strong> and <Strong>Delete</Strong>.
+              <Strong>Edit</Strong>, <Strong>Copy</Strong> (a duplicate with the same cards, named
+              like "Black (1)", at the end of the shelf) and <Strong>Delete</Strong>.
+            </Bullet>
+            <Bullet>
+              <Strong>Pick several at once</Strong> (on a computer): hold <Strong>Ctrl</Strong> (or{' '}
+              <Strong>Cmd</Strong>) and click each binder you want. Picked binders get a frame and a
+              tick. Let go of Ctrl and a window asks whether to <Strong>Copy</Strong> or{' '}
+              <Strong>Delete</Strong> them. <Strong>Esc</Strong> drops the picks.
             </Bullet>
             <Bullet>
               <Strong>Change the order</Strong>: drag a binder to a new spot. With a finger, rest it

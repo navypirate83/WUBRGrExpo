@@ -23,7 +23,7 @@ import {
 } from '@/lib/googleDrive';
 import { reconcileWithDrive } from '@/lib/driveSync';
 import { signOut as serverSignOut, signOutEverywhere } from '@/lib/session';
-import { forgetServerLinks, syncQuietly } from '@/lib/serverSync';
+import { syncQuietly } from '@/lib/serverSync';
 import { askYesNo } from '@/lib/dialogs';
 import { syncSettings } from '@/lib/settings';
 import { showMessage } from '@/lib/dialogs';
@@ -107,7 +107,6 @@ export default function AccountSection() {
     try {
       await syncQuietly();
       await serverSignOut();
-      forgetServerLinks();
       setBusyText(null);
       router.navigate({ pathname: '/', params: { message: 'You\'re logged out. Your binders and lists are still on this device.' } });
     } catch (err) {
@@ -124,7 +123,6 @@ export default function AccountSection() {
     try {
       await syncQuietly();
       await signOutEverywhere();
-      forgetServerLinks();
       setBusyText(null);
       router.navigate({ pathname: '/', params: { message: 'You\'re logged out everywhere. Your binders and lists are still on this device.' } });
     } catch (err) {
