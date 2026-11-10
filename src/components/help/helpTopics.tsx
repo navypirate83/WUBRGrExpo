@@ -989,6 +989,13 @@ export const helpTopics: HelpTopic[] = [
               in, changes are sent to your account every few seconds, and changes from your other
               devices arrive every couple of minutes. With no internet, they wait and are sent later.
               If the same binder was changed on two devices, the device that syncs last keeps its version.
+              If this device and your account each have a binder (or list) with the same name but
+              different cards, the app asks which to keep, instead of making a "Name 2" copy:{' '}
+              <Strong>Combine</Strong> (the cards from both, a card on both counts once; a card
+              you moved to another binder may then be in both places), <Strong>Keep this
+              device's</Strong>, <Strong>Keep the account's</Strong>, or <Strong>Decide later</Strong>
+              {' '}(nothing changes, and it asks again the next time the app opens). A switch
+              applies your answer to the other binders or lists with the same problem.
             </Bullet>
             <Bullet>
               <Strong>Google Drive backup</Strong> is optional: sign in with Google to also keep a copy
@@ -1038,8 +1045,10 @@ export const helpTopics: HelpTopic[] = [
               removes every binder and list from this device, and signs you out of Google. Your
               files in Google Drive are not touched, and your settings (theme, page layout) are
               kept. Afterwards the app is like a new install: sign in with Google and, if
-              Drive has a collection, you choose which way to sync. It also clears the card
-              information saved for offline use (it downloads again when needed).
+              Drive has a collection, you choose which way to sync. If you're logged in to your
+              WUBRG'r account, its own copy is not touched and your binders come straight
+              back down to this device. It also clears the card information saved for
+              offline use (it downloads again when needed).
             </P>
             <P>
               <Strong>Card pictures</Strong> (on the phone app only) shows how much space the

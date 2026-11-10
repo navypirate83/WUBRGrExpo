@@ -41,6 +41,7 @@ import { clearSnapshot, readSnapshot, writeSnapshot, type Snapshot } from './dri
 import { askSyncDirection, type SyncQuestion } from './syncChoice';
 import { storageRemove } from './storage';
 import { clearSaved } from './cardCache';
+import { forgetServerLinks } from './serverSync';
 
 // How a reconcile ended: nothing to do, one of the two directions, or
 // "Not now"
@@ -272,6 +273,11 @@ export async function resetPhoneMemory(): Promise<void> {
   setLocalMode(false);
   clearSnapshot();
   storageRemove('lastBinderId');
+  // Forget which binders matched which on the WUBRG'r server. Otherwise
+  // the next sync would take the now-empty device to mean "everything was
+  // deleted here" and delete it all on the server. Instead, your binders
+  // come back down from the server when you're logged in.
+  forgetServerLinks();
   await clearSaved();
   declined = false;
 }

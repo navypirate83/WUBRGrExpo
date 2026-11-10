@@ -16,6 +16,8 @@ import { router } from 'expo-router';
 import { binderDirtyStamp, loadBinderList } from '@/lib/binderStorage';
 import { listDirtyStamp, loadLists } from '@/lib/listStorage';
 import { resetPhoneMemory } from '@/lib/driveSync';
+import { syncQuietly } from '@/lib/serverSync';
+import { isServerSignedIn } from '@/lib/session';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { SPACE } from '@/theme/colors';
 import Button from '@/components/Button';
@@ -33,13 +35,27 @@ export default function PhoneMemorySection() {
       'Reset device memory?',
       'Are you sure? This removes every binder and list from this device and signs you out of Google. ' +
       'Your files in Google Drive are not touched, and signing in again brings your collection back.' +
+      (isServerSignedIn() ? ' Your WUBRG\'r account keeps its own copy, which comes back to this device right away.' : '') +
       (waiting > 0 ? `\n\n${waiting} binder${waiting === 1 ? '' : 's'} or list${waiting === 1 ? '' : 's'} with changes not yet saved to Google Drive will be lost.` : ''),
       'Reset', 'Cancel',
     );
     if (!sure) return;
     try {
+      // Logged in to the WUBRG'r server? First send it any changes it
+      // hasn't got yet (so nothing is lost), and after the reset, bring
+      // the collection straight back down from it.
+      const hasAccount = isServerSignedIn();
+      if (hasAccount) await syncQuietly();
       await resetPhoneMemory();
-      router.navigate({ pathname: '/', params: { message: 'Device memory reset. Sign in with Google to bring your collection back.' } });
+      if (hasAccount) await syncQuietly();
+      router.navigate({
+        pathname: '/',
+        params: {
+          message: hasAccount
+            ? 'Device memory reset. Your collection came back from your account.'
+            : 'Device memory reset. Sign in with Google to bring your collection back.',
+        },
+      });
     } catch (err) {
       showMessage('Couldn\'t reset', (err as Error).message);
     }

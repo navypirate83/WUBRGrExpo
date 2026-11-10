@@ -25,6 +25,7 @@ import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
 import AppHeader from '@/components/AppHeader';
 import SyncChoiceHost from '@/components/SyncChoiceHost';
+import MergeChoiceHost from '@/components/MergeChoiceHost';
 
 // Keep the splash screen showing until we say it can go (below)
 SplashScreen.preventAutoHideAsync().catch(() => { /* already hidden */ });
@@ -138,6 +139,10 @@ function ThemedStack() {
       {/* The "Phone and Google Drive don't match" window: invisible until
           the sync code asks which way to sync (see lib/driveSync.ts) */}
       <SyncChoiceHost />
+      {/* The "same name on both" window: invisible until the sync with
+          the account finds a binder or list that is on this device and in
+          the account with different cards (see lib/serverSync.ts) */}
+      <MergeChoiceHost />
     </ThemeProvider>
   );
 }

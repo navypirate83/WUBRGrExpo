@@ -17,13 +17,26 @@
    server, so a newer version from another device is noticed.
    If the same binder changed in both places, THIS device wins (the last
    device to sync keeps its changes). Nothing is ever deleted by guessing:
-   a binder that is on the server but unknown here is brought down, and a
-   name that is already taken gets a number added. The exception: a binder
+   a binder that is on the server but unknown here is brought down. The
+   exception: a binder
    or list on the server with the same name AND exactly the same cards is
    the same one (for example after the browser's saved data was cleared),
-   so it is linked up instead of copied. The links are kept for each
-   account on this device, so logging out and in again is quick.
+   so it is linked up instead of copied. If the name matches but the cards
+   differ (say the phone and the website each had their own "Red" before
+   either was linked to the account), the app ASKS which to keep: combine
+   them into one (see mergeCards.ts), keep this device's, or keep the
+   account's. It is never copied as "Red 2" and never changed without an
+   answer ("Decide later" leaves it alone until the app next opens). The
+   links are kept for each account on this device, so logging out and in
+   again is quick.
    Having no internet isn't a problem: it just tries again later.
+   Being stopped half way isn't a problem either (the phone app can be
+   closed or sent to the background at any moment): the link to a new
+   binder is saved the moment the server makes it, BEFORE its cards are
+   sent, and again after every step. So the next sync carries on with
+   the same binder on the server, and never starts a second copy.
+   "Reset device memory" forgets the links too (forgetServerLinks), so the
+   binders come back down from the server instead of looking deleted.
    Plain TypeScript with no React in it.
    ===================================================================== */
 
@@ -31,12 +44,14 @@ import { apiRequest, isOffline } from './api';
 import { getServerUser, isServerSignedIn } from './session';
 import {
   cleanCover, cleanPageCount, forgetBinder, freeBinderName, loadBinder, loadBinderList, newLocalBinderId,
-  pocketKey, saveBinder, saveBinderList, setLocalMode, type Binder, type BinderCard, type BinderCards,
+  pocketKey, pocketsPerPage, saveBinder, saveBinderList, setLocalMode, type Binder, type BinderCard, type BinderCards,
 } from './binderStorage';
 import {
   forgetList, loadLists, newLocalListId, saveLists, type CardList, type ListCard,
 } from './listStorage';
-import { storageGet, storageSet } from './storage';
+import { storageGet, storageKeys, storageRemove, storageSet } from './storage';
+import { mergeBinderCards, mergeListCards } from './mergeCards';
+import { askMergeChoice, type MergeChoice } from './mergeChoice';
 
 /* ---------- what we remember between syncs ---------- */
 
@@ -61,6 +76,45 @@ function readMemory(): Memory {
 }
 function writeMemory(memory: Memory): void {
   storageSet(memoryKey(), JSON.stringify(memory));
+}
+
+// Forget every account's links on this device (used by "Reset device
+// memory"). Without this, the next sync would find links to binders that
+// are no longer on the device and take that to mean "you deleted them",
+// and delete them on the server.
+export function forgetServerLinks(): void {
+  for (const key of storageKeys('serverSync:')) storageRemove(key);
+}
+
+// The fingerprint of a binder or list that was made on the server but whose
+// cards haven't all been sent yet. It never matches, so the next sync sends them.
+const NOT_SENT_YET = 'not-sent-yet';
+
+// Binders and lists the person said "Decide later" to, until the app is
+// closed (so the question isn't asked again at every sync, every few
+// seconds): "binder:<id>" or "list:<id>"
+const decidedLater = new Set<string>();
+
+// "Do the same for the others": the answer to use for the rest of THIS
+// sync. (Cleared at the start of every sync.)
+let sameForOthers: { binder: MergeChoice | null; list: MergeChoice | null } = { binder: null, list: null };
+
+// Ask which version to keep (unless already answered for this one, or for
+// all of them). Returns null for "Decide later".
+async function decideMerge(
+  kind: 'binder' | 'list', localId: string, name: string, device: number, account: number, combined: number,
+): Promise<MergeChoice | null> {
+  const id = `${kind}:${localId}`;
+  if (decidedLater.has(id)) return null;
+  const chosenForAll = sameForOthers[kind];
+  if (chosenForAll) return chosenForAll;
+  const answer = await askMergeChoice({ kind, name, device, account, combined });
+  if (!answer.choice) {
+    decidedLater.add(id);
+    return null;
+  }
+  if (answer.forAll) sameForOthers[kind] = answer.choice;
+  return answer.choice;
 }
 
 // A short number worked out from some text. The same text always gives
@@ -117,6 +171,9 @@ async function syncBinders(memory: Memory): Promise<void> {
   const onServer = await getAll<ServerItem>('/binders');
   const serverById = new Map(onServer.map((item) => [item._id, item]));
   const knownServerIds = new Set(Object.values(memory.binders).map((link) => link.serverId));
+  // Server binders waiting for an answer ("Decide later"): they must not be
+  // brought down as a second copy meanwhile
+  const heldBack = new Set<string>();
 
   // 1. Every binder on this device: send it, or update it from the server
   for (const binder of [...loadBinderList()]) {
@@ -134,12 +191,24 @@ async function syncBinders(memory: Memory): Promise<void> {
         delete memory.binders[binder.id];
         continue;
       }
-      // Never linked, but the server already has this very binder (same
-      // name, same cards)? That happens after logging out and in again,
-      // which forgets the links. Link them up instead of making a copy.
-      const twin = link ? undefined : await findBinderTwin(binder, cards, onServer, memory);
-      if (twin) {
-        await linkBinderTwin(binder, cards, twin, memory);
+      // Never linked, but the server already has a binder of this name
+      // that no binder here is linked to? Then it is the same binder, as
+      // far as we can tell. With exactly the same cards (after logging out
+      // and in again, which forgets the links) just link them. With
+      // different cards (two devices each had their own) combine them.
+      const sameName = link ? undefined : findUnlinkedSameName(binder.name, onServer, memory.binders);
+      if (sameName) {
+        const theirCards = await downloadCards(`/binders/${sameName._id}/cards`);
+        if (sameCards(cards, theirCards)) {
+          await linkBinderTwin(binder, cards, sameName, memory);
+        } else {
+          const combinedCount = Object.keys(mergeBinderCards(cards, theirCards, pocketsPerPage()).cards).length;
+          const choice = await decideMerge('binder', binder.id, binder.name, Object.keys(cards).length, Object.keys(theirCards).length, combinedCount);
+          if (choice === 'combine') await mergeBinderWithServer(binder, cards, sameName, theirCards, memory);
+          else if (choice === 'keep-device') await keepDeviceBinder(binder, cards, sameName, memory);
+          else if (choice === 'keep-account') await pullBinder(binder.id, sameName, memory);
+          else heldBack.add(sameName._id);
+        }
         continue;
       }
       await createBinderOnServer(binder, cards, memory);
@@ -158,7 +227,7 @@ async function syncBinders(memory: Memory): Promise<void> {
 
   // 2. Binders on the server this device has never seen: bring them down
   for (const remote of onServer) {
-    if (knownServerIds.has(remote._id)) continue;
+    if (knownServerIds.has(remote._id) || heldBack.has(remote._id)) continue;
     // (A binder just created above is already known)
     if (Object.values(memory.binders).some((link) => link.serverId === remote._id)) continue;
     await pullNewBinder(remote, memory);
@@ -198,16 +267,39 @@ function sameCards(mine: BinderCards, theirs: BinderCards): boolean {
   });
 }
 
-// A binder on the server that is the same one as this device's binder: it
-// has the same name, holds the same cards, and isn't linked to anything
-// here yet. Returns nothing if there isn't one.
-async function findBinderTwin(binder: Binder, cards: BinderCards, onServer: ServerItem[], memory: Memory): Promise<ServerItem | undefined> {
-  const linked = new Set(Object.values(memory.binders).map((link) => link.serverId));
-  for (const remote of onServer) {
-    if (linked.has(remote._id) || remote.name.toLowerCase() !== binder.name.toLowerCase()) continue;
-    if (sameCards(cards, await downloadCards(`/binders/${remote._id}/cards`))) return remote;
-  }
-  return undefined;
+// A binder or list on the server with this name (capital letters don't
+// matter) that nothing on this device is linked to yet. Returns nothing if
+// there isn't one.
+function findUnlinkedSameName(name: string, onServer: ServerItem[], links: Record<string, Link>): ServerItem | undefined {
+  const linked = new Set(Object.values(links).map((link) => link.serverId));
+  return onServer.find((remote) => !linked.has(remote._id) && remote.name.toLowerCase() === name.toLowerCase());
+}
+
+// "Keep this device's": this device's binder replaces the account's copy.
+// The link is saved before the send, as always.
+async function keepDeviceBinder(binder: Binder, cards: BinderCards, remote: ServerItem, memory: Memory): Promise<void> {
+  memory.binders[binder.id] = { serverId: remote._id, fingerprint: NOT_SENT_YET, version: '' };
+  writeMemory(memory);
+  await pushBinder(binder, cards, remote._id, memory);
+}
+
+// Combine this device's binder with the same-named one on the server (the
+// cards of both, see mergeCards.ts), keep the result here, and send it so
+// both sides match. The link is saved before the send, as always.
+async function mergeBinderWithServer(binder: Binder, cards: BinderCards, remote: ServerItem, theirCards: BinderCards, memory: Memory): Promise<void> {
+  const { cards: merged, pagesNeeded } = mergeBinderCards(cards, theirCards, pocketsPerPage());
+  const combined: Binder = {
+    ...binder,
+    name: remote.name,
+    color: remote.color ?? binder.color ?? null,
+    cover: cleanCover(remote.cover) || binder.cover,
+    pages: Math.max(cleanPageCount(remote.pages), cleanPageCount(binder.pages), pagesNeeded),
+  };
+  saveBinder(merged, binder.id, { dirty: false });
+  saveBinderList(loadBinderList().map((b) => (b.id === binder.id ? combined : b)));
+  memory.binders[binder.id] = { serverId: remote._id, fingerprint: NOT_SENT_YET, version: '' };
+  writeMemory(memory);
+  await pushBinder(combined, merged, remote._id, memory);
 }
 
 // Link a binder to its twin on the server. The cards are already the same,
@@ -219,6 +311,7 @@ async function linkBinderTwin(binder: Binder, cards: BinderCards, twin: ServerIt
     return;
   }
   memory.binders[binder.id] = { serverId: twin._id, fingerprint: fingerprintOf([detailsToServer(binder), cards]), version: twin.updatedAt };
+  writeMemory(memory);
 }
 
 // Make a binder on the server, then send its cards. If the name is taken
@@ -239,6 +332,11 @@ async function createBinderOnServer(binder: Binder, cards: BinderCards, memory: 
     binder = { ...binder, name };
     saveBinderList(loadBinderList().map((b) => (b.id === binder.id ? binder : b)));
   }
+  // Remember the link NOW, before the cards are sent. If the app is stopped
+  // during the upload, the next sync sees this link and carries on with the
+  // same binder instead of making a second one.
+  memory.binders[binder.id] = { serverId: created._id, fingerprint: NOT_SENT_YET, version: '' };
+  writeMemory(memory);
   await pushBinder(binder, cards, created._id, memory);
 }
 
@@ -255,6 +353,7 @@ async function pushBinder(binder: Binder, cards: BinderCards, serverId: string, 
     fingerprint: fingerprintOf([detailsToServer(binder), cards]),
     version: after.updatedAt,
   };
+  writeMemory(memory);
 }
 
 // Bring a changed binder's details and cards down over the device's copy
@@ -265,6 +364,7 @@ async function pullBinder(localId: string, remote: ServerItem, memory: Memory): 
   saveBinderList(list);
   const updated = list.find((b) => b.id === localId)!;
   memory.binders[localId] = { serverId: remote._id, fingerprint: fingerprintOf([detailsToServer(updated), cards]), version: remote.updatedAt };
+  writeMemory(memory);
 }
 
 // Bring a binder this device has never seen down as a new binder
@@ -275,6 +375,7 @@ async function pullNewBinder(remote: ServerItem, memory: Memory): Promise<void> 
   saveBinder(cards, id, { dirty: false });
   saveBinderList([...loadBinderList(), binder]);
   memory.binders[id] = { serverId: remote._id, fingerprint: fingerprintOf([detailsToServer(binder), cards]), version: remote.updatedAt };
+  writeMemory(memory);
 }
 
 // A binder's details taken from what the server says (checked on the way in)
@@ -303,6 +404,9 @@ async function syncLists(memory: Memory): Promise<void> {
   const onServer = await getAll<ServerItem>('/lists');
   const serverById = new Map(onServer.map((item) => [item._id, item]));
   let lists = loadLists();
+  // Server lists waiting for an answer ("Decide later"): not to be brought
+  // down as a second copy meanwhile
+  const heldBack = new Set<string>();
 
   // 1. Every list on this device
   for (const list of [...lists]) {
@@ -318,15 +422,46 @@ async function syncLists(memory: Memory): Promise<void> {
         delete memory.lists[list.id];
         continue;
       }
-      // Never linked, but the server already has this very list (same
-      // name, same cards): link them up instead of making a copy
-      const twin = link ? undefined : await findListTwin(list, onServer, memory);
-      if (twin && twin.name === list.name) {
-        // Exactly the same name and cards: just link them, nothing to send
-        memory.lists[list.id] = { serverId: twin._id, fingerprint, version: twin.updatedAt };
+      // Never linked, but the server already has a list of this name that
+      // nothing here is linked to? Same list: with the same cards just
+      // link them; with different cards combine them (see mergeCards.ts).
+      const sameName = link ? undefined : findUnlinkedSameName(list.name, onServer, memory.lists);
+      if (sameName) {
+        const theirCards = (await apiRequest<ServerCard[]>(`/lists/${sameName._id}/cards`)).map(listCardFromServer);
+        if (sameListCards(list.cards, theirCards) && sameName.name === list.name) {
+          // Exactly the same name and cards: just link them, nothing to send
+          memory.lists[list.id] = { serverId: sameName._id, fingerprint, version: sameName.updatedAt };
+          writeMemory(memory);
+          continue;
+        }
+        const combinedCards = mergeListCards(list.cards, theirCards);
+        // The same cards (only the name's capital letters differ): nothing
+        // to decide. Otherwise ask which version to keep.
+        const choice = sameListCards(list.cards, theirCards)
+          ? 'combine'
+          : await decideMerge('list', list.id, list.name, list.cards.length, theirCards.length, combinedCards.length);
+        if (choice === 'combine') {
+          const combined: CardList = { ...list, name: sameName.name, cards: combinedCards };
+          lists = lists.map((l) => (l.id === list.id ? combined : l));
+          saveLists(loadLists().map((l) => (l.id === list.id ? combined : l)));
+          memory.lists[list.id] = { serverId: sameName._id, fingerprint: NOT_SENT_YET, version: '' };
+          writeMemory(memory);
+          await pushList(combined, sameName._id, memory);
+        } else if (choice === 'keep-device') {
+          memory.lists[list.id] = { serverId: sameName._id, fingerprint: NOT_SENT_YET, version: '' };
+          writeMemory(memory);
+          await pushList(list, sameName._id, memory);
+        } else if (choice === 'keep-account') {
+          await pullList(list.id, sameName, memory);
+        } else {
+          heldBack.add(sameName._id);
+        }
         continue;
       }
-      const target = twin ?? await createListOnServer(list);
+      const target = await createListOnServer(list);
+      // Remember the link before the cards are sent (see createBinderOnServer)
+      memory.lists[list.id] = { serverId: target._id, fingerprint: NOT_SENT_YET, version: '' };
+      writeMemory(memory);
       await pushList(list, target._id, memory);
       continue;
     }
@@ -340,12 +475,13 @@ async function syncLists(memory: Memory): Promise<void> {
   // 2. Lists on the server this device has never seen
   const known = new Set(Object.values(memory.lists).map((link) => link.serverId));
   for (const remote of onServer) {
-    if (known.has(remote._id)) continue;
+    if (known.has(remote._id) || heldBack.has(remote._id)) continue;
     const cards = await apiRequest<ServerCard[]>(`/lists/${remote._id}/cards`);
     const id = newLocalListId();
     const added: CardList = { id, name: uniqueListName(remote.name), cards: cards.map(listCardFromServer) };
     saveLists([...loadLists(), added]);
     memory.lists[id] = { serverId: remote._id, fingerprint: fingerprintOf([added.name, added.cards]), version: remote.updatedAt };
+    writeMemory(memory);
   }
 
   // 3. Lists deleted on this device
@@ -372,17 +508,11 @@ function uniqueListName(name: string): string {
   return candidate;
 }
 
-// A list on the server that is the same one as this device's list: same
-// name, same cards (in any order), not linked to anything here yet
-async function findListTwin(list: CardList, onServer: ServerItem[], memory: Memory): Promise<ServerItem | undefined> {
-  const linked = new Set(Object.values(memory.lists).map((link) => link.serverId));
-  const mine = list.cards.map((card) => stableText(listCardFromServer(card as unknown as ServerCard))).sort().join('|');
-  for (const remote of onServer) {
-    if (linked.has(remote._id) || remote.name.toLowerCase() !== list.name.toLowerCase()) continue;
-    const theirs = (await apiRequest<ServerCard[]>(`/lists/${remote._id}/cards`)).map((card) => stableText(listCardFromServer(card))).sort().join('|');
-    if (mine === theirs) return remote;
-  }
-  return undefined;
+// Do two lists hold the same cards (in any order)?
+function sameListCards(mine: ListCard[], theirs: ListCard[]): boolean {
+  const text = (cards: ListCard[]) =>
+    cards.map((card) => stableText(listCardFromServer(card as unknown as ServerCard))).sort().join('|');
+  return mine.length === theirs.length && text(mine) === text(theirs);
 }
 
 // Make a list on the server (a number is added to the name if it's taken)
@@ -406,6 +536,7 @@ async function pushList(list: CardList, serverId: string, memory: Memory): Promi
   await apiRequest(`/lists/${serverId}/cards`, { method: 'PUT', body: { cards: current.cards } });
   const after = await apiRequest<ServerItem>(`/lists/${serverId}`);
   memory.lists[list.id] = { serverId, fingerprint: fingerprintOf([current.name, current.cards]), version: after.updatedAt };
+  writeMemory(memory);
 }
 
 async function pullList(localId: string, remote: ServerItem, memory: Memory): Promise<void> {
@@ -413,6 +544,7 @@ async function pullList(localId: string, remote: ServerItem, memory: Memory): Pr
   const lists = loadLists().map((l) => (l.id === localId ? { ...l, name: remote.name, cards } : l));
   saveLists(lists);
   memory.lists[localId] = { serverId: remote._id, fingerprint: fingerprintOf([remote.name, cards]), version: remote.updatedAt };
+  writeMemory(memory);
 }
 
 /* ---------- running a sync ---------- */
@@ -427,6 +559,8 @@ export function syncWithServer(): Promise<void> {
   if (!running) {
     running = (async () => {
       const memory = readMemory();
+      // "Do the same for the others" lasts for one sync only
+      sameForOthers = { binder: null, list: null };
       // The app's screens work from the device's copy: make sure the
       // binders show even though nobody "signed in with Google"
       setLocalMode(true);
