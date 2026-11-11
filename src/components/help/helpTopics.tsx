@@ -356,7 +356,7 @@ export const helpTopics: HelpTopic[] = [
               it, Card Finder, Settings and Help. At the bottom is your account: tap it for Account
               settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
               out, it has Log in and Create account buttons. On a narrower window, or a phone held
-              sideways, the menu is just the icons on its own. On a wide window, the small round arrow button beside the WUBRG'r name collapses
+              sideways, the menu is just the icons on its own. On a wide window, the small round arrow button at the top of the menu collapses
               the menu to just the icons (and expands it again); the app remembers your choice. With the menu
               showing, the shelf leaves out its own Binders and Lists buttons, since the menu has them. A normal
               phone keeps the tabs along the bottom.

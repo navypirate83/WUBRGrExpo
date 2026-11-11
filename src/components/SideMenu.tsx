@@ -23,7 +23,6 @@ import { router, usePathname } from 'expo-router';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import AppTitle from '@/components/AppTitle';
 import { useAccount } from '@/hooks/useAccount';
 import { useFullMenuFits } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
@@ -78,11 +77,10 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
         },
       ]}
     >
-      {/* The app's name in its five colors (smaller in the slim menu) */}
-      {/* Beside the name (under it in the slim menu) sits a small round
-          button that collapses the full menu or expands the slim one. */}
+      {/* A small round button at the top that collapses the full menu or
+          expands the slim one (the app's name isn't repeated here, since
+          the page header already shows it). */}
       <View style={[styles.logo, slim && styles.logoSlim]}>
-        <AppTitle size={slim ? 13 : 22} />
         {canResize && (
           <Pressable
             onPress={() => setMenuCollapsed(!slim)}
@@ -313,7 +311,7 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   centered: { justifyContent: 'center' },
   // The app's name at the top
-  logo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACE.s, paddingBottom: SPACE.l, paddingTop: SPACE.xs },
+  logo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: SPACE.s, paddingBottom: SPACE.m, paddingTop: SPACE.xs },
   logoSlim: { flexDirection: 'column', gap: SPACE.s, paddingHorizontal: 0, paddingBottom: SPACE.m },
   // The small round collapse / expand button by the name
   collapseButton: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
