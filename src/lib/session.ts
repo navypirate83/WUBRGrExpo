@@ -78,11 +78,17 @@ async function startSession(reply: SessionReply): Promise<ServerUser> {
 }
 
 // Forget the login on this device (the binders and lists stay)
+// The marker for "settings changed here and not yet sent to the account"
+// (used by settings.ts). Signing out forgets it, so one person's unsent
+// change can never be uploaded into the next person's account on this device.
+export const SETTINGS_UNSENT_KEY = 'settingsServerDirty';
+
 async function endSession(): Promise<void> {
   setAccessToken(null);
   await forgetRefreshToken();
   user = null;
   storageRemove(USER_KEY);
+  storageRemove(SETTINGS_UNSENT_KEY);
   accountChanged();
 }
 

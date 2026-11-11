@@ -36,7 +36,7 @@ import { storageGet, storageRemove, storageSet } from './storage';
 import { isLocalMode, relayoutAllBinders } from './binderStorage';
 import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
 import { apiRequest } from './api';
-import { isServerSignedIn } from './session';
+import { isServerSignedIn, SETTINGS_UNSENT_KEY } from './session';
 import {
   DEFAULT_LAYOUT, cleanLayout, pageLayout, pocketsPerPage, saveLayout, sameLayout, type PageLayout,
 } from './pageLayout';
@@ -62,8 +62,8 @@ const SETTINGS_VERSION = 1;
 // Where things are kept on this device: the "needs saving to Drive"
 // marker, and the hidden formats (the theme has its own "theme")
 const DIRTY_KEY = 'settingsDirty';
-// The same kind of marker for the WUBRG'r server
-const SERVER_DIRTY_KEY = 'settingsServerDirty';
+// The same kind of marker for the WUBRG'r server (signing out clears it)
+const SERVER_DIRTY_KEY = SETTINGS_UNSENT_KEY;
 const HIDDEN_FORMATS_KEY = 'hiddenFormats';
 
 /* ---------------------------------------------------------------------
