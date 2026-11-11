@@ -1,12 +1,13 @@
 /* =====================================================================
    SETTINGS → ABOUT
    The app's version, where its card information comes from (Scryfall),
-   a link to the website, and the notice Wizards of the Coast asks fan
+   a link to the website (and, on the website only, a link to download
+   the Android app), and the notice Wizards of the Coast asks fan
    projects like this one to show (their "Fan Content Policy").
    Links open in the phone's web browser (or a new browser tab).
    ===================================================================== */
 
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
@@ -18,15 +19,17 @@ import { SettingRow, SettingsSection } from './SettingsParts';
 const WEBSITE_URL = SITE_URL;
 const SCRYFALL_URL = 'https://scryfall.com/';
 const FAN_POLICY_URL = 'https://company.wizards.com/en/legal/fancontentpolicy';
+// The Android app file, shared from Google Drive (shown on the website only)
+const ANDROID_APP_URL = 'https://drive.google.com/file/d/1nqBXL5YRPTGnGFR8wgdYSCbHNe4y7enc/view?usp=sharing';
 
 // The app's version number (from app.json), like "0.2.0"
 const VERSION = Constants.expoConfig?.version ?? '';
 
 /* ----- A row that opens a web page ----- */
 
-// Its name and a line under it on the left, an "opens elsewhere" arrow
-// on the right. It darkens a little while pressed.
-function LinkRow({ name, description, url }: { name: string; description: string; url: string }) {
+// Its name and a line under it on the left (the line is optional), an
+// "opens elsewhere" arrow on the right. It darkens a little while pressed.
+function LinkRow({ name, description, url }: { name: string; description?: string; url: string }) {
   const colors = useColors();
   return (
     <Pressable
@@ -37,7 +40,7 @@ function LinkRow({ name, description, url }: { name: string; description: string
     >
       <View style={styles.linkText}>
         <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
-        <Text style={[styles.description, { color: colors.muted }]}>{description}</Text>
+        {description ? <Text style={[styles.description, { color: colors.muted }]}>{description}</Text> : null}
       </View>
       <Ionicons name="open-outline" size={20} color={colors.muted} />
     </Pressable>
@@ -55,6 +58,9 @@ export default function AboutSection() {
 
       {/* The website, and where the cards come from */}
       <LinkRow name="Website" description={SITE_NAME} url={WEBSITE_URL} />
+      {/* A download link for the Android app, just under the website. It
+          only shows on the website: on a phone the app is already installed. */}
+      {Platform.OS === 'web' && <LinkRow name="Download Android App" url={ANDROID_APP_URL} />}
       <LinkRow name="Card information and pictures" description="From Scryfall (scryfall.com)" url={SCRYFALL_URL} />
 
       {/* The fan content notice, with a link to Wizards' policy */}

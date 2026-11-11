@@ -1073,7 +1073,8 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <P>
               <Strong>About</Strong>, under it, shows the app's version and where its card
-              information comes from.
+              information comes from. On the website (not the phone app) it also has a
+              {' '}<Strong>Download Android App</Strong> link under the website address.
             </P>
           </>
         ),
