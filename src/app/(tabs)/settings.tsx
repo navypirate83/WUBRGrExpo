@@ -36,7 +36,7 @@ import AboutSection from '@/components/settings/AboutSection';
 
 export default function SettingsScreen() {
   const colors = useColors();
-  const { usingBinders, signedIn, localMode } = useAccount();
+  const { usingBinders, signedIn, localMode, serverSignedIn } = useAccount();
   // The settings as they are now (redrawn when one changes)
   const settings = useSettings();
   // The theme choice as it is now. It's followed on its own, because it
@@ -55,12 +55,13 @@ export default function SettingsScreen() {
     try {
       const where = await changeSettings(changes);
       setStatus({
-        text: where === 'drive' ? '✓ Saved to Google Drive'
+        text: where === 'server' ? '✓ Saved to your account'
+          : where === 'drive' ? '✓ Saved to Google Drive'
           : where === 'device' ? '✓ Saved on this device'
             : 'Saved on this device. It will be saved to Google Drive the next time you sign in.',
       });
     } catch (err) {
-      setStatus({ text: `Saved on this device, but not to Google Drive yet. ${(err as Error).message}`, error: true });
+      setStatus({ text: `Saved on this device, but not to ${serverSignedIn ? 'your account' : 'Google Drive'} yet. ${(err as Error).message}`, error: true });
     }
   }
 
@@ -77,7 +78,8 @@ export default function SettingsScreen() {
   }
 
   // The first line at the top: where the settings are saved
-  const savedWhere = !usingBinders ? 'Your theme is saved on this device. Start using your binders on the Home screen to see the other settings.'
+  const savedWhere = serverSignedIn ? 'Your settings are saved with your account, so they follow you to other phones and computers.'
+    : !usingBinders ? 'Your theme is saved on this device. Start using your binders on the Home screen to see the other settings.'
     : localMode ? 'Your settings are saved on this device.'
       : signedIn ? 'Your settings are saved in your Google Drive, so they follow you to other computers and phones.'
         : 'Sign in again (under Account, below) to save your settings to Google Drive.';

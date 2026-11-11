@@ -10,6 +10,7 @@
 
 import { useEffect } from 'react';
 import { changedSinceSync, syncQuietly } from '@/lib/serverSync';
+import { syncSettings } from '@/lib/settings';
 import { useAccount } from '@/hooks/useAccount';
 
 // How often to look for local changes, and how often to ask the server
@@ -22,14 +23,17 @@ export function useAutoSync() {
 
   useEffect(() => {
     if (!serverSignedIn) return;
-    // Sync once straight away (sign-in, or the app opening)
+    // Sync once straight away (sign-in, or the app opening). The settings
+    // come along too (a failure is fine: it tries again at the next pull).
     syncQuietly();
+    syncSettings().catch(() => { /* offline: try again later */ });
     let lastPull = Date.now();
     const timer = setInterval(() => {
       const due = Date.now() - lastPull >= PULL_EVERY_MS;
       if (due || changedSinceSync()) {
         lastPull = Date.now();
         syncQuietly();
+        if (due) syncSettings().catch(() => { /* offline: try again later */ });
       }
     }, CHECK_EVERY_MS);
     return () => clearInterval(timer);

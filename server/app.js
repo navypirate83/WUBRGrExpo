@@ -18,6 +18,7 @@ import { requireAuth, requireAdmin } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import bindersRouter from './routes/binders.js';
 import listsRouter from './routes/lists.js';
+import settingsRouter from './routes/settings.js';
 import adminRouter from './routes/admin.js';
 import makeScryfallRouter from './routes/scryfall.js';
 
@@ -102,6 +103,8 @@ app.use('/auth', authRouter);
 // forget it (a route without it would crash on a missing req.user)
 app.use('/binders', requireAuth, bindersRouter);
 app.use('/lists', requireAuth, listsRouter);
+// The person's app settings (theme, page layout...), so they follow them
+app.use('/settings', requireAuth, settingsRouter);
 // Card information from Scryfall, for logged-in people only (each person
 // has their own limit per minute, so nobody can use up the shared allowance)
 app.use('/scryfall', requireAuth, makeScryfallRouter(config.scryfallRateLimitMax));

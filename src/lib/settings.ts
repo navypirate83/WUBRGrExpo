@@ -17,6 +17,11 @@
      4. add its control to the Settings page (pages/settings)
    Where they're saved:
    - always on this device (so the page is right from the first moment)
+   - logged in to the WUBRG'r server: also on the server, with the account
+     (GET/PUT /settings), so they follow you to every phone and computer.
+     While logged in, the server is used instead of Google Drive. A change
+     made while the server can't be reached is marked "needs saving" and
+     sent the next time the app syncs.
    - signed in with Google: also in "WUBRGr settings.json" in the
      "MTG Card Binder" folder in Google Drive, so they follow you to other
      computers and phones. A change made while the Google sign-in has run
@@ -30,6 +35,8 @@ import { currentThemeChoice, setThemeChoice, type ThemeChoice } from './theme';
 import { storageGet, storageRemove, storageSet } from './storage';
 import { isLocalMode, relayoutAllBinders } from './binderStorage';
 import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
+import { apiRequest } from './api';
+import { isServerSignedIn } from './session';
 import {
   DEFAULT_LAYOUT, cleanLayout, pageLayout, pocketsPerPage, saveLayout, sameLayout, type PageLayout,
 } from './pageLayout';
@@ -55,6 +62,8 @@ const SETTINGS_VERSION = 1;
 // Where things are kept on this device: the "needs saving to Drive"
 // marker, and the hidden formats (the theme has its own "theme")
 const DIRTY_KEY = 'settingsDirty';
+// The same kind of marker for the WUBRG'r server
+const SERVER_DIRTY_KEY = 'settingsServerDirty';
 const HIDDEN_FORMATS_KEY = 'hiddenFormats';
 
 /* ---------------------------------------------------------------------
@@ -138,8 +147,22 @@ function saveToDrive(): Promise<void> {
   return run;
 }
 
+/* ---------------------------------------------------------------------
+   ON THE WUBRG'R SERVER
+   --------------------------------------------------------------------- */
+
+// What the server sends back: the saved settings (null if none yet)
+type ServerSettings = { settings: { theme?: unknown; hiddenFormats?: unknown; pageLayout?: unknown } | null };
+
+// Send the settings as they are now to the account on the server
+async function saveToServer(): Promise<void> {
+  const { theme, hiddenFormats, pageLayout: layout } = currentSettings();
+  await apiRequest('/settings', { method: 'PUT', body: { theme, hiddenFormats, pageLayout: layout } });
+  storageRemove(SERVER_DIRTY_KEY);
+}
+
 // Where a change was saved, for the Settings page to say
-export type SavedWhere = 'drive' | 'device' | 'not-yet';
+export type SavedWhere = 'server' | 'drive' | 'device' | 'not-yet';
 
 // Change some settings: put them into effect straight away, then save
 // them to Google Drive (when signed in). Resolves with where they were
@@ -147,6 +170,12 @@ export type SavedWhere = 'drive' | 'device' | 'not-yet';
 // marked "needs saving" (and the error is passed on).
 export async function changeSettings(changes: Partial<Settings>): Promise<SavedWhere> {
   applySettings({ ...currentSettings(), ...changes });
+  // Logged in to the server: the account keeps them
+  if (isServerSignedIn()) {
+    storageSet(SERVER_DIRTY_KEY, 'yes');
+    await saveToServer();
+    return 'server';
+  }
   if (isLocalMode()) return 'device';
   storageSet(DIRTY_KEY, 'yes');
   if (!isSignedIn()) return 'not-yet';
@@ -154,13 +183,32 @@ export async function changeSettings(changes: Partial<Settings>): Promise<SavedW
   return 'drive';
 }
 
-// Bring the settings up to date with Google Drive (after signing in, or
-// when a page opens while signed in):
+// Bring the settings up to date with the account on the server (when
+// logged in), otherwise with Google Drive (after signing in, or when a
+// page opens while signed in).
+// On the server:
+// - a change on this device that hasn't reached the server yet: SEND it
+// - the account has no settings yet (first login): SEND this device's
+// - otherwise: FETCH them (they may have been changed on another device)
+// With Google Drive:
 // - a change on this device that hasn't reached Drive yet: SEND it
 // - otherwise: FETCH the settings from Drive (they may have been changed
 //   on another computer) and put them into effect here
 // (Not signed in, or used locally: nothing to do.)
 export async function syncSettings(): Promise<void> {
+  if (isServerSignedIn()) {
+    if (storageGet(SERVER_DIRTY_KEY)) {
+      await saveToServer();
+      return;
+    }
+    const saved = (await apiRequest<ServerSettings>('/settings')).settings;
+    if (!saved) {
+      await saveToServer();
+      return;
+    }
+    applySettings(fromFile(saved as Record<string, unknown>));
+    return;
+  }
   if (isLocalMode() || !isSignedIn()) return;
   if (storageGet(DIRTY_KEY)) {
     await saveToDrive();

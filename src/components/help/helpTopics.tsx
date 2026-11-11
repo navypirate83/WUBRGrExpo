@@ -986,7 +986,13 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <Bullet>
-              <Strong>Signed in with Google</Strong>: in your Google Drive, in a file called
+              <Strong>Logged in to your WUBRG'r account</Strong>: with your account on the server. Log
+              in on another phone or computer and your theme, page layout and format choices are
+              there too. A change made with no internet is kept on this device and sent the next
+              time the app syncs.
+            </Bullet>
+            <Bullet>
+              <Strong>Signed in with Google</Strong> (not logged in to an account): in your Google Drive, in a file called
               "WUBRGr settings.json" in the "MTG Card Binder" folder (next to your binders). So
               they follow you: sign in on another phone or computer and your settings are there
               too.

@@ -54,6 +54,20 @@ const userSchema = new mongoose.Schema(
       select: false,
       required: [function () { return !this.googleId; }, 'Password is required'],
     },
+    // The person's app settings (theme, hidden formats, page layout), kept
+    // here so they follow the person to every phone and computer. It stays
+    // empty until the first time the app saves them. The routes in
+    // routes/settings.js check every value before it is saved.
+    settings: {
+      theme: { type: String, enum: ['system', 'light', 'dark'] },
+      hiddenFormats: { type: [String], default: undefined },
+      pageLayout: {
+        across: { type: Number, min: 1, max: 6 },
+        down: { type: Number, min: 1, max: 6 },
+      },
+    },
+    // When the settings were last saved
+    settingsSavedAt: { type: Date },
   },
   { timestamps: true },
 );
