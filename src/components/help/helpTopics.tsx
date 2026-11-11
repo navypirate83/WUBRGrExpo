@@ -134,10 +134,12 @@ export const helpTopics: HelpTopic[] = [
             <Bullet><Strong>Open a binder</Strong>: tap (or click) it. The back arrow at the top left
               (or a swipe in from the left edge on an iPhone) brings you back to the shelf.</Bullet>
             <Bullet>
-              <Strong>Its options</Strong>: press and hold a binder still for half a second (with a
-              small buzz on most phones), or <Strong>right-click</Strong> it with a mouse:{' '}
-              <Strong>Edit</Strong>, <Strong>Copy</Strong> (a duplicate with the same cards, named
-              like "Black (1)", at the end of the shelf) and <Strong>Delete</Strong>.
+              <Strong>Its options</Strong>: on a phone or tablet, rest your finger on a binder until it
+              lifts (with a small buzz). Three boxes appear along the bottom: <Strong>Edit</Strong>,{' '}
+              <Strong>Copy</Strong> (a duplicate with the same cards, named like "Black (1)", at the end
+              of the shelf) and a red <Strong>Delete</Strong>. Slide the binder onto one and let go. Let
+              go anywhere else and it just drops into place. With a mouse, hold the button still for
+              half a second or <Strong>right-click</Strong> the binder to get the same three choices.
             </Bullet>
             <Bullet>
               <Strong>Pick several at once</Strong> (on a computer): hold <Strong>Ctrl</Strong> (or{' '}
@@ -150,7 +152,7 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet>
               <Strong>Change the order</Strong>: drag a binder to a new spot. With a finger, rest it
-              on the binder for a moment, then slide (sliding straight away scrolls the shelf). With
+              on the binder until it lifts, then slide (sliding straight away scrolls the shelf). With
               a mouse, press the button and move. The other binders shift along to make room. When
               signed in, the order is saved to Google Drive, so it's the same on every device.
             </Bullet>
@@ -205,8 +207,9 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Hold the binder still for a moment, then tap <Strong>Edit</Strong>. <Strong>Binder
-              properties</Strong> opens, where you can change:
+              Rest your finger on the binder until it lifts, then slide it onto <Strong>Edit</Strong> at
+              the bottom of the screen (with a mouse: hold it still, or right-click, then choose
+              <Strong>Edit</Strong>). <Strong>Binder properties</Strong> opens, where you can change:
             </P>
             <Bullet>its <Strong>name</Strong>,</Bullet>
             <Bullet>
@@ -225,8 +228,9 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Hold the binder still on The Shelf for a moment (or right-click it with a mouse), then
-              tap <Strong>Delete</Strong>.
+              Rest your finger on the binder on The Shelf until it lifts, then slide it onto the red
+              <Strong>Delete</Strong> at the bottom of the screen (with a mouse: right-click it, then
+              choose <Strong>Delete</Strong>).
               You'll be asked if you're sure (with how many cards are in it).
               Tap <Strong>Yes, delete</Strong> to delete it, or <Strong>No</Strong> to keep it.
               With no binders left, The Shelf says it's empty and offers to make one.

@@ -66,6 +66,15 @@ import { hapticTap } from '@/lib/haptics';
 import { askYesNo } from '@/lib/dialogs';
 import { RADIUS } from '@/theme/colors';
 
+// The three boxes along the bottom of the screen that a binder picked up
+// with a finger can be dropped on
+type Zone = 'edit' | 'copy' | 'delete';
+const ZONES: { zone: Zone; label: string; icon: 'create-outline' | 'copy-outline' | 'trash-outline' }[] = [
+  { zone: 'edit', label: 'Edit', icon: 'create-outline' },
+  { zone: 'copy', label: 'Copy', icon: 'copy-outline' },
+  { zone: 'delete', label: 'Delete', icon: 'trash-outline' },
+];
+
 // The shelf's binders: how wide each one is, and the space between them
 // across and down (points). Smaller on phones, so three fit across, and
 // bigger on wider screens (like the original website).
@@ -80,9 +89,9 @@ const SHELF_MAX_WIDTH = 1400;
 const SHELF_PADDING = 16;
 
 // Moving a binder with a finger: rest it on the binder this long
-// (milliseconds) before moving (moving sooner scrolls the shelf), and
-// hold it still this long for the binder's options. A finger has to move
-// this far (points) to pick the binder up.
+// (milliseconds) and it is picked up (moving sooner scrolls the shelf).
+// A mouse button held still this long shows the binder's options instead.
+// A mouse has to move this far (points) to pick the binder up.
 const REST_MS = 150;
 const MENU_HOLD_MS = 500;
 const LIFT_DISTANCE = 8;
@@ -163,13 +172,26 @@ export default function ShelfScreen() {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
+  // On the website, a finger that moves after resting would make the browser
+  // start scrolling (and cancel the drag). So while a binder is held with a
+  // finger, tell the browser not to scroll for the rest of that touch.
+  const holding = drag?.lifted === true && !withMouse;
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !holding) return;
+    const stopScrolling = (event: Event) => { if (event.cancelable) event.preventDefault(); };
+    window.addEventListener('touchmove', stopScrolling, { passive: false });
+    return () => window.removeEventListener('touchmove', stopScrolling);
+  }, [holding]);
   // One binder's height on the shelf, with its caption (measured as
   // they're drawn), when the last drag ended, the "hold for options"
   // countdown, and where the screen sits on the device's screen
   // (measured when a drag starts, for the floating binder)
   const tileHeight = useRef(0);
+  // Where the Edit / Copy / Delete boxes are along the bottom while a binder
+  // is picked up with a finger: the bar's top, and each box's place in it
+  const barTop = useRef(0);
+  const zoneBoxes = useRef<Partial<Record<Zone, { x: number; y: number; w: number; h: number }>>>({});
   const dragEnded = useRef(0);
-  const menuTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const screenRef = useRef<ComponentRef<typeof View>>(null);
   const screenAt = useRef({ x: 0, y: 0 });
   // What the binders depend on besides the list (see the list's "extraData")
@@ -576,7 +598,8 @@ export default function ShelfScreen() {
   // spot to make room, and the dragged one's faded copy shows where it
   // will land
   function shiftFor(index: number): { x: number; y: number } {
-    if (!drag?.lifted) return { x: 0, y: 0 };
+    // Nothing shifts while the binder is over Edit, Copy or Delete
+    if (!drag?.lifted || zoneAt(drag)) return { x: 0, y: 0 };
     const to = dropSpot(drag);
     let newIndex = index;
     if (index === drag.from) newIndex = to;
@@ -588,22 +611,30 @@ export default function ShelfScreen() {
   }
 
   // A finger has rested on a binder (or the mouse has started moving
-  // with the button held down): get ready to move it. A finger also
-  // starts the "hold for options" countdown.
+  // with the button held down): get ready to move it. A finger picks the
+  // binder up straight away (with a small buzz), and the Edit, Copy and
+  // Delete boxes appear along the bottom. A mouse picks it up once it moves.
   function startDrag(id: string, from: number, absX: number, absY: number) {
     screenRef.current?.measureInWindow((x, y) => { screenAt.current = { x, y }; });
-    setDrag({ id, from, dx: 0, dy: 0, absX, absY, lifted: false });
-    if (!withMouse) {
-      clearTimeout(menuTimer.current);
-      menuTimer.current = setTimeout(() => {
-        // Still resting there without moving: show its options instead
-        if (dragRef.current?.id !== id || dragRef.current.lifted) return;
-        hapticTap();
-        setDrag(null);
-        dragEnded.current = Date.now();
-        setMenuId(id);
-      }, MENU_HOLD_MS - REST_MS);
+    setDrag({ id, from, dx: 0, dy: 0, absX, absY, lifted: !withMouse });
+    if (!withMouse) hapticTap();
+  }
+
+  // Which box (Edit, Copy or Delete) the picked-up binder is over, if any.
+  // Only a finger has the boxes. The finger's place is measured from the
+  // screen's own corner, the same as the boxes' places.
+  function zoneAt(d: Drag): Zone | null {
+    if (withMouse || !d.lifted) return null;
+    const x = d.absX - screenAt.current.x;
+    const y = d.absY - screenAt.current.y;
+    for (const { zone } of ZONES) {
+      const box = zoneBoxes.current[zone];
+      if (!box) continue;
+      const top = barTop.current + box.y;
+      // A little extra room above, so a thumb needn't be exact
+      if (x >= box.x && x <= box.x + box.w && y >= top - 24 && y <= top + box.h) return zone;
     }
+    return null;
   }
 
   // The finger (or mouse) moved: once it has moved far enough, the binder
@@ -612,23 +643,24 @@ export default function ShelfScreen() {
     setDrag((d) => {
       if (!d) return d;
       const lifted = d.lifted || withMouse || Math.hypot(dx, dy) >= LIFT_DISTANCE;
-      if (lifted && !d.lifted) {
-        clearTimeout(menuTimer.current);
-        hapticTap();
-      }
+      if (lifted && !d.lifted) hapticTap();
       return { ...d, dx, dy, absX, absY, lifted };
     });
   }
 
   // Let go: move the binder to its new spot (if it changed). (This also
   // runs after a plain tap or click, when nothing was dragged.)
+  // Let go over Edit, Copy or Delete: do that to the binder instead.
   function endDrag() {
-    clearTimeout(menuTimer.current);
     const d = dragRef.current;
     if (!d) return;
     setDrag(null);
     dragEnded.current = Date.now();
     if (!d.lifted) return;
+    const zone = zoneAt(d);
+    if (zone === 'edit') { setEditingId(d.id); return; }
+    if (zone === 'copy') { copyBinders([d.id]); return; }
+    if (zone === 'delete') { setDeletingId(d.id); return; }
     const to = dropSpot(d);
     if (to !== d.from) moveBinderTo(d.id, to);
   }
@@ -750,6 +782,36 @@ export default function ShelfScreen() {
           <ClosedBinder width={tile} name={dragged.name} colorCode={dragged.color} cover={dragged.cover} lifted />
         </View>
       )}
+
+      {/* While a binder is held with a finger: three boxes along the bottom,
+          Edit on the left, Copy in the middle and a red Delete on the right.
+          Let go over one to do it (Delete still asks "Are you sure?"); the
+          box under the binder lights up. */}
+      {drag?.lifted && !withMouse && (
+        <View style={styles.zoneBar} onLayout={(event) => { barTop.current = event.nativeEvent.layout.y; }}>
+          {ZONES.map(({ zone, label, icon }) => {
+            const over = zoneAt(drag) === zone;
+            const red = zone === 'delete';
+            return (
+              <View
+                key={zone}
+                onLayout={(event) => { const l = event.nativeEvent.layout; zoneBoxes.current[zone] = { x: l.x, y: l.y, w: l.width, h: l.height }; }}
+                style={[
+                  styles.zone,
+                  {
+                    backgroundColor: red ? colors.danger : colors.surface,
+                    borderColor: over ? colors.accent : red ? colors.danger : colors.border,
+                  },
+                  over && styles.zoneOver,
+                ]}
+              >
+                <Ionicons name={icon} size={22} color={red ? '#ffffff' : colors.text} />
+                <Text style={[styles.zoneText, { color: red ? '#ffffff' : colors.text }]}>{label}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
       </View>
 
       {/* The windows (each drawn only while it's open) */}
@@ -816,10 +878,11 @@ export default function ShelfScreen() {
    The closed binder (its cover, with its name on the label and its
    symbol), and its card count under it. Tap it to open it.
    Moving it: with a finger, rest it on the binder for a moment (REST_MS)
-   then slide; moving sooner scrolls the shelf instead. With a mouse,
-   press the button and move. Holding it still (a finger, or the mouse
-   button) for half a second shows its options instead, and so does a
-   right-click with a mouse.
+   and it is picked up; then slide it (moving sooner scrolls the shelf
+   instead). While it is held, Edit, Copy and Delete boxes show along the
+   bottom of the screen to drop it on. With a mouse, press the button and
+   move. Holding the mouse button still for half a second shows its
+   options instead, and so does a right-click.
    While a binder is being dragged, each one is drawn "shiftX / shiftY"
    points from its spot (to make room), and the dragged one is faded,
    showing where it will land.
@@ -975,6 +1038,11 @@ const styles = StyleSheet.create({
   grab: { cursor: 'grab' },
   // The floating copy of a dragged binder
   floating: { position: 'absolute', zIndex: 50 },
+  // The Edit / Copy / Delete boxes along the bottom while a binder is held
+  zoneBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, padding: 12, zIndex: 60 },
+  zone: { flex: 1, minHeight: 64, borderRadius: RADIUS, borderWidth: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  zoneOver: { transform: [{ scale: 1.06 }] },
+  zoneText: { fontSize: 17, fontWeight: '700' },
   menu: { gap: 8 },
   // The names of the picked binders, above the Copy and Delete buttons
   selectionText: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
