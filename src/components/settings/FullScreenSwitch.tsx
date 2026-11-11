@@ -2,9 +2,10 @@
    SETTINGS → FULL SCREEN (website only)
    A switch that fills the whole screen with the page, which hides the
    browser's address bar (and its other bars) to give the app more room.
-   - It only shows on the website, and only in browsers that allow it
-     (most on Android and computers; iPhones and iPads don't, so there
-     the Help topic suggests "Add to Home Screen" instead).
+   - It only shows on the website. In browsers that allow full screen
+     (most on Android and computers) it's a switch. In ones that don't
+     (iPhones and iPads) it's a note saying to use "Add to Home Screen"
+     instead, so the setting is never just missing.
    - It also hides itself when the site is already running as an
      installed app (that has no address bar to hide).
    - A browser only goes full screen after a tap, and pressing Esc (or
@@ -14,14 +15,18 @@
 
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { SwitchRow } from './SettingsParts';
+import { SettingRow, SwitchRow } from './SettingsParts';
 
-// Can this browser do full screen, and is the site not already an app?
+// Is the site running as an installed app (which has no address bar)?
+function isInstalledApp(): boolean {
+  return window.matchMedia?.('(display-mode: standalone)').matches
+    || window.matchMedia?.('(display-mode: fullscreen)').matches
+    || (navigator as { standalone?: boolean }).standalone === true;
+}
+
+// Can this browser do full screen?
 function canGoFullScreen(): boolean {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return false;
-  const installed = window.matchMedia?.('(display-mode: standalone)').matches
-    || window.matchMedia?.('(display-mode: fullscreen)').matches;
-  return document.fullscreenEnabled === true && !installed;
+  return typeof document !== 'undefined' && document.fullscreenEnabled === true;
 }
 
 export default function FullScreenSwitch() {
@@ -31,13 +36,24 @@ export default function FullScreenSwitch() {
   // The browser tells us when full screen starts or stops (including when
   // the person leaves it with Esc), so the switch always matches
   useEffect(() => {
-    if (!canGoFullScreen()) return;
+    if (Platform.OS !== 'web' || !canGoFullScreen()) return;
     const onChange = () => setOn(document.fullscreenElement != null);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  if (!canGoFullScreen()) return null;
+  // Not the website, or already an installed app: nothing to show
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || isInstalledApp()) return null;
+
+  // This browser can't do full screen: say what to do instead
+  if (!canGoFullScreen()) {
+    return (
+      <SettingRow
+        name="Full screen"
+        description="This browser can't hide its address bar. Add the site to your home screen instead (in the browser's Share or menu, choose Add to Home Screen) and it opens without one."
+      />
+    );
+  }
 
   // Ask the browser to start or stop. It may say no (a failure is
   // ignored: the switch just stays where the browser left it).
