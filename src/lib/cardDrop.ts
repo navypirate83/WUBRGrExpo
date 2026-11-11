@@ -11,6 +11,9 @@
        Scryfall's pictures, so its card pictures work the same way.
      - a Scryfall card page (scryfall.com/card/SET/NUMBER/...): that printing
      - an EDHREC card page (edhrec.com/cards/sol-ring): looked up by name
+     - an EDHREC picture (card-images.edhrec.com/.../ID.webp, such as the
+       commander at the top of a commander page): same ID as Scryfall's;
+       only used when none of the above fit
      - otherwise a card name: the picture's description (alt text), or
        dragged text, looked up by name (Scryfall picks the closest match)
    Plain TypeScript with no React in it.
@@ -50,6 +53,12 @@ export function lookupFromDrop(dataTransfer: DataTransfer): { path: string; face
   const text = dataTransfer.getData('text/plain').trim();
   if (/^https?:\/\//.test(text)) addresses.push(text);
 
+  // A card picture served by EDHREC's own picture server (like the big
+  // commander picture at the top of a commander page). It's only used if
+  // nothing else below recognises the drag, so everything that already
+  // worked is looked up exactly as before.
+  let edhrecPicture: { path: string; face: number } | null = null;
+
   for (const address of addresses) {
     let url: URL;
     try { url = new URL(address); } catch { continue; }   // not a web address
@@ -58,6 +67,10 @@ export function lookupFromDrop(dataTransfer: DataTransfer): { path: string; face
     const picture = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|jpeg|png|webp)$/i.exec(url.pathname);
     if (picture && /(^|\.)scryfall\.(io|com)$/.test(host)) {
       return { path: `/cards/${picture[1]}`, face: url.pathname.includes('/back/') ? 1 : 0 };
+    }
+    // An EDHREC picture: its address ends in the same Scryfall card ID
+    if (picture && !edhrecPicture && /(^|\.)edhrec\.com$/.test(host)) {
+      edhrecPicture = { path: `/cards/${picture[1]}`, face: url.pathname.includes('/back/') ? 1 : 0 };
     }
     // A Scryfall card page: /card/SET/NUMBER/... (sometimes /card/SET/NUMBER/LANGUAGE/name)
     const page = /^\/card\/([^/]+)\/([^/]+)(?:\/([a-z]{2,3})\/)?/i.exec(url.pathname);
@@ -71,6 +84,9 @@ export function lookupFromDrop(dataTransfer: DataTransfer): { path: string; face
       return { path: `/cards/named?fuzzy=${encodeURIComponent(edhrec[1].replace(/-/g, ' '))}`, face: 0 };
     }
   }
+
+  // Nothing above matched: an EDHREC picture (if one was dragged) is next
+  if (edhrecPicture) return edhrecPicture;
 
   // No address we know: try a card name (the picture's description, or
   // plain dragged text that isn't an address).
