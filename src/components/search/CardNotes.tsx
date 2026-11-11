@@ -6,7 +6,8 @@
    - Format Legality: whether the card is allowed in each way of playing.
    ===================================================================== */
 
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { useContentWidth } from '@/hooks/useMenuStyle';
 import { useQuery } from '@tanstack/react-query';
 import { loadRulings, type ScryfallCard } from '@/lib/scryfall';
 import { formatDate, legalityRows, rulingSource } from '@/lib/cards';
@@ -73,7 +74,7 @@ export function Legality({ print }: { print: ScryfallCard }) {
   const { hiddenFormats } = useSettings();
   // Two columns side by side, except on narrow phones (one column, so
   // long format names have room)
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const twoColumns = width > 480;
   const rows = legalityRows(print, hiddenFormats);
   if (rows.length === 0) return null;

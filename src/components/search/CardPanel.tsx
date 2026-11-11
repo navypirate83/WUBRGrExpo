@@ -16,7 +16,8 @@
    ===================================================================== */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useContentWidth } from '@/hooks/useMenuStyle';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -92,7 +93,7 @@ export default function CardPanel(props: Props) {
   // How much room there is, to decide where the buttons and prices go:
   // the width of the area the card sits in, the card's own width, and
   // the room left over on each side of it
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const areaWidth = Math.min(width, MAX_CONTENT_WIDTH) - 32;
   const cardWidth = Math.min(CARD_MAX_WIDTH, areaWidth);
   const besideWidth = (areaWidth - cardWidth) / 2;

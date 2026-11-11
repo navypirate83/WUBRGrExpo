@@ -8,6 +8,10 @@
    tab, and the list below says each one's title and icon. (The brackets
    in "(tabs)" mean the folder's name isn't part of the address: Card
    Finder is just /search.)
+   On a wide window (a tablet, an opened foldable, the website) the tabs
+   move from the bottom to a menu down the left side, full or slim: see
+   components/SideMenu.tsx and lib/layoutSize.ts for the rule. Narrow
+   windows (phones) keep the bottom tabs exactly as before.
    ===================================================================== */
 
 import { Tabs } from 'expo-router';
@@ -16,6 +20,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import HelpButton from '@/components/HelpButton';
 import AppTitle from '@/components/AppTitle';
 import AppHeader from '@/components/AppHeader';
+import SideMenu from '@/components/SideMenu';
+import { useMenuStyle } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
 
 // One tab's icon: an outline normally, filled in when it's the tab you're on
@@ -26,9 +32,16 @@ function tabIcon(name: keyof typeof Ionicons.glyphMap, filled: keyof typeof Ioni
 
 export default function TabsLayout() {
   const colors = useColors();
+  // Which menu fits this window: "none" (the bottom tabs), "slim" or "full"
+  const menu = useMenuStyle();
   return (
     <Tabs
+      // On a wide window, draw our own side menu instead of the bottom
+      // tabs (undefined = the usual bottom tabs)
+      tabBar={menu === 'none' ? undefined : () => <SideMenu style={menu} />}
       screenOptions={{
+        // The tab bar goes down the left side when there's a side menu
+        tabBarPosition: menu === 'none' ? 'bottom' : 'left',
         // Every screen's bar at the top is the app's own, so they're all
         // the same slim size (see AppHeader.tsx)
         header: (props) => <AppHeader {...props} />,

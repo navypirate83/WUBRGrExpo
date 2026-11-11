@@ -31,13 +31,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, StyleSheet, Text,
-  useWindowDimensions, View,
+  View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAccount } from '@/hooks/useAccount';
 import { useAnnouncer } from '@/hooks/useAnnouncer';
+import { useContentWidth } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { usePointerKind } from '@/hooks/usePointerKind';
@@ -105,7 +106,8 @@ export default function ShelfScreen() {
   // Show the keyboard shortcuts button? (Computers only: see useShortcutKeys)
   const showKeyHints = useShowKeyHints();
   const { signedIn, localMode } = useAccount();
-  const { width } = useWindowDimensions();
+  // The width beside the side menu (the whole window on a phone)
+  const width = useContentWidth();
   // A message another screen sent (like "Your binder was deleted")
   const params = useLocalSearchParams<{ message?: string }>();
 

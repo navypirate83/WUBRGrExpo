@@ -17,21 +17,24 @@ import { useColors, useTheme } from '@/hooks/useTheme';
 // The four corners the black copies are nudged to (in points)
 const OUTLINE_NUDGES = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
 
-export default function AppTitle() {
+// "size" is how big the letters are (20 normally; the slim side menu uses a smaller name)
+export default function AppTitle({ size = 20 }: { size?: number }) {
   const colors = useColors();
   const outlined = useTheme() === 'light';
+  // The letters' look, with the size asked for
+  const letters = [styles.letters, { fontSize: size }];
 
   return (
     <View style={styles.row} accessible accessibilityRole="header" accessibilityLabel="WUBRG'r">
       {/* The W: white, on top of its black outline (light theme only) */}
       <View>
         {outlined && OUTLINE_NUDGES.map(([x, y]) => (
-          <Text key={`${x},${y}`} style={[styles.letters, styles.outline, { left: x, top: y }]}>W</Text>
+          <Text key={`${x},${y}`} style={[letters, styles.outline, { left: x, top: y }]}>W</Text>
         ))}
-        <Text style={[styles.letters, { color: '#ffffff' }]}>W</Text>
+        <Text style={[letters, { color: '#ffffff' }]}>W</Text>
       </View>
       {/* U, B, R and G in their colors, then 'r */}
-      <Text style={styles.letters}>
+      <Text style={letters}>
         <Text style={{ color: colors.manaU }}>U</Text>
         <Text style={{ color: colors.manaB }}>B</Text>
         <Text style={{ color: colors.manaR }}>R</Text>

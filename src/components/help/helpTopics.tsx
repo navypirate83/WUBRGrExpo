@@ -350,6 +350,15 @@ export const helpTopics: HelpTopic[] = [
               Each tab remembers where you were, so switching back finds it just as you left it.
             </P>
             <P>
+              <Strong>On a tablet, an opened foldable phone, or the website in a wide window</Strong>, the
+              tabs move from the bottom to a <Strong>menu down the left side</Strong>. It has Home, a{' '}
+              <Strong>Shelf</Strong> heading with <Strong>Binders</Strong> and <Strong>Lists</Strong> under
+              it, Card Finder, Settings and Help. At the bottom is your account: tap it for Account
+              settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
+              out, it has Log in and Create account buttons. On a narrower window, or a phone held
+              sideways, the menu shrinks to just the icons. A normal phone keeps the tabs along the bottom.
+            </P>
+            <P>
               The round <Strong>?</Strong> at the top right of a screen opens these instructions,
               at the part for the screen you were on.
             </P>
