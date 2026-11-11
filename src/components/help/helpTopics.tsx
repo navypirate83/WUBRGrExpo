@@ -935,6 +935,14 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet><Strong>Light</Strong>: dark text on a light background.</Bullet>
             <P>
+              <Strong>Full screen</Strong> (website only, in browsers that allow it) hides the browser's
+              address bar for more room. Press <Key>Esc</Key> or swipe down from the top to leave it. For
+              the address bar to stay hidden every time, install the site as an app: in Chrome or Edge
+              choose <Strong>Install app</Strong> (or <Strong>Add to Home screen</Strong>) from the browser's menu; on an
+              iPhone or iPad, tap <Strong>Share</Strong>, then <Strong>Add to Home Screen</Strong>. It then opens like
+              any other app, with no address bar.
+            </P>
+            <P>
               Tap (or click) a choice.<OnComputer> On a computer, you can also press <Key>Tab</Key> to reach
               them and <Key>Enter</Key> to pick one.</OnComputer>
             </P>

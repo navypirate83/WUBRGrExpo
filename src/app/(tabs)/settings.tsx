@@ -30,6 +30,7 @@ import ThemeChoicePicker from '@/components/settings/ThemeChoicePicker';
 import LayoutPicker from '@/components/settings/LayoutPicker';
 import FormatSwitches from '@/components/settings/FormatSwitches';
 import AccountSection from '@/components/settings/AccountSection';
+import FullScreenSwitch from '@/components/settings/FullScreenSwitch';
 import PhoneMemorySection from '@/components/settings/PhoneMemorySection';
 import PicturesSection from '@/components/settings/PicturesSection';
 import AboutSection from '@/components/settings/AboutSection';
@@ -105,6 +106,8 @@ export default function SettingsScreen() {
           <SettingBlock name="Theme" description="Dark or light colors, or System to match your device's own setting.">
             <ThemeChoicePicker value={themeChoice} onChange={changeTheme} />
           </SettingBlock>
+          {/* Website only: fill the screen, hiding the browser's address bar */}
+          <FullScreenSwitch />
         </SettingsSection>
 
         {/* BINDERS: how every binder's pages are laid out */}

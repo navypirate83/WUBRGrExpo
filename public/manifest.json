@@ -1,0 +1,14 @@
+{
+  "name": "WUBRG'r",
+  "short_name": "WUBRG'r",
+  "description": "Your Magic: The Gathering card binders",
+  "start_url": "/wubrgr/",
+  "scope": "/wubrgr/",
+  "display": "standalone",
+  "background_color": "#14151a",
+  "theme_color": "#14151a",
+  "icons": [
+    { "src": "/wubrgr/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/wubrgr/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
