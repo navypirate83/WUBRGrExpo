@@ -6,6 +6,8 @@
        group with Binders and Lists under it, Card Finder, Settings,
        Help, and your account at the bottom
      - "slim": the same, but icons only, in a narrow strip
+   A button above Help collapses the full menu to the slim one (and
+   expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
    same ones as the bottom tabs, and the binder and notebook drawings
    from the shelf's Binders / Lists switch).
@@ -23,9 +25,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AppTitle from '@/components/AppTitle';
 import { useAccount } from '@/hooks/useAccount';
+import { useFullMenuFits } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { changedSinceSync, syncQuietly } from '@/lib/serverSync';
+import { setMenuCollapsed } from '@/lib/menuPreference';
 import { signOut as serverSignOut } from '@/lib/session';
 import { FULL_MENU_WIDTH, SLIM_MENU_WIDTH } from '@/lib/layoutSize';
 import { RADIUS, SPACE } from '@/theme/colors';
@@ -45,6 +49,9 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const slim = style === 'slim';
+  // Room for the full menu? Then there's a Collapse / Expand button
+  // (a slim menu on a small window has nothing to expand into)
+  const canResize = useFullMenuFits();
   // Which page we're on, from the address ("/", "/binders", "/search"...)
   const path = usePathname();
 
@@ -94,6 +101,15 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       {/* Pushes everything below to the bottom of the menu */}
       <View style={styles.grow} />
 
+      {canResize && (
+        <MenuItem
+          slim={slim}
+          label={slim ? 'Expand menu' : 'Collapse menu'}
+          icon={slim ? 'chevron-forward-outline' : 'chevron-back-outline'}
+          active={false}
+          onPress={() => setMenuCollapsed(!slim)}
+        />
+      )}
       <MenuItem slim={slim} label="Help" icon="help-circle-outline" activeIcon="help-circle" active={false} onPress={() => router.navigate('/help')} />
       <AccountBlock slim={slim} />
     </View>

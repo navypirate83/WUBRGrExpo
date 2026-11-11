@@ -25,6 +25,7 @@ import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
 import { useAccount } from '@/hooks/useAccount';
+import { useMenuStyle } from '@/hooks/useMenuStyle';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import ListSearch from '@/components/lists/ListSearch';
 import PopupWindow from '@/components/PopupWindow';
@@ -55,6 +56,9 @@ function openList(id: string) {
 
 export default function ListsScreen() {
   const colors = useColors();
+  // With a side menu showing, it already has Binders and Lists, so the
+  // switch at the top of this page would only waste room
+  const hasSideMenu = useMenuStyle() !== 'none';
   const { usingBinders, localMode } = useAccount();
   // The lists (this device's copy to start, then Drive's once loaded),
   // the message line (red: something went wrong), whether a new list is
@@ -172,7 +176,7 @@ export default function ListsScreen() {
         // below, so its drop-down can cover them), and Add list
         ListHeaderComponent={
           <View style={styles.header}>
-            <ShelfSwitch current="lists" />
+            {!hasSideMenu && <ShelfSwitch current="lists" />}
             <ListSearch onPick={openList} />
             <Button label="Add list" icon="add" onPress={add} disabled={adding} />
           </View>
