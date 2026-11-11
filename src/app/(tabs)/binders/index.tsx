@@ -82,9 +82,11 @@ const SHELF_PADDING = 16;
 // Moving a binder with a finger: rest it on the binder this long
 // (milliseconds) before moving (moving sooner scrolls the shelf), and
 // hold it still this long for the binder's options. A finger has to move
-// this far (points) to pick the binder up.
-const REST_MS = 150;
-const MENU_HOLD_MS = 500;
+// this far (points) to pick the binder up. (REST_MS is long enough that
+// a finger starting a scroll, even a slow one, never counts as resting:
+// once a binder is picked up, the shelf stops scrolling.)
+const REST_MS = 300;
+const MENU_HOLD_MS = 600;
 const LIFT_DISTANCE = 8;
 
 // The keys listed in this screen's Keyboard shortcuts window (computers only)
@@ -818,7 +820,7 @@ export default function ShelfScreen() {
    Moving it: with a finger, rest it on the binder for a moment (REST_MS)
    then slide; moving sooner scrolls the shelf instead. With a mouse,
    press the button and move. Holding it still (a finger, or the mouse
-   button) for half a second shows its options instead, and so does a
+   button) for over half a second shows its options instead, and so does a
    right-click with a mouse.
    While a binder is being dragged, each one is drawn "shiftX / shiftY"
    points from its spot (to make room), and the dragged one is faded,

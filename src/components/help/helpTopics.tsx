@@ -134,7 +134,7 @@ export const helpTopics: HelpTopic[] = [
             <Bullet><Strong>Open a binder</Strong>: tap (or click) it. The back arrow at the top left
               (or a swipe in from the left edge on an iPhone) brings you back to the shelf.</Bullet>
             <Bullet>
-              <Strong>Its options</Strong>: press and hold a binder still for half a second (with a
+              <Strong>Its options</Strong>: press and hold a binder still for just over half a second (with a
               small buzz on most phones), or <Strong>right-click</Strong> it with a mouse:{' '}
               <Strong>Edit</Strong>, <Strong>Copy</Strong> (a duplicate with the same cards, named
               like "Black (1)", at the end of the shelf) and <Strong>Delete</Strong>.
