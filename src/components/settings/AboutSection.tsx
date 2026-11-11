@@ -60,7 +60,7 @@ export default function AboutSection() {
       <LinkRow name="Website" description={SITE_NAME} url={WEBSITE_URL} />
       {/* A download link for the Android app, just under the website. It
           only shows on the website: on a phone the app is already installed. */}
-      {Platform.OS === 'web' && <LinkRow name="Download Android App" url={ANDROID_APP_URL} />}
+      {Platform.OS === 'web' && <LinkRow name="Download Android App from Google Drive" url={ANDROID_APP_URL} />}
       <LinkRow name="Card information and pictures" description="From Scryfall (scryfall.com)" url={SCRYFALL_URL} />
 
       {/* The fan content notice, with a link to Wizards' policy */}
