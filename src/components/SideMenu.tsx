@@ -79,8 +79,21 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       ]}
     >
       {/* The app's name in its five colors (smaller in the slim menu) */}
+      {/* Beside the name (under it in the slim menu) sits a small round
+          button that collapses the full menu or expands the slim one. */}
       <View style={[styles.logo, slim && styles.logoSlim]}>
         <AppTitle size={slim ? 13 : 22} />
+        {canResize && (
+          <Pressable
+            onPress={() => setMenuCollapsed(!slim)}
+            accessibilityRole="button"
+            accessibilityLabel={slim ? 'Expand menu' : 'Collapse menu'}
+            hitSlop={8}
+            style={[styles.collapseButton, slim && styles.collapseButtonSlim, { backgroundColor: colors.surfaceHover, borderColor: colors.border }]}
+          >
+            <Ionicons name={slim ? 'chevron-forward' : 'chevron-back'} size={16} color={colors.text} />
+          </Pressable>
+        )}
       </View>
 
       <MenuItem slim={slim} label="Home" icon="home-outline" activeIcon="home" active={onHome} onPress={() => router.navigate('/')} />
@@ -101,15 +114,6 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       {/* Pushes everything below to the bottom of the menu */}
       <View style={styles.grow} />
 
-      {canResize && (
-        <MenuItem
-          slim={slim}
-          label={slim ? 'Expand menu' : 'Collapse menu'}
-          icon={slim ? 'chevron-forward-outline' : 'chevron-back-outline'}
-          active={false}
-          onPress={() => setMenuCollapsed(!slim)}
-        />
-      )}
       <MenuItem slim={slim} label="Help" icon="help-circle-outline" activeIcon="help-circle" active={false} onPress={() => router.navigate('/help')} />
       <AccountBlock slim={slim} />
     </View>
@@ -309,8 +313,11 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   centered: { justifyContent: 'center' },
   // The app's name at the top
-  logo: { paddingHorizontal: SPACE.m, paddingBottom: SPACE.l, paddingTop: SPACE.xs },
-  logoSlim: { alignItems: 'center', paddingHorizontal: 0, paddingBottom: SPACE.m },
+  logo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACE.s, paddingBottom: SPACE.l, paddingTop: SPACE.xs },
+  logoSlim: { flexDirection: 'column', gap: SPACE.s, paddingHorizontal: 0, paddingBottom: SPACE.m },
+  // The small round collapse / expand button by the name
+  collapseButton: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  collapseButtonSlim: { alignSelf: 'center' },
   // One menu line
   item: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 10, paddingHorizontal: SPACE.m, borderRadius: RADIUS, borderLeftWidth: 3, borderLeftColor: 'transparent' },
   itemSub: { paddingVertical: 7 },
