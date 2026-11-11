@@ -7,7 +7,7 @@
    ===================================================================== */
 
 // Takes the same "onKey" as the web version, and ignores it
-export function useShortcutKeys(_onKey: (event: KeyboardEvent) => void): void {
+export function useShortcutKeys(_onKey: (event: KeyboardEvent) => void, _options: { allowCtrl?: boolean } = {}): void {
   /* no keyboard shortcuts on phones */
 }
 

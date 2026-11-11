@@ -88,6 +88,14 @@ const LIFT_DISTANCE = 8;
 
 // The keys listed in this screen's Keyboard shortcuts window (computers only)
 const shelfShortcuts: Shortcut[] = [
+  { keys: 'Arrow keys', does: 'Move between the binders' },
+  { keys: 'Space', does: 'Pick or un-pick the binder you are on' },
+  { keys: 'Shift + Arrow keys', does: 'Pick the binders you move over' },
+  { keys: 'Ctrl + A', does: 'Pick every binder' },
+  { keys: 'Enter', does: 'Open the binder (or, with some picked, ask Copy or Delete)' },
+  { keys: 'C', does: 'Copy the picked binders (or the one you are on)' },
+  { keys: 'Delete', does: 'Delete the picked binders (or the one you are on), after asking' },
+  { keys: 'Esc', does: 'Drop the picks' },
   { keys: 'N', does: 'Make a new binder (with cover choices)' },
   { keys: '?', does: 'Show this list' },
 ];
@@ -128,6 +136,11 @@ export default function ShelfScreen() {
   const [selectionOpen, setSelectionOpen] = useState(false);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  // The binder the keyboard is on (its id), drawn with an outline: the arrow
+  // keys move it, Space picks it. null until a key has been pressed.
+  const [cursor, setCursor] = useState<string | null>(null);
+  // A handle on the shelf's list, so the keyboard can scroll to a binder
+  const listRef = useRef<FlatList<Binder>>(null);
   // Ctrl let go: if binders were picked, ask what to do with them. Esc
   // drops the picks. (Computers only: see hooks/useCtrlSelect.)
   const { ctrlHeld } = useCtrlSelect(
@@ -155,7 +168,7 @@ export default function ShelfScreen() {
   const screenRef = useRef<ComponentRef<typeof View>>(null);
   const screenAt = useRef({ x: 0, y: 0 });
   // What the binders depend on besides the list (see the list's "extraData")
-  const tileExtras = useMemo(() => ({ drag, withMouse, selected }), [drag, withMouse, selected]);
+  const tileExtras = useMemo(() => ({ drag, withMouse, selected, cursor }), [drag, withMouse, selected, cursor]);
 
   const { announce } = useAnnouncer();
   // Set once loading from Drive has started, so it only runs once (React
@@ -432,12 +445,88 @@ export default function ShelfScreen() {
     setSelected([]);
   }
 
-  /* ----- Keys on a computer: ? for the shortcuts list, N for a new binder ----- */
+  /* ----- Picking several binders with the keyboard ----- */
+
+  // Move the keyboard to another binder, "by" spots along the shelf (1 =
+  // next, columns = one row down). The first press lands on the first
+  // binder. With "pick" (Shift held), the binder left and the one arrived at
+  // are both picked. The shelf scrolls to show it.
+  function moveCursor(by: number, pick: boolean) {
+    if (binders.length === 0) return;
+    const here = cursor ? binders.findIndex((b) => b.id === cursor) : -1;
+    let next = here < 0 ? 0 : here + by;
+    // Off the end of the shelf: stay where we are
+    if (next < 0 || next >= binders.length) next = Math.max(here, 0);
+    const target = binders[next];
+    setCursor(target.id);
+    if (pick) {
+      const ids = [here >= 0 ? binders[here].id : target.id, target.id];
+      setSelected((now) => [...now, ...ids.filter((id, i) => !now.includes(id) && ids.indexOf(id) === i)]);
+    }
+    announce(`${target.name}, binder ${next + 1} of ${binders.length}${selected.includes(target.id) ? ', picked' : ''}`);
+    try {
+      listRef.current?.scrollToIndex({ index: Math.floor(next / columns), viewPosition: 0.5, animated: true });
+    } catch { /* the shelf scrolls to it once it has measured the rows (see onScrollToIndexFailed) */ }
+  }
+
+  // Pick (or un-pick) the binder the keyboard is on
+  function toggleCursor() {
+    if (!cursor) return;
+    toggleSelected(cursor);
+    const name = binders.find((b) => b.id === cursor)?.name ?? 'Binder';
+    announce(`${name} ${selected.includes(cursor) ? 'un-picked' : 'picked'}`);
+  }
+
+  // Pick every binder
+  function pickAll() {
+    setSelected(binders.map((b) => b.id));
+    announce(`All ${binders.length} binders picked`);
+  }
+
+  // The binders a key like Copy or Delete is about: the picked ones, or if
+  // none are picked, the one the keyboard is on
+  function targetIds(): string[] {
+    if (selected.length > 0) return selected;
+    return cursor && binders.some((b) => b.id === cursor) ? [cursor] : [];
+  }
+
+  /* ----- Keys on a computer: arrows, Space, Shift, Ctrl+A, Enter, C, Delete, N, ? ----- */
 
   useShortcutKeys((event) => {
-    if (event.key === '?') { event.preventDefault(); setShortcutsOpen(true); }
-    else if (event.key.toLowerCase() === 'n') { event.preventDefault(); setNewOpen(true); }
-  });
+    // Ctrl (or Cmd) + A picks everything; every other Ctrl key belongs to the browser
+    if (event.ctrlKey || event.metaKey) {
+      if (event.key.toLowerCase() === 'a' && binders.length > 0) { event.preventDefault(); pickAll(); }
+      return;
+    }
+    // Space and Enter on a focused button already press it (the browser does
+    // that), so they're left to it. The arrow keys take the focus off it first.
+    const onAButton = Boolean((event.target as HTMLElement).closest?.('button, [role="button"], a'));
+    const arrows: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns };
+
+    if (event.key in arrows) {
+      event.preventDefault();
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      moveCursor(arrows[event.key], event.shiftKey);
+    } else if (event.key === ' ' && !onAButton && cursor) {
+      event.preventDefault();
+      toggleCursor();
+    } else if (event.key === 'Enter' && !onAButton) {
+      if (selected.length > 0) { event.preventDefault(); setSelectionOpen(true); }
+      else if (cursor) { event.preventDefault(); openBinder(cursor); }
+    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      const ids = targetIds();
+      if (ids.length > 0) { event.preventDefault(); setSelected([]); deleteBinders(ids); }
+    } else if (event.key.toLowerCase() === 'c') {
+      const ids = targetIds();
+      if (ids.length > 0) { event.preventDefault(); setSelected([]); copyBinders(ids); }
+    } else if (event.key === '?') {
+      event.preventDefault();
+      setShortcutsOpen(true);
+    } else if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      setNewOpen(true);
+    }
+  }, { allowCtrl: true });
 
   // Not signed in and not using the app on this device: a short welcome
   // with the two ways to start, instead of the shelf
@@ -583,6 +672,10 @@ export default function ShelfScreen() {
           change it while drawn.) It can't scroll while a finger rests on
           a binder (that finger is moving the binder instead). */}
       <FlatList
+        ref={listRef}
+        // The keyboard asked to scroll to a row that isn't measured yet: go
+        // by the average row height instead
+        onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
         key={`columns-${columns}`}
         numColumns={columns}
         columnWrapperStyle={columns > 1 ? [styles.shelfRow, { width: gridWidth, gap: gapX }] : undefined}
@@ -627,6 +720,7 @@ export default function ShelfScreen() {
               onDragMove={moveDrag}
               onDragEnd={endDrag}
               selected={selected.includes(binder.id)}
+              cursor={binder.id === cursor}
               // With Ctrl held, a click picks the binder instead of opening it
               onOpen={() => (ctrlHeld.current ? toggleSelected(binder.id) : openBinder(binder.id))}
               onHold={() => { hapticTap(); setMenuId(binder.id); }}
@@ -735,7 +829,8 @@ function BinderTile(props: {
   shiftX: number;
   shiftY: number;
   lifted: boolean;            // it's the one being dragged
-  selected: boolean;          // it's picked (Ctrl-click): drawn with a frame and a tick
+  selected: boolean;          // it's picked (Ctrl-click, or Space): drawn with a frame and a tick
+  cursor: boolean;            // the keyboard is on it: drawn with an outline
   onMeasure: (height: number) => void;
   onDragStart: (absX: number, absY: number) => void;
   onDragMove: (dx: number, dy: number, absX: number, absY: number) => void;
@@ -747,7 +842,7 @@ function BinderTile(props: {
   onDelete: () => void;
   onMove: (by: -1 | 1) => void;
 }) {
-  const { binder, count, width, position, withMouse, shiftX, shiftY, lifted, selected } = props;
+  const { binder, count, width, position, withMouse, shiftX, shiftY, lifted, selected, cursor } = props;
   const colors = useColors();
 
   // The drag. With a finger it only starts once the finger has rested
@@ -810,6 +905,8 @@ function BinderTile(props: {
           {/* The binder, with a frame and a tick over it while it's picked */}
           <View>
             <ClosedBinder width={width} name={binder.name} colorCode={binder.color} cover={binder.cover} />
+            {/* An outline just outside the binder while the keyboard is on it */}
+            {cursor && <View pointerEvents="none" style={[styles.cursorFrame, { borderColor: colors.text }]} />}
             {selected && (
               <View pointerEvents="none" style={[styles.pickedFrame, { borderColor: colors.accent }]}>
                 <View style={[styles.pickedTick, { backgroundColor: colors.accent }]}>
@@ -872,6 +969,8 @@ const styles = StyleSheet.create({
   selectionText: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
   // A picked binder: a frame over it, and a tick in its top corner
   pickedFrame: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 3, borderRadius: RADIUS, alignItems: 'flex-end' },
+  // The keyboard's place: an outline around the binder (a little outside it)
+  cursorFrame: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderWidth: 2, borderRadius: RADIUS + 3, borderStyle: 'dashed' },
   pickedTick: { margin: 4, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: 10, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS * 1.4, marginTop: 8 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },

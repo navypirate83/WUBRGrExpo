@@ -21,18 +21,25 @@ const PHONE_WIDTH = 600;
 
 // "onKey" gets each key press that's left over; it calls
 // event.preventDefault() for the keys it uses.
-export function useShortcutKeys(onKey: (event: KeyboardEvent) => void): void {
+// Ctrl and Cmd presses are normally left to the browser (Ctrl+N opens a new
+// window, and so on). A screen that wants one (like Ctrl+A to pick
+// everything) passes { allowCtrl: true }: it then gets those too, and must
+// leave the ones it doesn't use alone. Alt presses are always left out.
+export function useShortcutKeys(onKey: (event: KeyboardEvent) => void, options: { allowCtrl?: boolean } = {}): void {
   // Keep the newest onKey in a "ref" (a box that survives redraws), so
   // the listener below always calls the latest version without being
   // removed and added again on every redraw.
   const onKeyRef = useRef(onKey);
   onKeyRef.current = onKey;
+  const allowCtrlRef = useRef(options.allowCtrl ?? false);
+  allowCtrlRef.current = options.allowCtrl ?? false;
 
   // Listen for key presses on the whole page while the page is showing.
   // The function returned at the end removes the listener when it goes.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+      if (event.defaultPrevented || event.altKey) return;
+      if (!allowCtrlRef.current && (event.ctrlKey || event.metaKey)) return;
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable="true"], [role="listbox"]')) return;
       if (document.querySelector('[aria-modal="true"]')) return;

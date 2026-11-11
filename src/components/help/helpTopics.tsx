@@ -143,7 +143,10 @@ export const helpTopics: HelpTopic[] = [
               <Strong>Pick several at once</Strong> (on a computer): hold <Strong>Ctrl</Strong> (or{' '}
               <Strong>Cmd</Strong>) and click each binder you want. Picked binders get a frame and a
               tick. Let go of Ctrl and a window asks whether to <Strong>Copy</Strong> or{' '}
-              <Strong>Delete</Strong> them. <Strong>Esc</Strong> drops the picks.
+              <Strong>Delete</Strong> them. <Strong>Esc</Strong> drops the picks. With only the
+              keyboard: the <Key>arrow keys</Key> move an outline from binder to binder,{' '}
+              <Key>Space</Key> picks or un-picks the one it is on, and <Key>Enter</Key> asks Copy or
+              Delete.
             </Bullet>
             <Bullet>
               <Strong>Change the order</Strong>: drag a binder to a new spot. With a finger, rest it
@@ -401,6 +404,14 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>On a computer, these keys work anywhere on The Shelf (not while typing in a box):</P>
+            <Bullet><Key>Arrow keys</Key>: move an outline from binder to binder.</Bullet>
+            <Bullet><Key>Space</Key>: pick or un-pick the binder the outline is on. Picked binders get a frame and a tick.</Bullet>
+            <Bullet><Key>Shift</Key> + <Key>Arrow keys</Key>: pick the binders you move over.</Bullet>
+            <Bullet><Key>Ctrl</Key> + <Key>A</Key> (<Key>Cmd</Key> + <Key>A</Key> on a Mac): pick every binder.</Bullet>
+            <Bullet><Key>Enter</Key>: open the binder the outline is on. With some picked, it asks whether to Copy or Delete them.</Bullet>
+            <Bullet><Key>C</Key>: copy the picked binders (or the one the outline is on).</Bullet>
+            <Bullet><Key>Delete</Key>: delete the picked binders (or the one the outline is on), after asking "Are you sure?".</Bullet>
+            <Bullet><Key>Esc</Key>: drop the picks.</Bullet>
             <Bullet><Key>N</Key>: make a new binder (the window with the cover choices).</Bullet>
             <Bullet><Key>?</Key>: show these keys (or click <Strong>Keyboard shortcuts</Strong> under Add binder).</Bullet>
             <P>
