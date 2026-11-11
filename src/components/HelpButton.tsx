@@ -1,6 +1,7 @@
 /* =====================================================================
    THE HELP BUTTON
-   A round "?" at the right end of a screen's header. It opens the Help
+   A round "?" at the right end of a screen's header (left out when the
+   side menu is showing, because the menu has a Help item). It opens the Help
    screen, at the topic for the screen you're on (like "my-binders" for
    The Shelf), so the instructions you need are right there.
    ===================================================================== */
@@ -9,9 +10,14 @@ import { Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
+import { useMenuStyle } from '@/hooks/useMenuStyle';
 
 export default function HelpButton({ topic }: { topic?: string }) {
   const colors = useColors();
+  // When the side menu is showing, it has its own Help item, so the
+  // header doesn't need a second one.
+  const hasSideMenu = useMenuStyle() !== 'none';
+  if (hasSideMenu) return null;
   return (
     <Pressable
       accessibilityRole="button"
