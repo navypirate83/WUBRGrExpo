@@ -11,6 +11,8 @@
    back to the last place in the shelf (see lib/shelfMemory.ts). The
    exception: while you're INSIDE a binder, list or deck, the line for that
    same part (and "The Shelf") goes up to that part's main page instead.
+   When the window is short (a phone held sideways) and not every line fits,
+   the lines scroll up and down; the account block stays pinned at the bottom.
    A button above Help collapses the full menu to the slim one (and
    expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
@@ -23,7 +25,7 @@
    ===================================================================== */
 
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -97,6 +99,15 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       {/* A small round button at the top that collapses the full menu or
           expands the slim one (the app's name isn't repeated here, since
           the page header already shows it). */}
+      {/* Everything except the account block sits in a scrolling area, so on
+          a short window (a phone held sideways) the lines that don't fit
+          can be scrolled to. The spacer below pushes Help to the bottom
+          when there IS room. */}
+      <ScrollView
+        style={styles.scroller}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={[styles.logo, slim && styles.logoSlim]}>
         {canResize && (
           <Pressable
@@ -138,6 +149,8 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       <View style={styles.grow} />
 
       <MenuItem slim={slim} label="Help" icon="help-circle-outline" activeIcon="help-circle" active={false} onPress={() => router.navigate('/help')} />
+      </ScrollView>
+      {/* Stays at the bottom, outside the scrolling area (its little menu opens upward over the page) */}
       <AccountBlock slim={slim} />
     </View>
   );
@@ -334,6 +347,10 @@ const styles = StyleSheet.create({
   // The whole menu: a column down the left, with a line along its right edge
   menu: { borderRightWidth: 1, zIndex: 10, gap: 2 },
   grow: { flex: 1 },
+  // The scrolling area: takes the room above the account block; its lines
+  // are spaced like the menu's (minHeight 0 lets it shrink and scroll)
+  scroller: { flex: 1, minHeight: 0 },
+  scrollContent: { flexGrow: 1, gap: 2 },
   centered: { justifyContent: 'center' },
   // The app's name at the top
   logo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: SPACE.s, paddingBottom: SPACE.m, paddingTop: SPACE.xs },
