@@ -71,18 +71,23 @@ export default function PricePanel({ print, foil, layout }: Props) {
   // One store's row: its icon (and name, if shown), which opens the card
   // at the store, then its two prices. Without the name showing, screen
   // readers still hear which store it is. "message" replaces the prices
-  // while they load.
-  function row(name: string, icon: number, currency: 'USD' | 'EUR', prices: StorePrices | null, message?: string | null, first = false) {
+  // while they load. "linked" says whether the store opens its page when
+  // tapped: Cardmarket's website blocks many visitors (a "you have been
+  // blocked" page), so its row shows prices only, with no link. A name
+  // that isn't a link is drawn in the normal text color, not the orange
+  // used for links.
+  function row(name: string, icon: number, currency: 'USD' | 'EUR', prices: StorePrices | null, message?: string | null, first = false, linked = true) {
     const label = (
       <>
         <Image source={icon} style={styles.storeIcon} contentFit="contain" />
-        {showNames && <Text style={[styles.storeName, { color: colors.accent }]} numberOfLines={1}>{name}</Text>}
+        {showNames && <Text style={[styles.storeName, { color: linked ? colors.accent : colors.text }]} numberOfLines={1}>{name}</Text>}
       </>
     );
     return (
       <View style={[styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
-        {/* The store: a link to the card there (once its prices are known) */}
-        {prices ? (
+        {/* The store: a link to the card there (once its prices are known),
+            or just the name and icon when this store isn't linked */}
+        {prices && linked ? (
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={`${name}: see this card`}
@@ -135,7 +140,8 @@ export default function PricePanel({ print, foil, layout }: Props) {
       {row('TCGplayer', STORE_ICONS.tcgplayer, 'USD', tcgplayerPrices(print), null, true)}
       {row('Card Kingdom', STORE_ICONS.cardkingdom, 'USD',
         cardKingdom.data ? cardKingdomPrices(print, cardKingdom.data) : null, ckMessage)}
-      {row('Cardmarket', STORE_ICONS.cardmarket, 'EUR', cardmarketPrices(print))}
+      {/* Cardmarket: prices only, not a link (its site blocks many visitors) */}
+      {row('Cardmarket', STORE_ICONS.cardmarket, 'EUR', cardmarketPrices(print), null, false, false)}
     </View>
   );
 }

@@ -6,8 +6,13 @@
      Legality box (the codes, like "pauper"). It lists the hidden ones,
      rather than the shown ones, so a new format Scryfall adds later
      shows up without anyone having to tick it.
-   - pageLayout: pockets across and down each binder page (see
-     pageLayout.ts). Changing it moves every binder's cards to match.
+   - phoneLayout and wideLayout: pockets across and down each binder page
+     on a narrow window (a phone) and on a wide one (see pageLayout.ts).
+     Changing the one in use moves every binder's cards to match.
+   - accountLayout: not a choice on the Settings page. It's the layout the
+     account's cards are stored in on the server, so devices using
+     different layouts still agree where each card is (see serverSync.ts).
+     The server calls it "pageLayout".
    To add a new setting:
      1. add it to the Settings type and DEFAULT_SETTINGS below
      2. read it in currentSettings (from this device) and fromFile (from
@@ -38,7 +43,8 @@ import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
 import { apiRequest } from './api';
 import { isServerSignedIn, SETTINGS_UNSENT_KEY } from './session';
 import {
-  DEFAULT_LAYOUT, cleanLayout, pageLayout, pocketsPerPage, saveLayout, sameLayout, type PageLayout,
+  DEFAULT_LAYOUT, cleanLayout, currentSizeClass, layoutFor, pageLayout, pocketsPerPage,
+  sameLayout, savedLayouts, saveLayouts, setSizeClass, sizeClassFor, type PageLayout,
 } from './pageLayout';
 
 // Every setting, and what each one starts as. ("theme" is the choice:
@@ -46,12 +52,16 @@ import {
 export type Settings = {
   theme: ThemeChoice;
   hiddenFormats: string[];
-  pageLayout: PageLayout;
+  phoneLayout: PageLayout;
+  wideLayout: PageLayout;
+  accountLayout: PageLayout;
 };
 const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   hiddenFormats: [],
-  pageLayout: DEFAULT_LAYOUT,
+  phoneLayout: DEFAULT_LAYOUT,
+  wideLayout: DEFAULT_LAYOUT,
+  accountLayout: DEFAULT_LAYOUT,
 };
 
 // A label written into the settings file, so it's clear what it is, and
@@ -98,39 +108,84 @@ function cleanCodes(value: unknown): string[] {
 export function currentSettings(): Settings {
   let hidden: unknown = [];
   try { hidden = JSON.parse(storageGet(HIDDEN_FORMATS_KEY) ?? '[]'); } catch { /* unreadable: none hidden */ }
-  return { ...DEFAULT_SETTINGS, theme: currentThemeChoice(), hiddenFormats: cleanCodes(hidden), pageLayout: pageLayout() };
+  const layouts = savedLayouts();
+  return {
+    ...DEFAULT_SETTINGS,
+    theme: currentThemeChoice(),
+    hiddenFormats: cleanCodes(hidden),
+    phoneLayout: layouts.phone,
+    wideLayout: layouts.wide,
+    accountLayout: layouts.account,
+  };
 }
 
 // Put settings into effect on this device, remember them here, and tell
-// the pages that use them. A new page layout first moves every binder's
-// cards on this device to match, then takes effect (binder pages redraw).
+// the pages that use them. If the layout in use (the phone's or the wide
+// screen's, whichever the window calls for) is now different, every
+// binder's cards on this device first move to match, then it takes effect
+// (binder pages redraw). Changing the layout NOT in use moves nothing:
+// it's just remembered for when the window changes size.
 function applySettings(settings: Settings): void {
   if (settings.theme !== currentThemeChoice()) setThemeChoice(settings.theme);
   storageSet(HIDDEN_FORMATS_KEY, JSON.stringify(settings.hiddenFormats));
-  if (!sameLayout(settings.pageLayout, pageLayout())) {
-    relayoutAllBinders(pocketsPerPage(), pocketsPerPage(settings.pageLayout));
-    saveLayout(settings.pageLayout);
+  const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
+  if (!sameLayout(nowShowing, pageLayout())) {
+    relayoutAllBinders(pocketsPerPage(), pocketsPerPage(nowShowing));
   }
+  saveLayouts({ phone: settings.phoneLayout, wide: settings.wideLayout, account: settings.accountLayout });
   settingsChanged();
+}
+
+// The window changed size (called from the app's outermost frame). If it
+// crossed between narrow and wide, the other layout takes over: every
+// binder's cards on this device move to match first, then binder pages
+// redraw. Nothing is sent anywhere: the account stores cards in its own
+// layout, so a change of window is never a change to the binder.
+export function followScreenSize(width: number): void {
+  const next = sizeClassFor(width);
+  if (next === currentSizeClass()) return;
+  const from = pageLayout();
+  const to = layoutFor(next);
+  if (!sameLayout(from, to)) relayoutAllBinders(pocketsPerPage(from), pocketsPerPage(to));
+  setSizeClass(next);
 }
 
 /* ---------------------------------------------------------------------
    IN GOOGLE DRIVE
    --------------------------------------------------------------------- */
 
-// Pick the settings out of a settings file, keeping only sensible
-// values (anything missing or odd keeps its current value)
-function fromFile(data: Record<string, unknown>): Settings {
+// Pick the settings out of what was saved (a Drive settings file, or the
+// server's answer), keeping only sensible values (anything missing or odd
+// keeps its current value).
+// Layouts: an older save has just one "pageLayout". From the server that
+// is the layout the account stores cards in, and it's also what both the
+// phone and wide layouts were, so both start as it. From a Drive file it
+// was the one layout in use, so both start as it, and the account layout
+// is left alone (Drive files don't use it).
+function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Settings {
   const settings = currentSettings();
   if (data.theme === 'light' || data.theme === 'dark' || data.theme === 'system') settings.theme = data.theme;
   if (Array.isArray(data.hiddenFormats)) settings.hiddenFormats = cleanCodes(data.hiddenFormats);
-  if (data.pageLayout && typeof data.pageLayout === 'object') settings.pageLayout = cleanLayout(data.pageLayout);
+  const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
+  if (isObject(data.pageLayout)) {
+    const single = cleanLayout(data.pageLayout);
+    settings.phoneLayout = single;
+    settings.wideLayout = single;
+    if (from === 'server') settings.accountLayout = single;
+  }
+  if (isObject(data.phoneLayout)) settings.phoneLayout = cleanLayout(data.phoneLayout);
+  if (isObject(data.wideLayout)) settings.wideLayout = cleanLayout(data.wideLayout);
   return settings;
 }
 
-// What's written into the settings file
+// What's written into the settings file. "pageLayout" is also written (as
+// the wide layout) so an older copy of the app still finds a layout.
+// The account layout isn't: it belongs to the server.
 function toFile(settings: Settings): Record<string, unknown> {
-  return { app: SETTINGS_APP, version: SETTINGS_VERSION, ...settings, savedAt: new Date().toISOString() };
+  const { accountLayout: _account, ...shared } = settings;
+  return {
+    app: SETTINGS_APP, version: SETTINGS_VERSION, ...shared, pageLayout: settings.wideLayout, savedAt: new Date().toISOString(),
+  };
 }
 
 // Saves to Drive happen one at a time, in order ("chain" is the last one
@@ -152,12 +207,17 @@ function saveToDrive(): Promise<void> {
    --------------------------------------------------------------------- */
 
 // What the server sends back: the saved settings (null if none yet)
-type ServerSettings = { settings: { theme?: unknown; hiddenFormats?: unknown; pageLayout?: unknown } | null };
+type ServerSettings = {
+  settings: { theme?: unknown; hiddenFormats?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+};
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, pageLayout: layout } = currentSettings();
-  await apiRequest('/settings', { method: 'PUT', body: { theme, hiddenFormats, pageLayout: layout } });
+  const { theme, hiddenFormats, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  await apiRequest('/settings', {
+    method: 'PUT',
+    body: { theme, hiddenFormats, pageLayout: stored, phoneLayout, wideLayout },
+  });
   storageRemove(SERVER_DIRTY_KEY);
 }
 
@@ -206,7 +266,7 @@ export async function syncSettings(): Promise<void> {
       await saveToServer();
       return;
     }
-    applySettings(fromFile(saved as Record<string, unknown>));
+    applySettings(fromFile(saved as Record<string, unknown>, 'server'));
     return;
   }
   if (isLocalMode() || !isSignedIn()) return;
@@ -215,5 +275,5 @@ export async function syncSettings(): Promise<void> {
     return;
   }
   const data = await readSettingsFile();
-  if (data) applySettings(fromFile(data));
+  if (data) applySettings(fromFile(data, 'drive'));
 }

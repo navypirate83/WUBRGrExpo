@@ -1,17 +1,30 @@
 /* =====================================================================
    THE PAGE LAYOUT: how many pockets across and down each binder page has
-   One layout for every binder, chosen on the Settings page (Binders →
-   Page layout): 4 across by 4 down (16 pockets) to start, anything from
-   1 to 6 each way (like 3 by 3 for 9-pocket pages, or 3 by 5).
-   It's kept on this device under "pageLayout" (settings.ts also saves it
-   to Google Drive). Changing it moves every binder's cards to match (see
-   relayoutAllBinders in binderStorage.ts): each card keeps its place in
-   the binder's order (pocket 1, 2, 3… counting page by page), so
-   changing back puts every card exactly where it was.
+   There are TWO layouts to choose from, on the Settings page (Binders →
+   Page layout), each 1 to 6 pockets across and down (like 3 by 3 for
+   9-pocket pages, or 3 by 5):
+   - the PHONE layout, used when the window is narrower than 600 wide (a
+     phone held upright, or the website in a narrow window)
+   - the WIDE-SCREEN layout, used when the window is 600 wide or more
+   Both start at 4 across by 4 down (16 pockets). Which one is showing
+   follows the window's size, even while the app is open.
+   They're kept on this device under "phoneLayout" and "wideLayout"
+   (settings.ts also saves them to the account, or Google Drive). Changing
+   the one in use (or crossing between narrow and wide) moves every
+   binder's cards to match (see relayoutAllBinders in binderStorage.ts):
+   each card keeps its place in the binder's order (pocket 1, 2, 3…
+   counting page by page), so changing back puts every card exactly where
+   it was.
+   A THIRD layout, the "account layout", is never shown. It's the layout
+   the account's cards are stored in on the server, so a phone and a
+   computer using different layouts still agree on where each card is
+   (see serverSync.ts, which converts between the two on the way).
    Plain TypeScript with no React in it.
    ===================================================================== */
 
+import { Dimensions } from 'react-native';
 import { storageGet, storageSet } from './storage';
+import { SLIM_MENU_MIN_WIDTH } from './layoutSize';
 
 // A layout: pockets across (columns) and down (rows) on each page
 export type PageLayout = { across: number; down: number };
@@ -22,8 +35,13 @@ export const DEFAULT_LAYOUT: PageLayout = { across: 4, down: 4 };
 export const LAYOUT_MIN = 1;
 export const LAYOUT_MAX = 6;
 
-// Where it's kept on this device
-const LAYOUT_KEY = 'pageLayout';
+// Where the layouts are kept on this device. "pageLayout" is where the one
+// layout was kept before there were two: it's still read, once, so nobody's
+// binders move when they update (both layouts start as that one).
+const OLD_KEY = 'pageLayout';
+const PHONE_KEY = 'phoneLayout';
+const WIDE_KEY = 'wideLayout';
+const ACCOUNT_KEY = 'accountLayout';
 
 // One count made safe: a whole number from 1 to 6 (anything else: the default)
 function cleanCount(value: unknown, fallback: number): number {
@@ -47,13 +65,73 @@ export function layoutFromText(text: string): PageLayout | null {
   return match ? cleanLayout({ across: match[1], down: match[2] }) : null;
 }
 
-// The layout now. It's read from storage once, then remembered here.
-let current: PageLayout | null = null;
-export function pageLayout(): PageLayout {
-  if (!current) {
-    try { current = cleanLayout(JSON.parse(storageGet(LAYOUT_KEY) ?? 'null')); } catch { current = { ...DEFAULT_LAYOUT }; }
+/* ---------------------------------------------------------------------
+   PHONE OR WIDE? (follows the window's size)
+   --------------------------------------------------------------------- */
+
+// Which of the two layouts goes with a window this wide. The cut-off is
+// the same one the app uses to switch from the bottom tabs (narrow) to a
+// side menu (wide), so "phone mode" means the same thing everywhere.
+export type SizeClass = 'phone' | 'wide';
+export function sizeClassFor(width: number): SizeClass {
+  return width < SLIM_MENU_MIN_WIDTH ? 'phone' : 'wide';
+}
+
+// The size class now. It starts from the window's size when the app opens;
+// settings.ts (followScreenSize) keeps it up to date when the window changes.
+let sizeClass: SizeClass = sizeClassFor(Dimensions.get('window').width);
+export function currentSizeClass(): SizeClass {
+  return sizeClass;
+}
+
+/* ---------------------------------------------------------------------
+   THE LAYOUTS
+   --------------------------------------------------------------------- */
+
+// All three layouts: the two to show, and the one the account stores cards in
+export type Layouts = { phone: PageLayout; wide: PageLayout; account: PageLayout };
+
+// One saved layout, or null if there isn't a usable one
+function readSaved(key: string): PageLayout | null {
+  try {
+    const text = storageGet(key);
+    return text ? cleanLayout(JSON.parse(text)) : null;
+  } catch {
+    return null;
   }
-  return current;
+}
+
+// The layouts now. They're read from storage once, then remembered here.
+// Anything not saved yet starts as the old single layout (or 4 x 4).
+let layouts: Layouts | null = null;
+function allLayouts(): Layouts {
+  if (!layouts) {
+    const old = readSaved(OLD_KEY) ?? { ...DEFAULT_LAYOUT };
+    layouts = {
+      phone: readSaved(PHONE_KEY) ?? old,
+      wide: readSaved(WIDE_KEY) ?? old,
+      account: readSaved(ACCOUNT_KEY) ?? old,
+    };
+  }
+  return layouts;
+}
+export function savedLayouts(): Layouts {
+  return { ...allLayouts() };
+}
+
+// The layout for one size class
+export function layoutFor(size: SizeClass): PageLayout {
+  return allLayouts()[size];
+}
+
+// The layout showing now: the one for the window's size
+export function pageLayout(): PageLayout {
+  return layoutFor(sizeClass);
+}
+
+// The layout the account's cards are stored in (never shown)
+export function accountLayout(): PageLayout {
+  return allLayouts().account;
 }
 
 // How many pockets each page has with the layout now (or a given one)
@@ -78,10 +156,21 @@ export function layoutKey(): string {
   return layoutToText(pageLayout());
 }
 
-// Keep a new layout on this device, and tell the pages. (Only call this
+// Keep new layouts on this device, and tell the pages. (Only call this
 // after the binders' cards have been moved to match: settings.ts does both.)
-export function saveLayout(layout: PageLayout): void {
-  current = cleanLayout(layout);
-  storageSet(LAYOUT_KEY, JSON.stringify(current));
+export function saveLayouts(next: Layouts): void {
+  layouts = { phone: cleanLayout(next.phone), wide: cleanLayout(next.wide), account: cleanLayout(next.account) };
+  storageSet(PHONE_KEY, JSON.stringify(layouts.phone));
+  storageSet(WIDE_KEY, JSON.stringify(layouts.wide));
+  storageSet(ACCOUNT_KEY, JSON.stringify(layouts.account));
+  for (const listener of listeners) listener();
+}
+
+// The window crossed between narrow and wide: switch to that size's
+// layout and tell the pages. (Only call this after the binders' cards
+// have been moved to match: settings.ts, followScreenSize, does both.)
+export function setSizeClass(next: SizeClass): void {
+  if (next === sizeClass) return;
+  sizeClass = next;
   for (const listener of listeners) listener();
 }

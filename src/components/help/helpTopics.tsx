@@ -791,7 +791,9 @@ export const helpTopics: HelpTopic[] = [
               the <Strong>Foil</Strong> button is highlighted.
             </P>
             <P>
-              Tap a store's icon (or name) to see the card there. On a wide screen the box is
+              Tap <Strong>TCGplayer</Strong> or <Strong>Card Kingdom</Strong> (the icon or the name) to
+              see the card there. <Strong>Cardmarket</Strong> shows prices only, with no link, because
+              its website blocks many visitors. On a wide screen the box is
               beside the card, on the left, with just the stores' icons; on a narrow screen it's
               under <Strong>Notes and Rules</Strong>, with the stores' names too.
             </P>
@@ -955,19 +957,31 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Under <Strong>Binders</Strong>, <Strong>Page layout</Strong> sets how many pockets
-              every binder page has: tap <Strong>−</Strong> and <Strong>+</Strong> beside <Strong>Across</Strong> and <Strong>Down</Strong> (1
-              to 6 each). For example, 3 × 3 for 9-pocket pages, 4 × 3 for 12, or 3 × 5. It
-              starts at 4 × 4 (16 pockets). The small picture under them shows one page, with
+              Under <Strong>Binders</Strong> there are two page layouts, so a phone can have
+              bigger pockets than a computer: <Strong>Page layout on a phone</Strong> and <Strong>Page
+              layout on a wide screen</Strong>. Each sets how many pockets every binder page
+              has: tap <Strong>−</Strong> and <Strong>+</Strong> beside <Strong>Across</Strong> and <Strong>Down</Strong> (1
+              to 6 each). For example, 3 × 3 for 9-pocket pages, 4 × 3 for 12, or 3 × 5. Both
+              start at 4 × 4 (16 pockets). The small picture under them shows one page, with
               how many cards it holds. In the phone app, cards are always as wide as the screen
               allows, so a page with many rows scrolls up and down. On the website, the whole
               page shrinks to fit the screen.
             </P>
             <P>
-              The layout is the same for all your binders. Changing it keeps every card in the
+              Which one shows depends on the window's width, not on the kind of device: a window
+              narrower than 600 wide (a phone held upright, or the website in a narrow window)
+              uses the phone layout; anything wider (a computer, a tablet, a phone held
+              sideways) uses the wide-screen layout. It switches by itself if you resize the
+              window or turn the phone. Your cards stay in the same order whichever layout is
+              showing, so the same binder simply has more pages in a smaller layout. Page
+              numbers will differ between your phone and your computer.
+            </P>
+            <P>
+              The layouts are the same for all your binders. Changing one keeps every card in the
               same order (pocket 1, 2, 3… counting page by page), so cards flow onto more pages
               (or fewer). A binder keeps its number of pages; if its cards need more, pages are
               added. Change the layout back, and every card returns to exactly where it was.
+              Your account remembers both layouts, so they follow you to your other devices.
             </P>
           </>
         ),

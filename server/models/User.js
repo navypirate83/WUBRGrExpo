@@ -54,14 +54,24 @@ const userSchema = new mongoose.Schema(
       select: false,
       required: [function () { return !this.googleId; }, 'Password is required'],
     },
-    // The person's app settings (theme, hidden formats, page layout), kept
+    // The person's app settings (theme, hidden formats, page layouts), kept
     // here so they follow the person to every phone and computer. It stays
     // empty until the first time the app saves them. The routes in
     // routes/settings.js check every value before it is saved.
     settings: {
       theme: { type: String, enum: ['system', 'light', 'dark'] },
       hiddenFormats: { type: [String], default: undefined },
+      // The layout the account's cards are stored in (see routes/settings.js)
       pageLayout: {
+        across: { type: Number, min: 1, max: 6 },
+        down: { type: Number, min: 1, max: 6 },
+      },
+      // The layouts shown on a phone (narrow window) and a wide screen
+      phoneLayout: {
+        across: { type: Number, min: 1, max: 6 },
+        down: { type: Number, min: 1, max: 6 },
+      },
+      wideLayout: {
         across: { type: Number, min: 1, max: 6 },
         down: { type: Number, min: 1, max: 6 },
       },

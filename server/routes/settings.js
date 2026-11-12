@@ -6,6 +6,19 @@
    change anyone else's.
    - GET /settings   the saved settings (or null if none were ever saved)
    - PUT /settings   save the settings (replaces what was saved)
+
+   THE THREE PAGE LAYOUTS (pockets across and down a binder page):
+   - phoneLayout and wideLayout: what the app shows on a narrow window
+     (a phone) and on a wide one. Each device picks by its window's size.
+   - pageLayout: the layout the account's CARDS are stored in (each card's
+     page and pocket numbers count in it). The app converts to and from
+     it, so a phone and a computer using different layouts still agree on
+     where every card is. Once an account has one it is NOT changed by the
+     app (a device with out-of-date settings could otherwise change it
+     without the cards moving with it, and scramble every binder).
+     An older copy of the app sends only pageLayout (no phone or wide
+     layout) and means "the one layout in use, and the one cards are
+     stored in": that is accepted as before.
    ===================================================================== */
 
 import { Router } from 'express';
@@ -19,36 +32,51 @@ const THEMES = ['system', 'light', 'dark'];
 // A page layout count must be a whole number from 1 to 6
 const isCount = (n) => Number.isInteger(n) && n >= 1 && n <= 6;
 
+// Is this a layout: whole numbers across and down, each 1 to 6?
+const isLayout = (l) => !!l && typeof l === 'object' && isCount(l.across) && isCount(l.down);
+const pick = (l) => ({ across: l.across, down: l.down });
+
 // Check what the app sent. Returns { settings } with only the known fields
-// (extras are ignored), or { error } saying what is wrong.
+// (extras are ignored), or { error } saying what is wrong. "twoLayouts" is
+// true when it came from an app that has the phone and wide layouts.
 function checkSettings(body) {
-  const { theme, hiddenFormats, pageLayout } = body ?? {};
+  const { theme, hiddenFormats, pageLayout, phoneLayout, wideLayout } = body ?? {};
   if (!THEMES.includes(theme)) return { error: 'Theme must be system, light or dark' };
   if (!Array.isArray(hiddenFormats) || hiddenFormats.length > 100
     || !hiddenFormats.every((f) => typeof f === 'string' && f.length > 0 && f.length < 40)) {
     return { error: 'Hidden formats must be a list of short names' };
   }
-  if (!pageLayout || !isCount(pageLayout.across) || !isCount(pageLayout.down)) {
+  if (!isLayout(pageLayout)) {
     return { error: 'Page layout must be whole numbers from 1 to 6 across and down' };
   }
-  return {
-    settings: {
-      theme,
-      hiddenFormats,
-      pageLayout: { across: pageLayout.across, down: pageLayout.down },
-    },
-  };
+  // The phone and wide layouts come together or not at all
+  if ((phoneLayout === undefined) !== (wideLayout === undefined)) {
+    return { error: 'Send both the phone layout and the wide layout, or neither' };
+  }
+  if (phoneLayout !== undefined && (!isLayout(phoneLayout) || !isLayout(wideLayout))) {
+    return { error: 'The phone and wide layouts must be whole numbers from 1 to 6 across and down' };
+  }
+  const settings = { theme, hiddenFormats, pageLayout: pick(pageLayout) };
+  if (phoneLayout !== undefined) {
+    settings.phoneLayout = pick(phoneLayout);
+    settings.wideLayout = pick(wideLayout);
+  }
+  return { settings, twoLayouts: phoneLayout !== undefined };
 }
 
 // What is sent back: the settings and when they were saved
 function answer(user) {
   const saved = user?.settings;
   if (!user?.settingsSavedAt || !saved?.theme) return { settings: null, savedAt: null };
+  const stored = { across: saved.pageLayout?.across ?? 4, down: saved.pageLayout?.down ?? 4 };
   return {
     settings: {
       theme: saved.theme,
       hiddenFormats: saved.hiddenFormats ?? [],
-      pageLayout: { across: saved.pageLayout?.across ?? 4, down: saved.pageLayout?.down ?? 4 },
+      pageLayout: stored,
+      // Settings saved before there were two layouts: both are the one layout
+      phoneLayout: saved.phoneLayout?.across ? pick(saved.phoneLayout) : stored,
+      wideLayout: saved.wideLayout?.across ? pick(saved.wideLayout) : stored,
     },
     savedAt: user.settingsSavedAt,
   };
@@ -67,6 +95,13 @@ router.put('/', async (req, res) => {
   const checked = checkSettings(req.body);
   if (checked.error) return res.status(400).json({ error: checked.error });
   try {
+    // A newer app never changes the layout the cards are stored in once
+    // the account has one (see the top of this file): keep the saved one
+    if (checked.twoLayouts) {
+      const before = await User.findById(req.user.id).select('settings settingsSavedAt').lean();
+      const keep = before?.settingsSavedAt && before.settings?.pageLayout?.across && before.settings?.pageLayout?.down;
+      if (keep) checked.settings.pageLayout = pick(before.settings.pageLayout);
+    }
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: { settings: checked.settings, settingsSavedAt: new Date() } },

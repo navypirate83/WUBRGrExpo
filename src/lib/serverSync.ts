@@ -29,6 +29,14 @@
    answer ("Decide later" leaves it alone until the app next opens). The
    links are kept for each account on this device, so logging out and in
    again is quick.
+   Different page layouts aren't a problem either: the phone and the
+   computer can each use their own (say 3 x 3 and 4 x 4, see pageLayout.ts),
+   but the server keeps every card in ONE layout, the "account layout". On
+   the way up each card's page and pocket are worked out in the account
+   layout, and on the way down back into this device's. The order of the
+   cards never changes, only how they're cut into pages. The fingerprints
+   below are also taken in the account layout, so a window changing size
+   (and the device's layout with it) is never mistaken for an edit.
    Having no internet isn't a problem: it just tries again later.
    Being stopped half way isn't a problem either (the phone app can be
    closed or sent to the background at any moment): the link to a new
@@ -41,10 +49,11 @@
    ===================================================================== */
 
 import { apiRequest, isOffline } from './api';
+import { accountLayout } from './pageLayout';
 import { getServerUser, isServerSignedIn } from './session';
 import {
   cleanCover, cleanPageCount, forgetBinder, freeBinderName, loadBinder, loadBinderList, newLocalBinderId,
-  pocketKey, pocketsPerPage, saveBinder, saveBinderList, setLocalMode, type Binder, type BinderCard, type BinderCards,
+  pocketKey, pocketsPerPage, relayoutCards, saveBinder, saveBinderList, setLocalMode, type Binder, type BinderCard, type BinderCards,
 } from './binderStorage';
 import {
   forgetList, loadLists, newLocalListId, saveLists, type CardList, type ListCard,
@@ -132,6 +141,28 @@ function fingerprintOf(value: unknown): string {
 type ServerItem = { _id: string; name: string; color?: string | null; cover?: string; pages?: number; updatedAt: string };
 type ServerCard = BinderCard & { page: number; pocket: number; manaCost?: string; typeLine?: string };
 
+// This device's cards in the account's layout (what the server stores),
+// and back. The pockets are counted page by page, so each card keeps its
+// place in the binder's order; only the page and pocket numbers change.
+// (Nothing changes when the two layouts are the same.)
+function toAccountLayout(cards: BinderCards): BinderCards {
+  return relayoutCards(cards, pocketsPerPage(), pocketsPerPage(accountLayout()));
+}
+function fromAccountLayout(cards: BinderCards): BinderCards {
+  return relayoutCards(cards, pocketsPerPage(accountLayout()), pocketsPerPage());
+}
+
+// One binder's cards on this device, in the account's layout
+function deviceCards(id: string): BinderCards {
+  return toAccountLayout(loadBinder(id));
+}
+
+// Keep cards that are in the account's layout on this device (in this
+// device's layout)
+function keepOnDevice(cards: BinderCards, id: string): void {
+  saveBinder(fromAccountLayout(cards), id, { dirty: false });
+}
+
 // A card as the server stores it: the pocket becomes page and pocket numbers
 function cardToServer(key: string, card: BinderCard): Record<string, unknown> {
   const [page, pocket] = key.split('-').map(Number);
@@ -177,7 +208,8 @@ async function syncBinders(memory: Memory): Promise<void> {
 
   // 1. Every binder on this device: send it, or update it from the server
   for (const binder of [...loadBinderList()]) {
-    const cards = loadBinder(binder.id);
+    // (In the account's layout, like everything compared or sent below)
+    const cards = deviceCards(binder.id);
     const fingerprint = fingerprintOf([detailsToServer(binder), cards]);
     const link = memory.binders[binder.id];
     const remote = link ? serverById.get(link.serverId) : undefined;
@@ -202,7 +234,7 @@ async function syncBinders(memory: Memory): Promise<void> {
         if (sameCards(cards, theirCards)) {
           await linkBinderTwin(binder, cards, sameName, memory);
         } else {
-          const combinedCount = Object.keys(mergeBinderCards(cards, theirCards, pocketsPerPage()).cards).length;
+          const combinedCount = Object.keys(mergeBinderCards(cards, theirCards, pocketsPerPage(accountLayout())).cards).length;
           const choice = await decideMerge('binder', binder.id, binder.name, Object.keys(cards).length, Object.keys(theirCards).length, combinedCount);
           if (choice === 'combine') await mergeBinderWithServer(binder, cards, sameName, theirCards, memory);
           else if (choice === 'keep-device') await keepDeviceBinder(binder, cards, sameName, memory);
@@ -287,7 +319,7 @@ async function keepDeviceBinder(binder: Binder, cards: BinderCards, remote: Serv
 // cards of both, see mergeCards.ts), keep the result here, and send it so
 // both sides match. The link is saved before the send, as always.
 async function mergeBinderWithServer(binder: Binder, cards: BinderCards, remote: ServerItem, theirCards: BinderCards, memory: Memory): Promise<void> {
-  const { cards: merged, pagesNeeded } = mergeBinderCards(cards, theirCards, pocketsPerPage());
+  const { cards: merged, pagesNeeded } = mergeBinderCards(cards, theirCards, pocketsPerPage(accountLayout()));
   const combined: Binder = {
     ...binder,
     name: remote.name,
@@ -295,7 +327,7 @@ async function mergeBinderWithServer(binder: Binder, cards: BinderCards, remote:
     cover: cleanCover(remote.cover) || binder.cover,
     pages: Math.max(cleanPageCount(remote.pages), cleanPageCount(binder.pages), pagesNeeded),
   };
-  saveBinder(merged, binder.id, { dirty: false });
+  keepOnDevice(merged, binder.id);
   saveBinderList(loadBinderList().map((b) => (b.id === binder.id ? combined : b)));
   memory.binders[binder.id] = { serverId: remote._id, fingerprint: NOT_SENT_YET, version: '' };
   writeMemory(memory);
@@ -359,7 +391,7 @@ async function pushBinder(binder: Binder, cards: BinderCards, serverId: string, 
 // Bring a changed binder's details and cards down over the device's copy
 async function pullBinder(localId: string, remote: ServerItem, memory: Memory): Promise<void> {
   const cards = await downloadCards(`/binders/${remote._id}/cards`);
-  saveBinder(cards, localId, { dirty: false });
+  keepOnDevice(cards, localId);
   const list = loadBinderList().map((b) => (b.id === localId ? withDetails(b, remote) : b));
   saveBinderList(list);
   const updated = list.find((b) => b.id === localId)!;
@@ -372,7 +404,7 @@ async function pullNewBinder(remote: ServerItem, memory: Memory): Promise<void> 
   const cards = await downloadCards(`/binders/${remote._id}/cards`);
   const id = newLocalBinderId();
   const binder: Binder = { ...withDetails({ id, name: freeBinderName(remote.name), color: null, cover: '', pages: 0 }, remote), name: freeBinderName(remote.name) };
-  saveBinder(cards, id, { dirty: false });
+  keepOnDevice(cards, id);
   saveBinderList([...loadBinderList(), binder]);
   memory.binders[id] = { serverId: remote._id, fingerprint: fingerprintOf([detailsToServer(binder), cards]), version: remote.updatedAt };
   writeMemory(memory);
@@ -389,7 +421,8 @@ function withDetails(binder: Binder, remote: ServerItem): Binder {
   };
 }
 
-// A binder's cards from the server, as the device keeps them
+// A binder's cards from the server (in the account's layout, which is how
+// the server stores them: use keepOnDevice to put them on this device)
 async function downloadCards(path: string): Promise<BinderCards> {
   const cards: BinderCards = {};
   for (const card of await apiRequest<ServerCard[]>(path)) {
@@ -593,7 +626,7 @@ export function changedSinceSync(): boolean {
   const memory = readMemory();
   for (const binder of loadBinderList()) {
     const link = memory.binders[binder.id];
-    if (!link || link.fingerprint !== fingerprintOf([detailsToServer(binder), loadBinder(binder.id)])) return true;
+    if (!link || link.fingerprint !== fingerprintOf([detailsToServer(binder), deviceCards(binder.id)])) return true;
   }
   for (const list of loadLists()) {
     const link = memory.lists[list.id];
