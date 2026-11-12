@@ -1,21 +1,23 @@
 /* =====================================================================
    BINDERS, LISTS OR DECKS: THE SWITCH IN THE HEADER
-   Three small picture buttons side by side in the header of The Shelf's
-   pages, beside the title: an open binder (your binders), a spiral
-   notebook (your lists) and a Commander deck box (your decks). The
-   button for the page you're already on is faded out and can't be
-   pressed; the others switch to their pages.
-   Each button goes to the last place you were in that section (the binder
-   or list you had open), not just its first page: see lib/shelfMemory.ts.
+   Three small picture buttons side by side in the header, beside the
+   title: an open binder (your binders), a spiral notebook (your lists)
+   and a Commander deck box (your decks). They're in the header of the
+   shelf's three main pages AND of an opened binder or list, so you can
+   always jump between the parts of the shelf.
+   - The button for the part you're in has an orange outline. On that
+     part's main page it can't be pressed (you're already there). Inside a
+     binder or list, pressing it goes up to that part's main page.
+   - The other buttons go to the last place you were in that part (the
+     list you had open, say), or its main page if there isn't one: see
+     lib/shelfMemory.ts. Switching swaps the page in place instead of
+     sliding, so there's no back arrow between them.
    When the side menu is showing it already has Binders, Lists and Decks,
    so this switch hides itself.
-   Switching "replaces" the page instead of piling the new one on top,
-   so there's no back arrow between them: they're three views of the
-   same shelf.
    ===================================================================== */
 
 import { Pressable, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { useMenuStyle } from '@/hooks/useMenuStyle';
@@ -36,25 +38,34 @@ export default function ShelfSwitch({ current }: { current: Page }) {
   const colors = useColors();
   // With the side menu showing there's nothing to switch with here
   const hasSideMenu = useMenuStyle() !== 'none';
+  // Are we on the main page of the current part (not inside a binder or list)?
+  const pathname = usePathname().replace(/\/+$/, '');
+  const atMain = pathname === PAGES[current].to;
   if (hasSideMenu) return null;
 
   return (
     <View style={styles.row}>
       {(Object.keys(PAGES) as Page[]).map((page) => {
         const here = page === current;
+        // Your own part: up to its main page (nothing to do if you're there)
+        const stuck = here && atMain;
         return (
-          // One button: faded and switched off on its own page
           <Pressable
             key={page}
             accessibilityRole="button"
-            accessibilityLabel={here ? `${PAGES[page].name} (showing)` : `Show your ${PAGES[page].name.toLowerCase()}`}
-            accessibilityState={{ disabled: here, selected: here }}
-            disabled={here}
-            onPress={() => router.replace(sectionHref(page) as never)}
+            accessibilityLabel={stuck ? `${PAGES[page].name} (showing)`
+              : here ? `Go to the main ${PAGES[page].name.toLowerCase()} page`
+                : `Show your ${PAGES[page].name.toLowerCase()}`}
+            accessibilityState={{ disabled: stuck, selected: here }}
+            disabled={stuck}
+            onPress={() => {
+              if (here) router.navigate(PAGES[page].to as never);
+              else router.replace(sectionHref(page) as never);
+            }}
             style={({ pressed }) => [
               styles.button,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              here && styles.ghost,
+              { backgroundColor: colors.surface, borderColor: here ? colors.accent : colors.border },
+              here && styles.here,
               pressed && styles.pressed,
             ]}
           >
@@ -67,12 +78,12 @@ export default function ShelfSwitch({ current }: { current: Page }) {
   );
 }
 
-// The switch's look: small buttons in a row, with a little room before the
-// Help button to their right
+// The switch's look: small buttons in a row; your own part has an orange
+// outline (a little thicker). A little room before the buttons to its right.
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 4 },
-  button: { width: 38, height: 30, borderRadius: RADIUS - 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  ghost: { opacity: 0.35 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 2 },
+  button: { width: 34, height: 30, borderRadius: RADIUS - 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  here: { borderWidth: 2 },
   pressed: { opacity: 0.6 },
-  picture: { width: 24, height: 20 },
+  picture: { width: 22, height: 18 },
 });

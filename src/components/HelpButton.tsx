@@ -34,6 +34,6 @@ export default function HelpButton({ topic }: { topic?: string }) {
 
 // The button's look: a little space from the screen's edge
 const styles = StyleSheet.create({
-  button: { paddingHorizontal: 12 },
+  button: { paddingHorizontal: 8 },
   pressed: { opacity: 0.5 },
 });

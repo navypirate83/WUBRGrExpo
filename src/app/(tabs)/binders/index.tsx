@@ -127,7 +127,6 @@ export default function ShelfScreen() {
   // The line above the shelf (only when the binders are kept on this
   // device; signed in, nothing is shown), and the message under the
   // shelf (red if an error)
-  const account = localMode ? 'Saved on this device only' : '';
   const [message, setMessage] = useState<{ text: string; error?: boolean }>({ text: params.message ?? '' });
   // While a new binder is being made: the Add binder button is greyed out
   const [adding, setAdding] = useState(false);
@@ -680,7 +679,6 @@ export default function ShelfScreen() {
   const header = (
     <View style={styles.header}>
       <BinderSearch />
-      {account ? <Text style={[styles.account, { color: colors.muted }]}>{account}</Text> : null}
 
       {/* Add binder: opens the New binder window (name, cover symbol and
           color, or Upload .CSV) */}
@@ -1018,7 +1016,6 @@ const styles = StyleSheet.create({
   list: { padding: SHELF_PADDING, width: '100%', maxWidth: SHELF_MAX_WIDTH, alignSelf: 'center', flexGrow: 1 },
   header: { gap: 10, marginBottom: 4 },
   headerOnTop: { zIndex: 10 },
-  account: { fontSize: 14 },
   moreButton: { alignSelf: 'flex-start', minHeight: 36 },
   message: { fontSize: 15, textAlign: 'center', marginTop: 8 },
   // One row of binders: as wide as the binders in it, centered

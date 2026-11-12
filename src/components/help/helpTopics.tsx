@@ -189,7 +189,7 @@ export const helpTopics: HelpTopic[] = [
             <P>
               Inside a list, the cards are shown the way a binder shows its cards, as a <Strong>List</Strong> (a
               small picture, the name, the set and number, a <Strong>− 3 +</Strong> bar for how many copies you
-              want, and the price) or a <Strong>Grid</Strong> of card pictures. The buttons under the search
+              want, and the price) or a <Strong>Grid</Strong> of card pictures. The small list and grid icon buttons under the search
               box switch between them, and the app remembers your choice (one for a phone-sized window, one for a
               wide screen, saved with your account). A list has no pockets, so there's no Binder view. The sort button
               at the right works like a binder's (tap the sort in use again to reverse it), foil cards have the rainbow
@@ -208,8 +208,8 @@ export const helpTopics: HelpTopic[] = [
               Lists are saved like binders: to Google Drive when you're signed in (as .csv files, in
               a "Lists" folder inside "MTG Card Binder"), or on this device when you use the app
               locally. The check mark beside the list's name is green when it's saved and red while
-              it isn't (tap it to see why). The <Strong>down arrow</Strong> at the top right
-              downloads the list as a .CSV file.
+              it isn't (tap it to see why). The <Strong>down arrow</Strong> button, beside the List and
+              Grid buttons under the search box, downloads the list as a .CSV file.
             </P>
           </>
         ),
@@ -282,7 +282,7 @@ export const helpTopics: HelpTopic[] = [
             <P>You can also save a binder to your phone or computer, to keep as a backup or share with a friend:</P>
             <Bullet>
               <Strong>Download</Strong>: open the binder, then tap the
-              small <Strong>down arrow</Strong> at the top right of the screen<OnComputer> (or
+              small <Strong>down arrow</Strong> button beside the List, Grid and Binder buttons<OnComputer> (or
               press <Key>D</Key> on a computer)</OnComputer>. On a phone, your share menu opens, so you can
               save the file to Files, email it, or send it to another app. On a computer, it's
               downloaded like any other file.
@@ -494,9 +494,10 @@ export const helpTopics: HelpTopic[] = [
     lead: (
       <>
         A binder opens as its pages of pockets (the <Strong>Binder</Strong> view, below). The
-        buttons under the search bar switch between <Strong>Binder</Strong>, <Strong>List</Strong> (a
+        three small picture buttons under the search bar switch between <Strong>Binder</Strong> (the open
+        binder drawing), <Strong>List</Strong> (the list icon: a
         small picture, the name, the set and number, how many copies you have and what they're
-        worth) and <Strong>Grid</Strong> (card pictures side by side). The app remembers your choice
+        worth) and <Strong>Grid</Strong> (the grid icon: card pictures side by side). The app remembers your choice
         for the next binder you open, one for a phone-sized window and one for a wide screen, and
         saves it with your account so it follows you to your other devices.
         In the list and grid, the button at the right (it shows the sort in use, like <Strong>A–Z</Strong>) drops
@@ -739,7 +740,7 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              On a phone, the <Strong>bell</Strong> at the top right of a binder sets a reminder: a
+              On a phone, the <Strong>bell</Strong> beside the List, Grid and Binder buttons sets a reminder: a
               notification later on, as a nudge to come back and sort new cards into this binder.
               Choose <Strong>In 10 seconds</Strong> (to try it out), <Strong>In 1 hour</Strong> or <Strong>Tomorrow</Strong>.
               Your phone gives a small buzz when it's set.

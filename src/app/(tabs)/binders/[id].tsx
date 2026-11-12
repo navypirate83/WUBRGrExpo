@@ -54,8 +54,9 @@ import HelpButton from '@/components/HelpButton';
 import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
 import CardList, { type CardEntry } from '@/components/binder/CardList';
-import ViewSwitch from '@/components/binder/ViewSwitch';
+import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import AddCardsButton from '@/components/binder/AddCardsButton';
+import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import {
@@ -1134,6 +1135,8 @@ function BinderView({ binderId }: { binderId: string }) {
       ),
       headerRight: () => (
         <View style={styles.headerButtons}>
+          {/* The Binders / Lists / Decks switch (phones: a wide screen's side menu has them) */}
+          <ShelfSwitch current="binders" />
           {/* Keyboard shortcuts (computers only) */}
           {showKeyHints && (
             <Pressable accessibilityRole="button" accessibilityLabel="Keyboard shortcuts" hitSlop={6}
@@ -1142,19 +1145,6 @@ function BinderView({ binderId }: { binderId: string }) {
               <Ionicons name="keypad-outline" size={22} color={colors.text} />
             </Pressable>
           )}
-          {/* Save (or share) the binder as a .csv file */}
-          <Pressable accessibilityRole="button" accessibilityLabel={`Download ${binder.name} as a .CSV file`} hitSlop={6}
-                     onPress={() => downloadBinderCsv(binderId).catch((err) => showMessage('Couldn\'t save the file', (err as Error).message))}
-                     style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <Ionicons name="download-outline" size={24} color={colors.text} />
-          </Pressable>
-          {/* Set a reminder about this binder */}
-          <Pressable accessibilityRole="button" accessibilityLabel="Remind me about this binder" hitSlop={6}
-                     onPress={() => (REMINDERS_AVAILABLE ? setRemindOpen(true)
-                       : showMessage('Reminders are in the phone app', 'Open WUBRG\'r on your phone to set reminders: they arrive as phone notifications.'))}
-                     style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <Ionicons name="notifications-outline" size={23} color={colors.text} />
-          </Pressable>
           <HelpButton topic="binder" />
         </View>
       ),
@@ -1181,7 +1171,20 @@ function BinderView({ binderId }: { binderId: string }) {
       <View style={styles.top}>
         <BinderSearch currentBinderId={binderId} />
         {/* List / Grid / Binder, and the sort (or Clean-up in the Binder view) */}
-        <ViewSwitch mode={mode} sort={sort} reversed={reversed} onCleanUp={cleanUp} canCleanUp={hasGaps} />
+        <ViewSwitch
+          mode={mode} sort={sort} reversed={reversed} onCleanUp={cleanUp} canCleanUp={hasGaps}
+          extras={(
+            <>
+              {/* Save (or share) the binder as a .csv file */}
+              <ToolButton icon="download-outline" label={`Download ${binder.name} as a .CSV file`}
+                          onPress={() => downloadBinderCsv(binderId).catch((err) => showMessage('Couldn\'t save the file', (err as Error).message))} />
+              {/* Set a reminder about this binder */}
+              <ToolButton icon="notifications-outline" label="Remind me about this binder"
+                          onPress={() => (REMINDERS_AVAILABLE ? setRemindOpen(true)
+                            : showMessage('Reminders are in the phone app', 'Open WUBRG\'r on your phone to set reminders: they arrive as phone notifications.'))} />
+            </>
+          )}
+        />
       </View>
 
       {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red
@@ -1444,7 +1447,7 @@ const styles = StyleSheet.create({
   // The binder's name and its check mark, side by side
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   headerName: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
-  headerButton: { paddingHorizontal: 8 },
+  headerButton: { paddingHorizontal: 5 },
   pressed: { opacity: 0.5 },
   listArea: { flex: 1 },
   emptyList: { alignItems: 'center', gap: 12, paddingTop: 40, paddingHorizontal: 24 },

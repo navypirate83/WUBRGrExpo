@@ -40,8 +40,9 @@ import PopupWindow from '@/components/PopupWindow';
 import HelpButton from '@/components/HelpButton';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import CardList2, { type CardEntry } from '@/components/binder/CardList';
-import ViewSwitch from '@/components/binder/ViewSwitch';
+import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import AddCardsButton from '@/components/binder/AddCardsButton';
+import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
@@ -182,12 +183,8 @@ export default function ListScreen() {
       ),
       headerRight: () => (
         <View style={styles.headerButtons}>
-          {/* Save (or share) the list as a .csv file */}
-          <Pressable accessibilityRole="button" accessibilityLabel={`Download ${list?.name ?? 'the list'} as a .CSV file`} hitSlop={6}
-                     onPress={() => downloadListCsv(id).catch((err) => showMessage('Couldn\'t save the file', (err as Error).message))}
-                     style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <Ionicons name="download-outline" size={24} color={colors.text} />
-          </Pressable>
+          {/* The Binders / Lists / Decks switch (phones: a wide screen's side menu has them) */}
+          <ShelfSwitch current="lists" />
           <HelpButton topic="my-binders-lists" />
         </View>
       ),
@@ -293,7 +290,14 @@ export default function ListScreen() {
           autoCorrect={false}
           autoCapitalize="none"
         />
-        <ViewSwitch mode={mode} sort={sort} reversed={reversed} modes={['list', 'grid']} onView={setListViewMode} />
+        <ViewSwitch
+          mode={mode} sort={sort} reversed={reversed} modes={['list', 'grid']} onView={setListViewMode}
+          extras={(
+            // Save (or share) the list as a .csv file
+            <ToolButton icon="download-outline" label={`Download ${list.name} as a .CSV file`}
+                        onPress={() => downloadListCsv(id).catch((err) => showMessage('Couldn\'t save the file', (err as Error).message))} />
+          )}
+        />
       </View>
 
       {/* THE CARDS, with the red "+" floating over them in the corner */}
@@ -374,7 +378,7 @@ const styles = StyleSheet.create({
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   headerName: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
-  headerButton: { paddingHorizontal: 8 },
+  headerButton: { paddingHorizontal: 5 },
   pressed: { opacity: 0.5 },
   // The card's window: a big picture, the copies, then the buttons
   menuPicture: { width: '100%', height: 260 },

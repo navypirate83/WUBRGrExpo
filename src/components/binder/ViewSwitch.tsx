@@ -1,7 +1,13 @@
 /* =====================================================================
    THE VIEW SWITCH (inside an opened binder or card list)
-   A row of small buttons under the search bar: List, Grid and Binder
-   (an opened card list has no pockets, so it's given just List and Grid)
+   A row of small buttons under the search bar: List, Grid and Binder, each
+   shown as a picture, not words: a list icon, a grid icon and the app's own
+   open-binder drawing (the chosen one is filled in orange; screen readers
+   still hear "List view", "Grid view" and "Binder view"). An opened card
+   list has no pockets, so it's given just List and Grid.
+   Right after them can come a few small tool buttons the screen hands in
+   ("extras": the binder's download and reminder buttons, the list's
+   download button): see ToolButton below.
    (the one you're on is filled in orange), and one more button at the
    right that depends on the view:
    - List and Grid: a Sort button that shows the sort in use and drops a
@@ -20,20 +26,26 @@
    (see lib/binderView.ts).
    ===================================================================== */
 
-import { useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
+import { useRef, useState, useSyncExternalStore, type ComponentRef, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, chooseBinderSort, onGridZoomChange, setBinderViewMode, zoomBinderGrid } from '@/lib/binderView';
 import { BINDER_SORTS, canReverse, type BinderSort } from '@/lib/binderSort';
 import type { BinderViewMode } from '@/lib/binderViewTypes';
 import { RADIUS } from '@/theme/colors';
 
-// The three views, in the order they show
-const VIEWS: { mode: BinderViewMode; label: string }[] = [
-  { mode: 'list', label: 'List' },
-  { mode: 'grid', label: 'Grid' },
-  { mode: 'binder', label: 'Binder' },
+// The binder drawing used for the Binder view's button (the same one as the
+// Binders button in the header)
+const BINDER_PICTURE = require('../../../assets/images/binder-outline.svg') as number;
+
+// The three views, in the order they show: each one's name (for screen
+// readers) and its picture (an Ionicons icon, or null for the binder drawing)
+const VIEWS: { mode: BinderViewMode; label: string; icon: keyof typeof Ionicons.glyphMap | null }[] = [
+  { mode: 'list', label: 'List', icon: 'list' },
+  { mode: 'grid', label: 'Grid', icon: 'grid-outline' },
+  { mode: 'binder', label: 'Binder', icon: null },
 ];
 
 type Props = {
@@ -49,11 +61,33 @@ type Props = {
   // anything for it to do
   onCleanUp?: () => void;
   canCleanUp?: boolean;
+  // Small tool buttons to show right after the view buttons (see ToolButton)
+  extras?: ReactNode;
 };
 
-export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBinderViewMode, onCleanUp, canCleanUp = false }: Props) {
+// One small square tool button with an icon (like download or the reminder
+// bell), the same size as the grid's zoom buttons
+export function ToolButton({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const colors = useColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={4}
+      onPress={onPress}
+      style={({ pressed }) => [styles.button, styles.zoomButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}
+    >
+      <Ionicons name={icon} size={18} color={colors.text} />
+    </Pressable>
+  );
+}
+
+export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBinderViewMode, onCleanUp, canCleanUp = false, extras }: Props) {
   const colors = useColors();
   const { width: windowWidth } = useWindowDimensions();
+  // A very narrow screen: the Sort button shows just its icon (no word) so
+  // the buttons all stay on one line
+  const tight = windowWidth < 350;
   const current = BINDER_SORTS.find((s) => s.value === sort) ?? BINDER_SORTS[0];
   // The sort's name and short word the way round it's in now
   const flipped = reversed && canReverse(sort);
@@ -74,6 +108,8 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
 
   return (
     <View style={styles.row}>
+      {/* The view buttons, then the tool buttons (download, reminder) */}
+      <View style={styles.left}>
       {/* One small button per view: the chosen one is filled with the accent color */}
       <View style={styles.views} accessibilityRole="tablist">
         {VIEWS.filter((view) => !modes || modes.includes(view.mode)).map((view) => {
@@ -87,14 +123,19 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
               onPress={() => onView(view.mode)}
               style={({ pressed }) => [
                 styles.button,
+                styles.viewButton,
                 { backgroundColor: on ? colors.accent : colors.surface, borderColor: on ? colors.accent : colors.border },
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.label, { color: on ? colors.accentText : colors.muted }, on && styles.labelOn]}>{view.label}</Text>
+              {view.icon
+                ? <Ionicons name={view.icon} size={19} color={on ? colors.accentText : colors.muted} />
+                : <Image source={BINDER_PICTURE} style={styles.binderPicture} contentFit="contain" tintColor={on ? colors.accentText : colors.muted} />}
             </Pressable>
           );
         })}
+      </View>
+      {extras}
       </View>
 
       {/* Binder view: Clean-up (faded when there's nothing to clean up) */}
@@ -145,7 +186,7 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
             style={({ pressed }) => [styles.button, styles.sort, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}
           >
             <Ionicons name="swap-vertical" size={14} color={colors.muted} />
-            <Text style={[styles.label, { color: colors.muted }]}>{currentShort}</Text>
+            {!tight && <Text style={[styles.label, { color: colors.muted }]}>{currentShort}</Text>}
             <Ionicons name="chevron-down" size={12} color={colors.muted} />
           </Pressable>
         </View>
@@ -198,11 +239,16 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
 // The look: the view buttons in a row on the left, the Sort or Clean-up
 // button pushed to the right; the menu floats over everything
 const styles = StyleSheet.create({
+  // Everything stays on ONE line. On a very narrow screen the Sort button
+  // drops its word and keeps its icon (see "tight" above) so it still fits.
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  left: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   views: { flexDirection: 'row', gap: 4 },
+  viewButton: { width: 34, paddingHorizontal: 0 },
+  binderPicture: { width: 24, height: 20 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   zoom: { flexDirection: 'row', gap: 4 },
-  zoomButton: { width: 34, paddingHorizontal: 0 },
+  zoomButton: { width: 30, paddingHorizontal: 0 },
   button: { height: 30, paddingHorizontal: 12, borderRadius: RADIUS - 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   sort: { paddingHorizontal: 10 },
   label: { fontSize: 13, fontWeight: '600' },
