@@ -19,7 +19,7 @@
      wide they are at least. While two fingers pinch, the whole grid is
      stretched or shrunk live under them (cards may run off the screen or
      leave gaps), with a dashed outline showing about how big a card will
-     be; when the fingers lift, the grid snaps to the nearest zoom size,
+     be and the zoom level (1 to 7) in the middle of the screen; when the fingers lift, the grid snaps to the nearest zoom size,
      keeping the card that was under the fingers in view (see
      usePinchZoom.ts).
    Tapping a card calls "onPick" (the binder screen opens that card's
@@ -222,6 +222,14 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       )}
     />
     </Animated.View>
+    {/* While pinching: the zoom level, in the middle of the screen (1 is the smallest cards, 7 the biggest) */}
+    {preview && (
+      <View pointerEvents="none" style={styles.levelBox}>
+        <Text style={[styles.levelText, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {preview.step + 1} / {GRID_ZOOM_WIDTHS.length}
+        </Text>
+      </View>
+    )}
     {/* While pinching: a dashed outline of the card size the grid will snap to */}
     {outline && preview && (
       <View pointerEvents="none" style={[styles.outline, {
@@ -341,6 +349,9 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlig
 const styles = StyleSheet.create({
   // The view around the list and grid (it catches the two-finger pinch)
   fill: { flex: 1, overflow: 'hidden' },
+  // The zoom level number in the middle of the screen while pinching
+  levelBox: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
+  levelText: { fontSize: 34, fontWeight: '800', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 14, borderWidth: 1, overflow: 'hidden', opacity: 0.92 },
   // The dashed outline shown while pinching
   outline: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   outlineText: { fontSize: 12, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
