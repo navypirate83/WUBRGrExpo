@@ -491,9 +491,13 @@ export const helpTopics: HelpTopic[] = [
         every card of two or more colors, then colorless), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
         Artifacts, Sorceries, Instants, Battles, Planeswalkers, Lands, then anything else; anything that is a
         Land counts as a Land, even an Artifact Land), <Strong>Rarity</Strong> (Mythic,
-        Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Cards that tie
-        are in name order. Some sorts need each card's details from the internet, so for a
-        moment the cards stay in name order. Sorting only changes how the list and grid are shown: it never
+        Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Tap the sort already
+        in use again to <Strong>reverse it</Strong>: Z to A, oldest added first, cheapest first, newest set first, most
+        common first, or highest mana value first (<Strong>Color</Strong> and <Strong>Type</Strong> have no reverse). Cards that tie
+        are in name order, and a card with nothing to go by (like no price) is always last.
+        Every card is saved with the details sorting needs (its colors, type, rarity, mana value and
+        set's release date), in the binder's .CSV and .JSON files too, so the sorts don't wait on the
+        internet; cards made before that get them filled in the first time you open their binder. Sorting only changes how the list and grid are shown: it never
         moves a card to another pocket. A foil card has a rainbow border in every view. Tap a card in the list or grid for its menu: copies,
         open it in the Card Finder, move it or remove it.
         In the grid, each card has a <Strong>− 3 +</Strong> bar along its bottom, like a pocket in the Binder view:

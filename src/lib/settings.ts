@@ -10,7 +10,8 @@
      Card Kingdom or Cardmarket; see prices.ts)
    - phoneView and wideView: how an opened binder is shown (list, grid or
      the binder's pockets) on a narrow window and on a wide one, and
-     binderSort: how the list and grid are sorted (see binderView.ts)
+     binderSort and binderSortReversed: how the list and grid are sorted,
+     and whether the other way round (see binderView.ts)
    - phoneLayout and wideLayout: pockets across and down each binder page
      on a narrow window (a phone) and on a wide one (see pageLayout.ts).
      Changing the one in use moves every binder's cards to match.
@@ -64,6 +65,7 @@ export type Settings = {
   phoneView: BinderViewMode;
   wideView: BinderViewMode;
   binderSort: BinderSort;
+  binderSortReversed: boolean;
   phoneLayout: PageLayout;
   wideLayout: PageLayout;
   accountLayout: PageLayout;
@@ -75,6 +77,7 @@ const DEFAULT_SETTINGS: Settings = {
   phoneView: DEFAULT_BINDER_VIEW,
   wideView: DEFAULT_BINDER_VIEW,
   binderSort: DEFAULT_BINDER_SORT,
+  binderSortReversed: false,
   phoneLayout: DEFAULT_LAYOUT,
   wideLayout: DEFAULT_LAYOUT,
   accountLayout: DEFAULT_LAYOUT,
@@ -95,6 +98,7 @@ const PRICE_STORE_KEY = 'priceStore';
 const PHONE_VIEW_KEY = 'phoneBinderView';
 const WIDE_VIEW_KEY = 'wideBinderView';
 const BINDER_SORT_KEY = 'binderSort';
+const SORT_REVERSED_KEY = 'binderSortReversed';
 
 /* ---------------------------------------------------------------------
    TELLING PAGES ABOUT CHANGES
@@ -137,6 +141,7 @@ export function currentSettings(): Settings {
     phoneView: cleanBinderView(storageGet(PHONE_VIEW_KEY)),
     wideView: cleanBinderView(storageGet(WIDE_VIEW_KEY)),
     binderSort: cleanBinderSort(storageGet(BINDER_SORT_KEY)),
+    binderSortReversed: storageGet(SORT_REVERSED_KEY) === '1',
     phoneLayout: layouts.phone,
     wideLayout: layouts.wide,
     accountLayout: layouts.account,
@@ -152,6 +157,9 @@ export function savedBinderView(narrow: boolean): BinderViewMode {
 export function savedBinderSort(): BinderSort {
   return cleanBinderSort(storageGet(BINDER_SORT_KEY));
 }
+export function savedBinderSortReversed(): boolean {
+  return storageGet(SORT_REVERSED_KEY) === '1';
+}
 
 // Put settings into effect on this device, remember them here, and tell
 // the pages that use them. If the layout in use (the phone's or the wide
@@ -166,6 +174,7 @@ function applySettings(settings: Settings): void {
   storageSet(PHONE_VIEW_KEY, settings.phoneView);
   storageSet(WIDE_VIEW_KEY, settings.wideView);
   storageSet(BINDER_SORT_KEY, settings.binderSort);
+  storageSet(SORT_REVERSED_KEY, settings.binderSortReversed ? '1' : '0');
   const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
   if (!sameLayout(nowShowing, pageLayout())) {
     relayoutAllBinders(pocketsPerPage(), pocketsPerPage(nowShowing));
@@ -210,6 +219,7 @@ function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Sett
   if (data.phoneView !== undefined) settings.phoneView = cleanBinderView(data.phoneView);
   if (data.wideView !== undefined) settings.wideView = cleanBinderView(data.wideView);
   if (data.binderSort !== undefined) settings.binderSort = cleanBinderSort(data.binderSort);
+  if (typeof data.binderSortReversed === 'boolean') settings.binderSortReversed = data.binderSortReversed;
   const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
   if (isObject(data.pageLayout)) {
     const single = cleanLayout(data.pageLayout);
@@ -252,15 +262,15 @@ function saveToDrive(): Promise<void> {
 
 // What the server sends back: the saved settings (null if none yet)
 type ServerSettings = {
-  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; binderSort?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; binderSort?: unknown; binderSortReversed?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
 };
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  const { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, binderSortReversed, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
   await apiRequest('/settings', {
     method: 'PUT',
-    body: { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, pageLayout: stored, phoneLayout, wideLayout },
+    body: { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, binderSortReversed, pageLayout: stored, phoneLayout, wideLayout },
   });
   storageRemove(SERVER_DIRTY_KEY);
 }

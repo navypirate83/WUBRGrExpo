@@ -20,6 +20,7 @@
    ===================================================================== */
 
 import type { BinderCard } from './binderStorage';
+import { detailsOf } from './cardDetails';
 import { CARD_BACK, foilChoices, imageFor, isDoubleSided } from './cards';
 import type { ScryfallCard } from './scryfall';
 
@@ -98,7 +99,8 @@ export function lookupFromDrop(dataTransfer: DataTransfer): { path: string; face
 // Turn Scryfall's card details into a binder card, the same way the MTG
 // Card Finder does: its name, set, number, side, language (if not
 // English), the pocket-sized picture, foil if it ONLY comes in foil, when
-// it's added (now), and the set's name and the card's rarity.
+// it's added (now), and the details saved with every card: the set's name,
+// rarity, colors, type, mana value and release date (see cardDetails.ts).
 export function binderCardFrom(card: ScryfallCard, wantedFace: number): BinderCard {
   const face = isDoubleSided(card) ? wantedFace : 0;
   return {
@@ -110,6 +112,6 @@ export function binderCardFrom(card: ScryfallCard, wantedFace: number): BinderCa
     foil: foilChoices(card).onlyFoil ? true : undefined,
     image: imageFor(card, face, ['normal', 'large']) ?? CARD_BACK,
     added: new Date().toISOString(),
-    extra: { 'Set name': card.set_name, ...(card.rarity && { Rarity: card.rarity }) },
+    extra: detailsOf(card),
   };
 }

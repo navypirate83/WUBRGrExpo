@@ -19,6 +19,11 @@
        were counted in (like "4x4"). A file read with a different layout
        in use has its cards moved to match, in the same order. A file
        without it counts as 4x4 (the only layout before there was a choice).
+     - Colors, Type, Mana value, Released: what sorting a binder needs to
+       know about each card (its colors like "WU" or "C" for colorless,
+       its type line, its mana value, and when its set came out). They're
+       saved with every card (see cardDetails.ts); a file without them gets
+       them filled in when the binder is opened.
    Columns WUBRG'r doesn't use itself (like Condition or Purchase price)
    are kept with each card, so a ManaBox file can go in and come back
    out without losing anything.
@@ -27,6 +32,7 @@
 
 import { CARD_BACK } from './cards';
 import { loadPrintings } from './scryfall';
+import { detailsOf } from './cardDetails';
 import {
   DEFAULT_PAGES, MAX_COPIES, cleanCover, cleanPageCount,
   freeBinderName, isCoverSymbol, minPagesFor, nextBinderName, pocketKey,
@@ -44,6 +50,7 @@ export const CSV_COLUMNS = [
   'Scryfall ID', 'Purchase price', 'Condition', 'Language', 'Proxy',
   'Purchase price currency', 'Added',
   'Page', 'Pocket', 'Side', 'Binder', 'Cover symbol', 'Cover color', 'Pages', 'Page layout',
+  'Colors', 'Type', 'Mana value', 'Released',
 ];
 
 // The ManaBox columns WUBRG'r doesn't use itself. Their values are kept
@@ -57,6 +64,11 @@ const KEPT_COLUMNS: Record<string, string> = {
   'Condition': 'near_mint',
   'Proxy': 'false',
   'Purchase price currency': 'USD',
+  // WUBRG'r's own: the details sorting needs (see cardDetails.ts)
+  'Colors': '',
+  'Type': '',
+  'Mana value': '',
+  'Released': '',
 };
 
 // Other names some apps (Moxfield, Archidekt and others) use for the same
@@ -359,7 +371,7 @@ export async function binderFromCsv(text: string, fileName: string): Promise<
       const uris = print.image_uris ?? print.card_faces?.[entry.card.face]?.image_uris ?? print.card_faces?.[0]?.image_uris;
       entry.card.image = uris?.normal ?? uris?.large ?? CARD_BACK;
       entry.card.name = print.name;
-      entry.card.extra = { 'Set name': print.set_name, ...(print.rarity ? { Rarity: print.rarity } : {}), ...entry.card.extra };
+      entry.card.extra = { ...detailsOf(print), ...entry.card.extra };
       entry.needsLookup = false;
     }
     skipped += read.cards.filter((c) => c.needsLookup).length;

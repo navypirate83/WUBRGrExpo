@@ -140,7 +140,10 @@ router.post('/import', async (req, res) => {
     }
     // The columns we only keep (condition, rarity, ...)
     const extra = {};
-    for (const [column, usual] of Object.entries(KEPT_COLUMNS)) extra[column] = row[column] || usual;
+    for (const [column, usual] of Object.entries(KEPT_COLUMNS)) {
+      const value = row[column] || usual;
+      if (value !== '') extra[column] = value;   // (no empty notes)
+    }
     if ((row.Foil ?? '').toLowerCase() === 'etched') extra.Foil = 'etched';
     card.extra = extra;
 

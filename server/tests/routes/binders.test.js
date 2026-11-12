@@ -241,9 +241,30 @@ describe('csv import and export', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     const lines = res.text.trim().split('\n');
-    expect(lines[0]).toBe('Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,Scryfall ID,Purchase price,Condition,Language,Proxy,Purchase price currency,Added,Page,Pocket,Side,Binder,Cover symbol,Cover color,Pages,Page layout');
+    expect(lines[0]).toBe('Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,Scryfall ID,Purchase price,Condition,Language,Proxy,Purchase price currency,Added,Page,Pocket,Side,Binder,Cover symbol,Cover color,Pages,Page layout,Colors,Type,Mana value,Released');
     expect(lines).toHaveLength(3);
     expect(res.text).toContain("'=cmd");
+  });
+
+  test('the sorting details (colors, type, mana value, release date, rarity) come in with a file and go back out', async () => {
+    const me = await setup();
+    const file = [
+      'Name,Set code,Collector number,Foil,Quantity,Scryfall ID,Page,Pocket,Binder,Rarity,Colors,Type,Mana value,Released',
+      `Golem,LEA,5,normal,1,${ID},1,1,Details,rare,C,Artifact Creature — Golem,4,1993-08-05`,
+    ].join('\n');
+    const imported = (await me.post('/binders/import', { csv: file })).body;
+    expect(imported.imported).toBe(1);
+    // Kept with the card...
+    const saved = await Card.findOne({ name: 'Golem' }).lean();
+    expect(saved.extra).toMatchObject({
+      Rarity: 'rare', Colors: 'C', Type: 'Artifact Creature — Golem', 'Mana value': '4', Released: '1993-08-05',
+    });
+    // ...and written back out in the same columns
+    const out = (await me.get(`/binders/${imported.binder.id}/export`)).text.trim().split('\n');
+    const header = out[0].split(',');
+    expect(out[1]).toContain('Artifact Creature — Golem');
+    expect(out[1].split(',')[header.indexOf('Colors')]).toBe('C');
+    expect(out[1].split(',')[header.indexOf('Released')]).toBe('1993-08-05');
   });
 
   test('empty or non-text csv is a 400', async () => {

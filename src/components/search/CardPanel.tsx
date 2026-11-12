@@ -27,6 +27,7 @@ import {
   isDoubleSided, languageName, versionLabel, type SetGroup,
 } from '@/lib/cards';
 import type { BinderCard } from '@/lib/binderStorage';
+import { detailsOf } from '@/lib/cardDetails';
 import type { ListCard } from '@/lib/listStorage';
 import { openLink, shareLink } from '@/lib/links';
 import { hapticTap } from '@/lib/haptics';
@@ -204,8 +205,9 @@ export default function CardPanel(props: Props) {
   // The card being shown, as a binder saves it: this exact set, version,
   // side and language, whether it's foil, the picture for the pocket
   // (the smaller "normal" size is plenty, and downloads faster), when
-  // it's added (now), and the set's name and the card's rarity (two of
-  // the binder file's columns: see binderCsv.ts).
+  // it's added (now), and the details saved with every card: the set's
+  // name, rarity, colors, type, mana value and release date (see
+  // cardDetails.ts and the binder file's columns in binderCsv.ts).
   function cardEntry(): BinderCard {
     const side = isDoubleSided(print!) ? face : 0;
     return {
@@ -217,7 +219,7 @@ export default function CardPanel(props: Props) {
       foil: foilOn ? true : undefined,                              // only saved if foil
       image: imageFor(shown!, side, ['normal', 'large']) ?? CARD_BACK,
       added: new Date().toISOString(),
-      extra: { 'Set name': print!.set_name, ...(print!.rarity && { Rarity: print!.rarity }) },
+      extra: detailsOf(print!),
     };
   }
 

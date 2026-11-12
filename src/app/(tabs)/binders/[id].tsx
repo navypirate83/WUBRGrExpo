@@ -69,8 +69,9 @@ import { loadOneCard } from '@/lib/scryfall';
 import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
-import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
+import { fillDetails, needsDetails } from '@/lib/cardDetails';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
@@ -249,6 +250,7 @@ function BinderView({ binderId }: { binderId: string }) {
   // The view and sort chosen (remembered on this device)
   const mode = useSyncExternalStore(onBinderViewChange, binderViewMode, binderViewMode);
   const sort = useSyncExternalStore(onBinderViewChange, binderSort, binderSort);
+  const reversed = useSyncExternalStore(onBinderViewChange, binderSortReversed, binderSortReversed);
   // The room beside the side menu (the whole window on a phone)
   const contentWidth = useContentWidth();
   // How big the grid's pictures are at least (the website can zoom them)
@@ -258,12 +260,26 @@ function BinderView({ binderId }: { binderId: string }) {
   // chosen (see lib/binderSort.ts: some orders need the details and the
   // prices, so until they arrive the cards are in name order).
   const baseEntries = useMemo<CardEntry[]>(() => Object.entries(cards).map(([key, card]) => ({ key, card })), [cards]);
-  // What the cards are worth at the store chosen in Settings
-  const prices = useBinderPrices(baseEntries);
+  // Do any cards still lack the details sorting needs (colors, type,
+  // rarity...)? Cards from before they were saved, or from an uploaded
+  // file, don't have them yet.
+  const needsFill = useMemo(() => baseEntries.some((entry) => needsDetails(entry.card)), [baseEntries]);
+  // What the cards are worth at the store chosen in Settings. This looks the
+  // cards up on the internet, so it's only done when it's needed: in the
+  // list and grid (for the prices), or to fill in the missing details.
+  const noCards = useMemo<CardEntry[]>(() => [], []);
+  const prices = useBinderPrices(mode === 'binder' && !needsFill ? noCards : baseEntries);
   const entries = useMemo<CardEntry[]>(
-    () => sortEntries(baseEntries, sort, { printings: prices.printings, prices: prices.byKey }),
-    [baseEntries, sort, prices.printings, prices.byKey],
+    () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
+    [baseEntries, sort, reversed, prices.printings, prices.byKey],
   );
+  // Once the lookup arrives, save the missing details with the cards (once:
+  // after that they have them, so there's nothing left to fill in)
+  useEffect(() => {
+    if (!prices.printings) return;
+    const filled = fillDetails(cardsRef.current, prices.printings);
+    if (filled && commit(filled)) scheduleDriveSave();
+  }, [prices.printings, cards]);
 
   /* ----- The binder's size (worked out from the space on the screen) ----- */
 
@@ -1158,7 +1174,7 @@ function BinderView({ binderId }: { binderId: string }) {
       <View style={styles.top}>
         <BinderSearch currentBinderId={binderId} />
         {/* List / Grid / Binder, and the sort (or Clean-up in the Binder view) */}
-        <ViewSwitch mode={mode} sort={sort} onCleanUp={cleanUp} canCleanUp={hasGaps} />
+        <ViewSwitch mode={mode} sort={sort} reversed={reversed} onCleanUp={cleanUp} canCleanUp={hasGaps} />
       </View>
 
       {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red

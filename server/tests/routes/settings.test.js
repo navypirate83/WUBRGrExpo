@@ -20,7 +20,7 @@ afterAll(disconnectTestDb);
 const GOOD = { theme: 'dark', hiddenFormats: ['pauper'], pageLayout: { across: 3, down: 3 } };
 // What reading GOOD back gives: one layout means the phone and wide ones too,
 // and no price store, binder views or sort sent means the defaults
-const DEFAULTS = { priceStore: 'tcgplayer', phoneView: 'binder', wideView: 'binder', binderSort: 'name' };
+const DEFAULTS = { priceStore: 'tcgplayer', phoneView: 'binder', wideView: 'binder', binderSort: 'name', binderSortReversed: false };
 const GOOD_BACK = { ...GOOD, ...DEFAULTS, phoneLayout: GOOD.pageLayout, wideLayout: GOOD.pageLayout };
 // A save from the newer app: the cards stored 4x4, a phone 3x3, a wide screen 5x4
 const TWO = { ...GOOD, ...DEFAULTS, pageLayout: { across: 4, down: 4 }, phoneLayout: { across: 3, down: 3 }, wideLayout: { across: 5, down: 4 } };
@@ -100,7 +100,7 @@ test('the price store is saved and read back, and an older app that sends none k
 test('the binder views and sort are saved and read back, and an older app that sends none keeps them', async () => {
   const user = await makeUser();
   const auth = bearer(user);
-  const mine = { phoneView: 'list', wideView: 'grid', binderSort: 'rarity' };
+  const mine = { phoneView: 'list', wideView: 'grid', binderSort: 'rarity', binderSortReversed: true };
   const saved = await request(app).put('/settings').set('Authorization', auth).send({ ...GOOD, ...mine });
   expect(saved.status).toBe(200);
   expect(saved.body.settings).toMatchObject(mine);
@@ -127,6 +127,7 @@ test('bad values are refused and nothing is saved', async () => {
     { ...GOOD, phoneView: 'table' },
     { ...GOOD, wideView: 3 },
     { ...GOOD, binderSort: 'luck' },
+    { ...GOOD, binderSortReversed: 'yes' },
     // the phone and wide layouts: only one of them, or a bad one
     { ...GOOD, phoneLayout: { across: 3, down: 3 } },
     { ...GOOD, wideLayout: { across: 3, down: 3 } },

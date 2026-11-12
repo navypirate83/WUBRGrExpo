@@ -14,20 +14,23 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import { changeSettings, onSettingsChange, savedBinderSort, savedBinderView } from './settings';
+import { changeSettings, onSettingsChange, savedBinderSort, savedBinderSortReversed, savedBinderView } from './settings';
 import { storageGet, storageSet } from './storage';
 import { currentSizeClass } from './pageLayout';
 import type { BinderViewMode } from './binderViewTypes';
-import type { BinderSort } from './binderSort';
+import { canReverse, type BinderSort } from './binderSort';
 
 // The view for this window's size (narrow or wide)
 export function binderViewMode(): BinderViewMode {
   return savedBinderView(currentSizeClass() === 'phone');
 }
 
-// The sort chosen
+// The sort chosen, and whether it's the other way round
 export function binderSort(): BinderSort {
   return savedBinderSort();
+}
+export function binderSortReversed(): boolean {
+  return savedBinderSortReversed();
 }
 
 // Choose a view for this window's size, or a sort. It takes effect at once;
@@ -36,8 +39,13 @@ export function binderSort(): BinderSort {
 export function setBinderViewMode(mode: BinderViewMode): void {
   changeSettings(currentSizeClass() === 'phone' ? { phoneView: mode } : { wideView: mode }).catch(() => { /* kept on this device */ });
 }
-export function setBinderSort(sort: BinderSort): void {
-  changeSettings({ binderSort: sort }).catch(() => { /* kept on this device */ });
+// Choose a sort. Choosing the one already in use, if it can be reversed,
+// flips it the other way round (price highest first, then lowest first...);
+// choosing a different one starts it in its usual direction.
+export function chooseBinderSort(sort: BinderSort): void {
+  const flip = sort === savedBinderSort() && canReverse(sort);
+  changeSettings(flip ? { binderSortReversed: !savedBinderSortReversed() } : { binderSort: sort, binderSortReversed: false })
+    .catch(() => { /* kept on this device */ });
 }
 
 /* ---------------------------------------------------------------------

@@ -42,6 +42,8 @@ const DEFAULT_SORT = 'name';
 // The settings an older app doesn't send: each with the values allowed.
 // A save that leaves one out keeps the one already saved.
 const OPTIONAL = { priceStore: PRICE_STORES, phoneView: VIEWS, wideView: VIEWS, binderSort: SORTS };
+// Optional like the above, but yes or no instead of one of a list
+const OPTIONAL_FLAGS = ['binderSortReversed'];
 
 // A page layout count must be a whole number from 1 to 6
 const isCount = (n) => Number.isInteger(n) && n >= 1 && n <= 6;
@@ -68,6 +70,11 @@ function checkSettings(body) {
       return { error: `${name} must be one of: ${allowed.join(', ')}` };
     }
   }
+  for (const name of OPTIONAL_FLAGS) {
+    if (body[name] !== undefined && typeof body[name] !== 'boolean') {
+      return { error: `${name} must be true or false` };
+    }
+  }
   if (!isLayout(pageLayout)) {
     return { error: 'Page layout must be whole numbers from 1 to 6 across and down' };
   }
@@ -79,7 +86,7 @@ function checkSettings(body) {
     return { error: 'The phone and wide layouts must be whole numbers from 1 to 6 across and down' };
   }
   const settings = { theme, hiddenFormats, pageLayout: pick(pageLayout) };
-  for (const name of Object.keys(OPTIONAL)) {
+  for (const name of [...Object.keys(OPTIONAL), ...OPTIONAL_FLAGS]) {
     if (body[name] !== undefined) settings[name] = body[name];
   }
   if (phoneLayout !== undefined) {
@@ -102,6 +109,7 @@ function answer(user) {
       phoneView: saved.phoneView ?? DEFAULT_VIEW,
       wideView: saved.wideView ?? DEFAULT_VIEW,
       binderSort: saved.binderSort ?? DEFAULT_SORT,
+      binderSortReversed: saved.binderSortReversed ?? false,
       pageLayout: stored,
       // Settings saved before there were two layouts: both are the one layout
       phoneLayout: saved.phoneLayout?.across ? pick(saved.phoneLayout) : stored,
@@ -128,13 +136,13 @@ router.put('/', async (req, res) => {
     // the account has one (see the top of this file): keep the saved one
     // An older app leaves out some settings (the price store, the binder
     // views and sort): keep the ones already saved
-    const missing = Object.keys(OPTIONAL).filter((name) => checked.settings[name] === undefined);
+    const missing = [...Object.keys(OPTIONAL), ...OPTIONAL_FLAGS].filter((name) => checked.settings[name] === undefined);
     if (checked.twoLayouts || missing.length > 0) {
       const before = await User.findById(req.user.id).select('settings settingsSavedAt').lean();
       const keep = before?.settingsSavedAt && before.settings?.pageLayout?.across && before.settings?.pageLayout?.down;
       if (checked.twoLayouts && keep) checked.settings.pageLayout = pick(before.settings.pageLayout);
       for (const name of missing) {
-        if (before?.settings?.[name]) checked.settings[name] = before.settings[name];
+        if (before?.settings?.[name] !== undefined) checked.settings[name] = before.settings[name];
       }
     }
     const user = await User.findByIdAndUpdate(
