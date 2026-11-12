@@ -102,7 +102,7 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       {/* The Shelf: a heading (not a page of its own) with the things on it under it */}
       <View style={[styles.groupHeading, slim && styles.centered]} accessibilityRole="header">
         <Ionicons name={onBinders || onLists || onDecks ? 'library' : 'library-outline'} size={22} color={colors.text} />
-        {!slim && <Text style={[styles.groupText, { color: colors.text }]}>Shelf</Text>}
+        {!slim && <Text style={[styles.groupText, { color: colors.text }]}>The Shelf</Text>}
       </View>
       <View style={[styles.subItems, !slim && { borderLeftColor: colors.border }, slim && styles.subItemsSlim]}>
         <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate('/binders')} />

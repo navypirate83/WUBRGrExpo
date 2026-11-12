@@ -1,10 +1,12 @@
 /* =====================================================================
-   BINDERS, LISTS OR DECKS: THE SWITCH ABOVE THE SEARCH BAR
-   Three picture buttons side by side at the top of The Shelf tab: an
-   open binder (your binders), a spiral notebook (your lists) and a
-   Commander deck box (your decks). The button for the page you're already on is
-   faded out and can't be pressed; the others switch to their pages. (The
-   page's name isn't repeated here: the header above already says it.)
+   BINDERS, LISTS OR DECKS: THE SWITCH IN THE HEADER
+   Three small picture buttons side by side in the header of The Shelf's
+   pages, beside the title: an open binder (your binders), a spiral
+   notebook (your lists) and a Commander deck box (your decks). The
+   button for the page you're already on is faded out and can't be
+   pressed; the others switch to their pages.
+   When the side menu is showing it already has Binders, Lists and Decks,
+   so this switch hides itself.
    Switching "replaces" the page instead of piling the new one on top,
    so there's no back arrow between them: they're three views of the
    same shelf.
@@ -14,6 +16,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
+import { useMenuStyle } from '@/hooks/useMenuStyle';
 import { RADIUS } from '@/theme/colors';
 
 // The pages, each with its picture (one of the app's own line drawings)
@@ -28,6 +31,9 @@ type Page = keyof typeof PAGES;
 
 export default function ShelfSwitch({ current }: { current: Page }) {
   const colors = useColors();
+  // With the side menu showing there's nothing to switch with here
+  const hasSideMenu = useMenuStyle() !== 'none';
+  if (hasSideMenu) return null;
 
   return (
     <View style={styles.row}>
@@ -58,11 +64,12 @@ export default function ShelfSwitch({ current }: { current: Page }) {
   );
 }
 
-// The switch's look: the square buttons, in a row
+// The switch's look: small buttons in a row, with a little room before the
+// Help button to their right
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  button: { width: 52, height: 44, borderRadius: RADIUS, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 4 },
+  button: { width: 38, height: 30, borderRadius: RADIUS - 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   ghost: { opacity: 0.35 },
   pressed: { opacity: 0.6 },
-  picture: { width: 34, height: 28 },
+  picture: { width: 24, height: 20 },
 });

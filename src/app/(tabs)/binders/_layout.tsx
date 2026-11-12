@@ -4,7 +4,7 @@
    binders is at the bottom, and opening a binder slides its pages in on
    top (with a back arrow, and a swipe from the left edge to go back on
    iPhone). This "Stack" is what makes that work.
-   - index.tsx: the shelf (/binders)
+   - index.tsx: your binders (/binders)
    - lists.tsx: your lists (/binders/lists), switched to and from the
                 shelf with the Binders / Lists buttons. It swaps in
                 without sliding, since it's the shelf's other side.
@@ -17,15 +17,29 @@
                 the binder's id, which changes from binder to binder)
    ===================================================================== */
 
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import HelpButton from '@/components/HelpButton';
 import AppHeader from '@/components/AppHeader';
+import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useColors } from '@/hooks/useTheme';
 
 // The shelf is always at the bottom of this stack, even when a binder
 // is opened straight from its address (a shared link, a reminder, or
 // reloading the page), so the back arrow always leads to the shelf
 export const unstable_settings = { initialRouteName: 'index' };
+
+// The right end of the header on the shelf's three pages: the small
+// Binders / Lists / Decks switch, then the Help button (each hides itself
+// when the side menu is showing)
+function shelfHeaderRight(page: 'binders' | 'lists' | 'decks') {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ShelfSwitch current={page} />
+      <HelpButton topic="my-binders" />
+    </View>
+  );
+}
 
 export default function BindersLayout() {
   const colors = useColors();
@@ -42,12 +56,13 @@ export default function BindersLayout() {
         headerRight: () => <HelpButton topic="my-binders" />,
       }}
     >
-      {/* The shelf */}
-      <Stack.Screen name="index" options={{ title: 'The Shelf' }} />
-      {/* Your lists: no sliding in (it swaps in for the shelf) */}
-      <Stack.Screen name="lists" options={{ title: 'Lists', animation: 'none' }} />
+      {/* Your binders. The header holds the small Binders / Lists / Decks
+          switch (phones only) and the Help button. */}
+      <Stack.Screen name="index" options={{ title: 'Binders', headerRight: () => shelfHeaderRight('binders') }} />
+      {/* Your lists: no sliding in (it swaps in for the binders) */}
+      <Stack.Screen name="lists" options={{ title: 'Lists', animation: 'none', headerRight: () => shelfHeaderRight('lists') }} />
       {/* Your decks (not built yet): the same as the lists page */}
-      <Stack.Screen name="decks" options={{ title: 'Decks', animation: 'none' }} />
+      <Stack.Screen name="decks" options={{ title: 'Decks', animation: 'none', headerRight: () => shelfHeaderRight('decks') }} />
       {/* One list: it slides in over the lists, with a back arrow. Its
           title is set by the list screen itself (the list's name). */}
       <Stack.Screen name="list/[id]" options={{ title: 'List' }} />

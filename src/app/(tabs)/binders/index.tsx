@@ -38,7 +38,7 @@ import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAccount } from '@/hooks/useAccount';
 import { useAnnouncer } from '@/hooks/useAnnouncer';
-import { useContentWidth, useMenuStyle } from '@/hooks/useMenuStyle';
+import { useContentWidth } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { usePointerKind } from '@/hooks/usePointerKind';
@@ -46,7 +46,6 @@ import { useCtrlSelect } from '@/hooks/useCtrlSelect';
 import ShortcutsDialog, { type Shortcut } from '@/components/ShortcutsDialog';
 import NewBinderDialog, { type UploadedBinder } from '@/components/binders/NewBinderDialog';
 import BinderSearch from '@/components/binders/BinderSearch';
-import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import ClosedBinder from '@/components/binders/ClosedBinder';
 import { BinderPropertiesDialog, DeleteBinderDialog, type BinderChanges } from '@/components/binders/BinderWindows';
 import PopupWindow from '@/components/PopupWindow';
@@ -117,9 +116,6 @@ export default function ShelfScreen() {
   const { signedIn, localMode } = useAccount();
   // The width beside the side menu (the whole window on a phone)
   const width = useContentWidth();
-  // With a side menu showing, it already has Binders and Lists, so the
-  // switch at the top of the shelf would only waste room
-  const hasSideMenu = useMenuStyle() !== 'none';
   // A message another screen sent (like "Your binder was deleted")
   const params = useLocalSearchParams<{ message?: string }>();
 
@@ -679,11 +675,10 @@ export default function ShelfScreen() {
   const editing = editingId ? binders.find((b) => b.id === editingId) : undefined;
   const deleting = deletingId ? binders.find((b) => b.id === deletingId) : undefined;
 
-  // The part above the binders: the switch, search, "Saved on this device only" (when it is), and Add binder
+  // The part above the binders: search, "Saved on this device only" (when it is), and Add binder
+  // (the Binders / Lists / Decks switch is up in the screen's header)
   const header = (
     <View style={styles.header}>
-      {/* Binders or Lists (this is Binders, so its button is faded) */}
-      {!hasSideMenu && <ShelfSwitch current="binders" />}
       <BinderSearch />
       {account ? <Text style={[styles.account, { color: colors.muted }]}>{account}</Text> : null}
 

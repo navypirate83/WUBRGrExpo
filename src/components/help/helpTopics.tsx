@@ -53,7 +53,7 @@ export const helpTopics: HelpTopic[] = [
         name, cover symbol and color), with how many cards it has under it. As many fit
         across as the screen has room for, and more rows appear as you make more. Tap <Strong>The
         Shelf</Strong> (the row of books) at the bottom of the screen to get to it.
-        The three picture buttons at the top switch between your <Strong>Binders</Strong> (the open
+        The three small picture buttons in the header, beside the page's name, switch between your <Strong>Binders</Strong> (the open
         binder), your <Strong>Lists</Strong> (the spiral notebook) and your <Strong>Decks</Strong> (the
         Commander deck box, which isn't built yet); the faded one is the page you're on.
         (See <HelpLink to="my-binders-lists">Lists</HelpLink>.)
@@ -176,7 +176,7 @@ export const helpTopics: HelpTopic[] = [
           <>
             <P>
               Lists keep cards without pockets or pages: a want list, cards to trade, upgrades for
-              a deck. Tap the <Strong>notebook</Strong> button at the top of The Shelf to see them.
+              a deck. Tap the <Strong>notebook</Strong> button in the header of The Shelf to see them.
               Each list shows its name and how many cards it has.
             </P>
             <Bullet><Strong>Make a list</Strong>: tap <Strong>Add list</Strong>, type its name, then tap <Strong>Save</Strong>.</Bullet>
@@ -362,13 +362,13 @@ export const helpTopics: HelpTopic[] = [
             <P>
               <Strong>On a tablet, an opened foldable phone, or the website in a wide window</Strong>, the
               tabs move from the bottom to a <Strong>menu down the left side</Strong>. It has Home, a{' '}
-              <Strong>Shelf</Strong> heading with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
+              <Strong>The Shelf</Strong> heading with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
               it, Card Finder, Settings and Help. At the bottom is your account: tap it for Account
               settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
               out, it has Log in and Create account buttons. On a narrower window, or a phone held
               sideways, the menu is just the icons on its own. On a wide window, the small round arrow button at the top of the menu collapses
               the menu to just the icons (and expands it again); the app remembers your choice. With the menu
-              showing, the shelf leaves out its own Binders, Lists and Decks buttons, since the menu has them. A normal
+              showing, the header leaves out its own small Binders, Lists and Decks buttons (and its Help button), since the menu has them. A normal
               phone keeps the tabs along the bottom.
             </P>
             <P>
