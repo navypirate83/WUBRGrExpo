@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FOIL_COLORS } from '@/components/binder/FoilFrame';
@@ -43,6 +43,7 @@ import { Legality, Rulings } from './CardNotes';
 import AddToBinder, { type AddToBinderHandle } from './AddToBinder';
 import PricePanel from './PricePanel';
 import { PickerButton, PickerSheet, SheetRowText, type Anchor } from './PickerSheet';
+import VersionPictures from './VersionPictures';
 import { PAGE_WIDTH } from './SearchBox';
 
 import { SITE_URL } from '@/lib/site';
@@ -111,7 +112,6 @@ export default function CardPanel(props: Props) {
   const besideWidth = (areaWidth - cardWidth) / 2;
   const buttonsBeside = besideWidth >= 64;    // room for a 48-point button and a gap
   const pricesBeside = besideWidth >= 212;    // room for the narrow price box
-  const pickersSideBySide = Math.min(areaWidth, PAGE_WIDTH) >= 600;
 
   // The card's printings, grouped by set, newest set first. (useMemo
   // only redoes this when the printings or the set symbols change.)
@@ -134,9 +134,9 @@ export default function CardPanel(props: Props) {
   const [face, setFace] = useState(startPrint && isDoubleSided(startPrint) ? startFace : 0);
   const [lang, setLang] = useState(startLang);
 
-  // Which pick list is open (the Language or Version sheet), if any.
-  // (The Set picker keeps track of its own.)
-  const [openSheet, setOpenSheet] = useState<'language' | 'version' | null>(null);
+  // Whether the Language list is open. (The Set picker keeps track of its
+  // own; the versions are pictures, not a list.)
+  const [openSheet, setOpenSheet] = useState<'language' | null>(null);
   // Where the box that opened the list is on the screen (the list drops down under it)
   const [anchor, setAnchor] = useState<Anchor | undefined>(undefined);
 
@@ -154,6 +154,34 @@ export default function CardPanel(props: Props) {
   // The language version being shown (the printing itself if it's in its
   // own language, or the languages haven't loaded yet)
   const shown = (lang && languages.data?.find((v) => v.lang === lang)) || print;
+
+  // The language showing now (the printing's own, or the one chosen)
+  const effectiveLang = shown?.lang ?? print?.lang ?? 'en';
+
+  // The other versions in this set: which languages each is made in. Only
+  // looked up when a language other than English is chosen (an English
+  // printing is in English, and one made in only another language says so
+  // itself). The lookups are kept, so they're quick the next time.
+  const versions = currentSet?.prints ?? [];
+  const otherLanguages = useQueries({
+    queries: versions.map((v) => ({
+      queryKey: ['languages', v.set, v.collector_number],
+      queryFn: () => loadLanguages(v, languageName),
+      enabled: effectiveLang !== 'en' && v.id !== print?.id,
+    })),
+  });
+
+  // For a version: the printing of it in the language chosen (its picture is
+  // then in that language), or null if it isn't made in that language. While
+  // its languages are still loading it's counted as available.
+  function variantFor(version: ScryfallCard): ScryfallCard | null {
+    if (version.lang === effectiveLang) return version;
+    const index = versions.indexOf(version);
+    const query = version.id === print?.id ? languages : otherLanguages[index];
+    const found = query?.data?.find((v) => v.lang === effectiveLang);
+    if (found) return found;
+    return query?.isLoading ? version : null;
+  }
 
   // The finish for this printing: the one wanted if it comes in it
   // (printings with no foil version are always not foil, and ones made only
@@ -176,6 +204,22 @@ export default function CardPanel(props: Props) {
     setPrintId(next.id);
     setFace(0);
     setLang(null);
+  }
+
+  // Pick another version in the same set (from the pictures): front side,
+  // and the language chosen carries over
+  function selectVersion(next: ScryfallCard) {
+    setPrintId(next.id);
+    setFace(0);
+    setLang(effectiveLang === next.lang ? null : effectiveLang);
+  }
+
+  // A grayed-out version was tapped: say why it can't be picked
+  function versionBlocked(version: ScryfallCard) {
+    const own = languageName(version.lang);
+    showToast(version.lang !== 'en'
+      ? `#${version.collector_number} is only in ${own}. Choose ${own} under Language to pick it.`
+      : `#${version.collector_number} isn't printed in ${languageName(effectiveLang)}. Choose another language to pick it.`);
   }
 
   // Switch to another set, on its first printing.
@@ -248,18 +292,21 @@ export default function CardPanel(props: Props) {
   /* ----- Shortcut keys for the card (computers only: see the Keyboard shortcuts window) ----- */
 
   // Show the version a step before (-1) or after (+1) the one showing,
-  // in this set. It stops at the first and last (no wrapping around).
+  // in this set, skipping any grayed out in the language chosen. It stops
+  // at the first and last (no wrapping around).
   function stepVersion(step: number) {
     const prints = currentSet!.prints;
     const index = prints.indexOf(print!);
-    const next = prints[index + step];
+    let at = index + step;
+    while (prints[at] && variantFor(prints[at]) === null) at += step;
+    const next = prints[at];
     if (!next) {
       announce(prints.length === 1 ? 'This set has only one version.'
         : step > 0 ? 'This is the last version in this set.' : 'This is the first version in this set.');
       return;
     }
-    selectPrint(next);
-    announce(`Version ${index + step + 1} of ${prints.length}: ${versionLabel(next)}`);
+    selectVersion(next);
+    announce(`Version ${at + 1} of ${prints.length}: ${versionLabel(next)}`);
   }
 
   // Show the set a step before (-1) or after (+1) the one showing.
@@ -470,18 +517,19 @@ export default function CardPanel(props: Props) {
       )}
 
       {/* SET and VERSION: side by side on wider screens */}
-      <View style={[styles.section, styles.pickers, pickersSideBySide && styles.pickersRow]}>
-        <View style={pickersSideBySide ? styles.half : undefined}>
-          <SetPicker sets={sets} current={currentSet} onChoose={selectSet} />
-        </View>
-        <PickerButton
-          disabled={!currentSet}
-          accessibilityLabel={`Version: ${print && currentSet ? versionLabel(print) : EMPTY_PICKER_TEXT}`}
-          onPress={(box) => { Keyboard.dismiss(); setAnchor(box); setOpenSheet('version'); }}
-          style={pickersSideBySide ? styles.half : undefined}
-        >
-          <SheetRowText text={print && currentSet ? versionLabel(print) : 'Version'} muted={!(print && currentSet)} />
-        </PickerButton>
+      <View style={[styles.section, styles.pickers]}>
+        <SetPicker sets={sets} current={currentSet} onChoose={selectSet} />
+        {/* The versions in the set, as small pictures (the ones not made in
+            the language chosen are grayed out) */}
+        {currentSet && (
+          <VersionPictures
+            versions={currentSet.prints}
+            current={print ?? null}
+            variantFor={variantFor}
+            onPick={selectVersion}
+            onBlocked={versionBlocked}
+          />
+        )}
       </View>
 
       {/* NOTES AND RULES, the PRICES (under Notes and Rules when there's
@@ -504,21 +552,6 @@ export default function CardPanel(props: Props) {
           labelOf={(v) => languageName(v.lang)}
           renderRow={(v, isCurrent) => <SheetRowText text={languageName(v.lang)} bold={isCurrent} />}
           onPick={(v) => { setLang(v.lang); setOpenSheet(null); }}
-          onClose={() => setOpenSheet(null)}
-        />
-      )}
-
-      {/* The Version list for the set showing (drawn only while open) */}
-      {openSheet === 'version' && currentSet && (
-        <PickerSheet
-          anchor={anchor}
-          title={`Version (${currentSet.name})`}
-          items={currentSet.prints}
-          current={print}
-          keyOf={(p) => p.id}
-          labelOf={versionLabel}
-          renderRow={(p, isCurrent) => <SheetRowText text={versionLabel(p)} bold={isCurrent} />}
-          onPick={(p) => { selectPrint(p); setOpenSheet(null); }}
           onClose={() => setOpenSheet(null)}
         />
       )}

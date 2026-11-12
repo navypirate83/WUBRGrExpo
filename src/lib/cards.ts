@@ -70,10 +70,9 @@ const FRAME_EFFECT_NAMES: Record<string, string> = {
   inverted: 'Inverted',
 };
 
-// Build a readable label for one printing, e.g.
-// "#287 · Borderless, Showcase · Nonfoil / Foil"
-export function versionLabel(print: ScryfallCard): string {
-  // Special looks this printing has
+// The special looks a printing has, like ["Borderless", "Showcase"] (empty
+// for a regular one)
+export function versionLooks(print: ScryfallCard): string[] {
   const looks: string[] = [];
   if (print.border_color === 'borderless') looks.push('Borderless');
   if (print.full_art) looks.push('Full Art');
@@ -86,6 +85,13 @@ export function versionLabel(print: ScryfallCard): string {
     if (FRAME_EFFECT_NAMES[effect]) looks.push(FRAME_EFFECT_NAMES[effect]);
   }
   if (print.promo) looks.push('Promo');
+  return looks;
+}
+
+// Build a readable label for one printing, e.g.
+// "#287 · Borderless, Showcase · Nonfoil / Foil"
+export function versionLabel(print: ScryfallCard): string {
+  const looks = versionLooks(print);
 
   // Finishes it was printed in: "nonfoil" -> "Nonfoil", etc.
   const finishes = (print.finishes ?? []).map((f) => f[0].toUpperCase() + f.slice(1));

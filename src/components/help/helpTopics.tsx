@@ -832,9 +832,10 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Most cards were printed many times. Use the boxes to pick the exact one you own. Each
-              one drops a scrolling list down right under it (or above it, if there's no room below),
-              with a check mark on your current choice. Tap a choice to pick it, or tap anywhere else to close the list.
+              Most cards were printed many times. Use these to pick the exact one you own. The{' '}
+              <Strong>Set</Strong> and <Strong>Language</Strong> boxes each drop a scrolling list down right under
+              them (or above, if there's no room below), with a check mark on your current choice. Tap a
+              choice to pick it, or tap anywhere else to close the list.
             </P>
             <Bullet>
               <Strong>Set</Strong>: every set the card was printed in, with each set's symbol. A card can be in
@@ -842,8 +843,13 @@ export const helpTopics: HelpTopic[] = [
               a set's name or code to narrow it.
             </Bullet>
             <Bullet>
-              <Strong>Version</Strong>: the different printings within that set (for example
-              borderless or full-art versions).
+              <Strong>Version</Strong>: every version of the card in that set, as small pictures under the
+              Set box, each with its number and what's special about it (like "Borderless, Showcase"). The one
+              showing has an orange outline and a check mark; tap another to pick it. A version that isn't made in
+              the language you chose under <Strong>Language</Strong> is grayed out, and one made in only one language
+              (like a Japanese alternate-art card) has that language in its corner and is only available once you
+              choose it. Tapping a grayed one tells you why. Choose another language and the other versions show
+              their pictures in that language.
             </Bullet>
             <Bullet><Strong>Language</Strong> (above the card): the languages that printing was made in.</Bullet>
             <P>The picture changes to match what you pick, and that's the printing that gets added to your binder.</P>
