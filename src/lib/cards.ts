@@ -151,6 +151,12 @@ export function costAndType(print: ScryfallCard, face: number): { manaCost: stri
   };
 }
 
+// The picture of one symbol, like "T", "2", "U" or "W/U" (the "/" is left
+// out of the picture's name)
+export function symbolUrl(symbol: string): string {
+  return `https://svgs.scryfall.io/card-symbols/${encodeURIComponent(symbol.replace(/\//g, ''))}.svg`;
+}
+
 // A casting cost as Scryfall's symbol pictures: "{2}{W/U}" becomes the
 // pictures for "2" and "WU" (the "/" is left out of the picture's name).
 // A split card's halves come back as separate groups.

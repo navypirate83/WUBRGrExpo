@@ -31,6 +31,7 @@ function slimFace(face) {
     mana_cost: face.mana_cost,
     type_line: face.type_line,
     colors: face.colors,
+    oracle_text: face.oracle_text,
   };
 }
 
@@ -67,6 +68,7 @@ export function slimCard(card) {
     collector_number: card.collector_number,
     rarity: card.rarity,
     mana_cost: card.mana_cost,
+    oracle_text: card.oracle_text,
     cmc: card.cmc,
     colors: card.colors,
     type_line: card.type_line,

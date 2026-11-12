@@ -42,6 +42,7 @@ import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import CardList2, { type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import AddCardsButton from '@/components/binder/AddCardsButton';
+import CardRules from '@/components/binder/CardRules';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
@@ -400,12 +401,14 @@ export default function ListScreen() {
         {dropOver && <View pointerEvents="none" style={[styles.dropOutline, { borderColor: colors.accent }]} />}
       </View>
 
-      {/* THE CARD'S WINDOW: its picture, how many copies, then Open in Card
-          Finder, Move to a binder and Delete from list */}
+      {/* THE CARD'S WINDOW: its picture (tap it to open the card in the Card
+          Finder), what it does, how many copies, then Move to a binder and
+          Delete from list */}
       {menuCard && menuIndex !== null && (
         <PopupWindow title={menuCard.name} onClose={() => setMenuIndex(null)}
                      buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
-          <Image source={pictureSource(menuCard.image)} style={styles.menuPicture} contentFit="contain" />
+          <CardRules card={menuCard}
+                     onOpen={() => { const card = menuCard; setMenuIndex(null); router.push(finderLinkFor(id, card) as never); }} />
           {/* How many copies: − and + */}
           <View style={styles.menuCopies}>
             <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from list'}
@@ -417,8 +420,6 @@ export default function ListScreen() {
                     onPress={() => changeCopies(menuIndex, 1)} />
           </View>
           <View style={styles.menu}>
-            <Button label="Open in Card Finder" icon="search" kind="secondary"
-                    onPress={() => { const card = menuCard; setMenuIndex(null); router.push(finderLinkFor(id, card) as never); }} />
             <Button label="Move to a binder" icon="albums-outline" kind="secondary" onPress={() => moveToBinder(menuIndex)} />
             <Button label="Delete from list" icon="trash-outline" kind="danger" onPress={() => confirmDelete(menuIndex)} />
           </View>

@@ -200,8 +200,10 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <P>
               Tap the red <Strong>+</Strong> to find a card in the Card Finder, then tap its <Strong>+</Strong> to put it
-              in the list. Tap a card for its window: a big picture of it, how many copies (<Strong>−</Strong> and <Strong>+</Strong>; <Strong>−</Strong> on
-              the last copy asks whether to delete it), <Strong>Open in Card Finder</Strong>, <Strong>Move to a
+              in the list. Tap a card for its window: a big picture of it (tap the picture to open the card in the
+              Card Finder), what the card does (its rules text, without the flavor text), how many copies
+              (<Strong>−</Strong> and <Strong>+</Strong>; <Strong>−</Strong> on
+              the last copy asks whether to delete it), <Strong>Move to a
               binder</Strong> (pick a binder: the card goes into its first empty pocket and leaves the
               list) and <Strong>Delete from list</Strong> (it asks first).
             </P>
@@ -618,12 +620,12 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <P>
               To <Strong>look at a card</Strong> already in the binder, tap it: its menu opens, the same one
-              as in the List and Grid views. <Strong>Open in Card Finder</Strong> there shows the card, and
-              picking a different printing and pressing <Strong>+</Strong> replaces the card in that pocket.
+              as in the List and Grid views. <Strong>Tap the card's picture</Strong> in that menu to open it in the
+              Card Finder; there, picking a different printing and pressing <Strong>+</Strong> replaces the card in that pocket.
             </P>
             <P>
               Cards added as a foil or an etched foil have a <Strong>rainbow border</Strong>,
-              so you can tell them apart at a glance. <Strong>Open in Card Finder</Strong> in its menu shows it
+              so you can tell them apart at a glance. Tapping the picture in its menu opens it in the Card Finder
               with Foil (or Etched) already chosen.
             </P>
           </>
@@ -674,8 +676,9 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>Let go anywhere else to put it back.</Bullet>
             <P>
               <Strong>Tapping a card</Strong> opens its menu: a big
-              picture of the card, its copies (<Strong>−</Strong> and <Strong>+</Strong>), and <Strong>Open in Card
-              Finder</Strong>, <Strong>Move to another binder</Strong> and <Strong>Remove from this binder</Strong>.
+              picture of the card (tap the picture to open the card in the Card Finder), what the card does (its rules
+              text, without the flavor text), its copies (<Strong>−</Strong> and <Strong>+</Strong>),
+              and <Strong>Move to another binder</Strong> and <Strong>Remove from this binder</Strong>.
             </P>
           </>
         ),

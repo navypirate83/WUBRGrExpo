@@ -57,6 +57,7 @@ import Pocket from '@/components/binder/Pocket';
 import CardList, { Summary, type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import AddCardsButton from '@/components/binder/AddCardsButton';
+import CardRules from '@/components/binder/CardRules';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
@@ -1408,12 +1409,14 @@ function BinderView({ binderId }: { binderId: string }) {
       </View>
       )}
 
-      {/* THE CARD'S MENU (tap a card): its
-          picture, how many copies, and what can be done with it */}
+      {/* THE CARD'S MENU (tap a card): its picture (tap that to open the
+          card in the Card Finder), what it does, how many copies, and what
+          else can be done with it */}
       {menuCard && menuKey && (
         <PopupWindow title={menuCard.name} onClose={() => setMenuKey(null)}
                      buttons={[{ label: 'Close', onPress: () => setMenuKey(null), kind: 'secondary' }]}>
-          <Image source={pictureSource(menuCard.image)} style={styles.menuPicture} contentFit="contain" />
+          <CardRules card={menuCard}
+                     onOpen={() => { const key = menuKey; setMenuKey(null); router.push(searchLinkFor(binderId, key, menuCard) as never); }} />
           <Text style={[styles.menuWhere, { color: colors.muted }]}>
             {mode === 'binder' ? placeName(menuKey) : ''}{mode === 'binder' && menuCard.foil ? ' · ' : ''}{menuCard.foil ? 'foil' : ''}
           </Text>
@@ -1427,8 +1430,6 @@ function BinderView({ binderId }: { binderId: string }) {
             <Button label="+" kind="secondary" accessibilityLabel="One more copy" disabled={cardCount(menuCard) >= MAX_COPIES}
                     onPress={() => changeCopies(menuKey, 1)} />
           </View>
-          <Button label="Open in Card Finder" icon="search" kind="secondary"
-                  onPress={() => { const key = menuKey; setMenuKey(null); router.push(searchLinkFor(binderId, key, menuCard) as never); }} />
           <Button label="Move to another binder" icon="folder-open-outline" kind="secondary"
                   onPress={() => { setMovingKey(menuKey); setMenuKey(null); }} />
           <Button label="Remove from this binder" icon="trash-outline" kind="danger"

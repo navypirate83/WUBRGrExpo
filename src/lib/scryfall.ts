@@ -47,6 +47,7 @@ export type CardFace = {
   mana_cost?: string;     // its casting cost, like "{1}{U}{U}"
   type_line?: string;     // like "Creature — Elf Druid"
   colors?: string[];      // its colors, like ["U", "G"] (none: colorless)
+  oracle_text?: string;   // what it does (the rules text, without the flavor text)
 };
 
 // One printing of a card: a card in one set, one version, one language
@@ -68,6 +69,9 @@ export type ScryfallCard = {
   // may not have them: lib/binderSort.ts works them out when missing.)
   cmc?: number;
   colors?: string[];
+  // What the card does (the rules text, without flavor text). A two-sided
+  // card has it on each side, in card_faces, instead.
+  oracle_text?: string;
   type_line?: string;
   released_at: string;
   artist?: string;
@@ -327,6 +331,24 @@ async function loadPrintingsDirect(wanted: { set: string; number: string }[]): P
     for (const card of data.data) found.set(`${card.set}/${card.collector_number}`.toLowerCase(), card);
   }
   return found;
+}
+
+// What a card does: its rules text, one entry per side (a two-sided, split
+// or adventure card has several; each says which side's name it goes with),
+// leaving out any side with no text. Looked up by the printing's set and
+// number. A copy of the card kept before the text was saved with it has none,
+// so then Scryfall is asked directly.
+export type RulesText = { name?: string; text: string };
+export async function loadRulesText(set: string, number: string): Promise<RulesText[]> {
+  const path = cardBySetPath(set, number);
+  const hasRules = (c: ScryfallCard) => c.oracle_text !== undefined || (c.card_faces ?? []).some((f) => f.oracle_text !== undefined);
+  let card = await loadOneCard(path);
+  if (!hasRules(card)) card = await scryfall<ScryfallCard>(path);
+  const faces = (card.card_faces ?? []).filter((f) => f.oracle_text !== undefined);
+  const sides: RulesText[] = faces.length > 0
+    ? faces.map((f) => ({ name: f.name, text: f.oracle_text ?? '' }))
+    : [{ text: card.oracle_text ?? '' }];
+  return sides.filter((side) => side.text.trim() !== '');
 }
 
 // The official rulings for a card, oldest first (the order Scryfall sends)

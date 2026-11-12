@@ -120,7 +120,8 @@ test('a card by name is trimmed down and remembered', async () => {
   expect(res.body.card.name).toBe('Sol Ring');
   expect(res.body.card.image_uris).toEqual({ small: 's', normal: 'n', large: 'l', png: 'p' });
   expect(res.body.card.prices).toMatchObject({ usd: '1.50', usd_foil: null });
-  expect(res.body.card).not.toHaveProperty('oracle_text');
+  // the rules text is kept (the card menu shows it); the long extras are not
+  expect(res.body.card).toHaveProperty('oracle_text', 'Tap: Add two colorless mana.');
   expect(res.body.card).not.toHaveProperty('edhrec_rank');
   expect(res.body.card).not.toHaveProperty('related_uris');
   expect(res.body.card.prices).not.toHaveProperty('tix');
@@ -170,7 +171,8 @@ test('every printing: follows the pages and trims each card', async () => {
   const me = await signedIn(client);
   const res = await me.get(`/scryfall/cards/id/${ID_A}/prints`);
   expect(res.body.cards.map((c) => c.set)).toEqual(['c21', 'lea']);
-  expect(res.body.cards[0]).not.toHaveProperty('oracle_text');
+  expect(res.body.cards[0]).toHaveProperty('oracle_text');
+  expect(res.body.cards[0]).not.toHaveProperty('edhrec_rank');
 });
 
 test('rulings and languages', async () => {
