@@ -72,6 +72,7 @@ import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
+import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { fillDetails, finishParam, needsDetails } from '@/lib/cardDetails';
 import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
 import { useContentWidth } from '@/hooks/useMenuStyle';
@@ -263,6 +264,15 @@ function BinderView({ binderId }: { binderId: string }) {
   // chosen (see lib/binderSort.ts: some orders need the details and the
   // prices, so until they arrive the cards are in name order).
   const baseEntries = useMemo<CardEntry[]>(() => Object.entries(cards).map(([key, card]) => ({ key, card })), [cards]);
+  // What's typed in the search bar (while it searches this binder): the
+  // cards narrow to those whose name matches, as you type (a forgiving
+  // search). In the Binder view the matches are shown on their own, as a
+  // grid, and tapping one jumps to its pocket.
+  const [query, setQuery] = useState('');
+  const [clearToken, setClearToken] = useState(0);
+  const searching = isSearching(query);
+  const nameFilter = useMemo(() => makeNameFilter(baseEntries, (entry) => entry.card.name), [baseEntries]);
+  const matchingEntries = useMemo(() => (searching ? nameFilter(query) : baseEntries), [searching, nameFilter, query, baseEntries]);
   // Do any cards still lack the details sorting needs (colors, type,
   // rarity...)? Cards from before they were saved, or from an uploaded
   // file, don't have them yet.
@@ -273,8 +283,8 @@ function BinderView({ binderId }: { binderId: string }) {
   const noCards = useMemo<CardEntry[]>(() => [], []);
   const prices = useBinderPrices(mode === 'binder' && !needsFill ? noCards : baseEntries);
   const entries = useMemo<CardEntry[]>(
-    () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
-    [baseEntries, sort, reversed, prices.printings, prices.byKey],
+    () => sortEntries(matchingEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
+    [matchingEntries, sort, reversed, prices.printings, prices.byKey],
   );
   // Once the lookup arrives, save the missing details with the cards (once:
   // after that they have them, so there's nothing left to fill in)
@@ -977,6 +987,14 @@ function BinderView({ binderId }: { binderId: string }) {
      ===================================================================== */
 
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  // Tapping a card among the search matches (Binder view): empty the search,
+  // turn to that card's page and make its pocket glow
+  function jumpTo(key: string) {
+    setQuery('');
+    setClearToken((token) => token + 1);
+    setCurrentPage(pageOf(key));
+    setHighlightKey(key);
+  }
   useEffect(() => {
     const key = params.highlight;
     if (!key || !/^\d+-\d+$/.test(key)) return;
@@ -1169,7 +1187,7 @@ function BinderView({ binderId }: { binderId: string }) {
       {/* Search the cards in this binder (or, with its switch, the whole
           shelf) */}
       <View style={styles.top}>
-        <BinderSearch currentBinderId={binderId} />
+        <BinderSearch currentBinderId={binderId} onQuery={setQuery} clearToken={clearToken} />
         {/* List / Grid / Binder, and the sort (or Clean-up in the Binder view) */}
         <ViewSwitch
           mode={mode} sort={sort} reversed={reversed} onCleanUp={cleanUp} canCleanUp={hasGaps}
@@ -1189,29 +1207,35 @@ function BinderView({ binderId }: { binderId: string }) {
 
       {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red
           "+" floats over them in the corner. */}
-      {mode !== 'binder' && (
+      {(mode !== 'binder' || searching) && (
         <View style={styles.listArea}>
           <CardList
             entries={entries}
-            mode={mode}
+            // Searching in the Binder view: just the matching cards, as a grid
+            mode={mode === 'binder' ? 'grid' : mode}
             width={contentWidth}
-            onPick={(key) => setMenuKey(key)}
+            // In the Binder view a tap jumps to the card's pocket; elsewhere it opens the card's menu
+            onPick={(key) => (mode === 'binder' ? jumpTo(key) : setMenuKey(key))}
             onCopies={onCopies}
             minTile={GRID_ZOOM_WIDTHS[gridZoom]}
             prices={prices}
+            searchOf={searching ? baseEntries.length : undefined}
+            hint={searching && mode === 'binder' ? 'tap one to jump to it' : undefined}
             empty={(
               <View style={styles.emptyList}>
-                <Text style={[styles.dialogText, { color: colors.muted }]}>No cards in this binder yet. Tap the red + to add some.</Text>
+                <Text style={[styles.dialogText, { color: colors.muted }]}>
+                  {searching ? `No cards in this binder match "${query.trim()}".` : 'No cards in this binder yet. Tap the red + to add some.'}
+                </Text>
               </View>
             )}
           />
-          <AddCardsButton onPress={addCards} />
+          {mode !== 'binder' && <AddCardsButton onPress={addCards} />}
         </View>
       )}
 
       {/* The space the binder fills (measured, so it can be sized to fit):
           the Binder view's pockets */}
-      {mode === 'binder' && (
+      {mode === 'binder' && !searching && (
       <View ref={areaRef} style={styles.area} onLayout={onAreaLayout} collapsable={false}>
         {area.width > 0 && (<>
           {/* The page scrolls up and down when it's taller than the space

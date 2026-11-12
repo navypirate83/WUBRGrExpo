@@ -50,6 +50,10 @@ type Props = {
   minTile: number;                     // grid pictures are at least this wide (points)
   prices: BinderPrices;                // what the cards are worth
   empty: ReactElement;                 // what to show when there are no cards
+  // While searching: how many cards there are before narrowing, so the line
+  // above can say "3 of 42 match"; and a hint to add after it
+  searchOf?: number;
+  hint?: string;
 };
 
 // A card's picture is 63 by 88 millimeters
@@ -57,7 +61,7 @@ const CARD_RATIO = 88 / 63;
 // The space between grid pictures
 const GRID_GAP = 10;
 
-export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty }: Props) {
+export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint }: Props) {
   const colors = useColors();
   // Each set's symbol picture (downloaded once, shared with the Card Finder),
   // for the List view
@@ -78,7 +82,7 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       columnWrapperStyle={columns > 1 ? { gap: GRID_GAP } : undefined}
       contentContainerStyle={[styles.content, mode === 'grid' && { gap: GRID_GAP }]}
       ListEmptyComponent={empty}
-      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} /> : undefined}
+      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} /> : undefined}
       renderItem={({ item }) => (
         mode === 'list'
           ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
@@ -92,12 +96,18 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
 /* ---------------------------------------------------------------------
    THE SUMMARY LINE above the cards: "42 cards · 31 different · $118.40"
    --------------------------------------------------------------------- */
-function Summary({ entries, prices }: { entries: CardEntry[]; prices: BinderPrices }) {
+function Summary({ entries, prices, searchOf, hint }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string }) {
   const colors = useColors();
   const cards = entries.reduce((sum, { card }) => sum + cardCount(card), 0);
-  const worth = prices.total !== null ? formatPrice(prices.total, prices.currency)
+  // What the cards showing are worth (all of them, or just those matching a search)
+  const total = prices.total === null ? null
+    : searchOf === undefined ? prices.total
+      : Math.round(entries.reduce((sum, { key }) => sum + (prices.byKey.get(key) ?? 0), 0) * 100) / 100;
+  const worth = total !== null ? formatPrice(total, prices.currency)
     : prices.failed ? 'prices unavailable' : prices.loading ? 'loading prices…' : '';
-  const parts = [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth].filter(Boolean);
+  const parts = searchOf !== undefined
+    ? [`${entries.length} of ${searchOf} ${searchOf === 1 ? 'card' : 'cards'} match`, worth, hint].filter(Boolean)
+    : [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth].filter(Boolean);
   return <Text style={[styles.summary, { color: colors.muted }]} accessibilityLiveRegion="polite">{parts.join(' · ')}</Text>;
 }
 

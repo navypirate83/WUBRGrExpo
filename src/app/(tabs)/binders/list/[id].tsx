@@ -47,6 +47,7 @@ import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
+import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { finishParam } from '@/lib/cardDetails';
 import { fillListDetails, findList, removeCardFromList, setListCardCount, type CardList, type ListCard } from '@/lib/listStorage';
 import { DriveError, isSignedIn, signInWithGoogle, syncList } from '@/lib/googleDrive';
@@ -200,19 +201,27 @@ export default function ListScreen() {
   const gridZoom = useSyncExternalStore(onGridZoomChange, binderGridZoom, binderGridZoom);
   const contentWidth = useContentWidth();
 
-  // The cards to show: all of them, or those whose name or type contains
-  // what's typed (capitals don't matter). Each one's "key" is its spot in
-  // the whole list (0 is the first), as text.
-  const wanted = filter.trim().toLowerCase();
-  const baseEntries = useMemo<CardEntry[]>(
-    () => (list?.cards ?? [])
-      .map((card, index) => ({ key: String(index), card }))
-      .filter(({ card }) => !wanted || card.name.toLowerCase().includes(wanted) || card.typeLine.toLowerCase().includes(wanted)),
-    [list, wanted],
+  // Every card, each with its "key": its spot in the whole list (0 is the
+  // first), as text
+  const allEntries = useMemo<CardEntry[]>(
+    () => (list?.cards ?? []).map((card, index) => ({ key: String(index), card })),
+    [list],
   );
+  // The cards to show: all of them, or, as you type, those whose name
+  // matches (a forgiving search, so small typos and spacing don't matter) or
+  // whose type line contains what's typed
+  const searching = isSearching(filter);
+  const nameFilter = useMemo(() => makeNameFilter(allEntries, (entry) => entry.card.name), [allEntries]);
+  const baseEntries = useMemo<CardEntry[]>(() => {
+    if (!searching) return allEntries;
+    const byName = new Set(nameFilter(filter).map((entry) => entry.key));
+    const typed = filter.trim().toLowerCase();
+    return allEntries.filter((entry) => byName.has(entry.key) || (entry.card as ListCard).typeLine.toLowerCase().includes(typed));
+  }, [searching, nameFilter, filter, allEntries]);
   // What the cards are worth, and their details from Scryfall (for sorting
-  // by something a card doesn't have saved yet)
-  const prices = useBinderPrices(baseEntries);
+  // by something a card doesn't have saved yet). Looked up for the whole
+  // list, so typing in the search box doesn't start a new lookup each time.
+  const prices = useBinderPrices(allEntries);
   const entries = useMemo<CardEntry[]>(
     () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
     [baseEntries, sort, reversed, prices.printings, prices.byKey],
@@ -310,6 +319,7 @@ export default function ListScreen() {
           onCopies={onCopies}
           minTile={GRID_ZOOM_WIDTHS[gridZoom]}
           prices={prices}
+          searchOf={searching ? allEntries.length : undefined}
           // No cards (or none matching the search): say so, not a blank page
           empty={(
             <View style={[styles.empty, { borderColor: colors.border }]}>

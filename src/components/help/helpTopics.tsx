@@ -195,7 +195,8 @@ export const helpTopics: HelpTopic[] = [
               at the right works like a binder's (tap the sort in use again to reverse it), foil cards have the rainbow
               border, a line above the cards shows how many cards and what they're worth at the store chosen
               under <Strong>Price store</Strong> in Settings, and on the website the grid can be zoomed in and out.
-              The search box narrows the list to the cards whose name or type matches.
+              The search box narrows the list as you type to the cards whose name matches (small typos are
+              fine) or whose type contains what you typed, and a line says how many match.
             </P>
             <P>
               Tap the red <Strong>+</Strong> to find a card in the Card Finder, then tap its <Strong>+</Strong> to put it
@@ -325,8 +326,18 @@ export const helpTopics: HelpTopic[] = [
               still finds Demonic Tutor).
             </P>
             <Bullet>
-              A list shows every match, with the binder and page it's in (and "×3" if a pocket
-              holds several copies).
+              <Strong>Inside a binder</Strong>, the binder narrows to the matching cards as you type
+              (small typos are fine). In the <Strong>List</Strong> and <Strong>Grid</Strong> views the cards that
+              don't match disappear, and a line says how many match ("2 of 15 cards match"). In
+              the <Strong>Binder</Strong> view the matching cards are shown on their own, and
+              you <Strong>tap the one you want</Strong> to jump to its pocket: the binder turns to its page, the
+              search empties, and the pocket glows. Clear the box to bring everything back.
+            </Bullet>
+            <Bullet>
+              A list drops down under the bar only when what you typed isn't an exact card name, with the
+              closest names, each with the binder and page it's in (and "×3" if a pocket holds
+              several copies). Searching the whole <Strong>Shelf</Strong> always shows the list, since the cards
+              are in other binders. On The Shelf's own search bar, the list always shows.
             </Bullet>
             <Bullet>
               Tap (or click) one.<OnComputer> On a computer you can also use the <Strong>up and down arrow

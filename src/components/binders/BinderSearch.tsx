@@ -12,6 +12,12 @@
    In a binder, a switch sits beside the bar, with a word under it:
    "Current" (on, the start) searches only that binder; tapping it
    switches to "Shelf", which searches every binder on the shelf.
+   In a binder searching "Current", what's typed also narrows the binder's
+   own cards as you type (the binder screen does that: it's told the text
+   through "onQuery"), so the list drops down only when what's typed isn't
+   already an exact card name: then it suggests the closest names, to
+   tap. Searching the whole "Shelf" always shows the list, since the
+   cards are in other binders.
    ===================================================================== */
 
 import { useEffect, useRef, useState } from 'react';
@@ -20,6 +26,7 @@ import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { cardCount, loadBinder, loadBinderList } from '@/lib/binderStorage';
 import { fuzzySearch, matchParts, prepareNames } from '@/lib/nameSearch';
+import { isExactName } from '@/lib/nameFilter';
 import { useColors } from '@/hooks/useTheme';
 import TextField from '@/components/TextField';
 import { RADIUS } from '@/theme/colors';
@@ -68,9 +75,14 @@ function searchBinders(text: string, onlyBinderId: string | null): Found[] {
 type Props = {
   // In a binder: that binder's id (for the "Current binder" switch)
   currentBinderId?: string;
+  // Told what's typed, on every key press, while searching only this binder
+  // (empty when the whole shelf is being searched, or after a card is picked)
+  onQuery?: (text: string) => void;
+  // A number the binder screen raises to empty the box (after you jump to a card)
+  clearToken?: number;
 };
 
-export default function BinderSearch({ currentBinderId }: Props) {
+export default function BinderSearch({ currentBinderId, onQuery, clearToken }: Props) {
   const colors = useColors();
   // What's typed, whether to search only this binder, the results (null
   // while the list is closed), and which result the arrow keys highlight
@@ -85,6 +97,14 @@ export default function BinderSearch({ currentBinderId }: Props) {
   // The binder to limit the search to (if the switch is on)
   const limitTo = currentBinderId && onlyThis ? currentBinderId : null;
 
+  // The binder screen asks for the box to be emptied (the card was jumped to)
+  const firstToken = useRef(clearToken);
+  useEffect(() => {
+    if (clearToken === firstToken.current) return;
+    setText('');
+    closeList();
+  }, [clearToken]);
+
   // Close the list (and stop a search still waiting to run).
   function closeList() {
     clearTimeout(typingTimer.current);
@@ -97,13 +117,18 @@ export default function BinderSearch({ currentBinderId }: Props) {
     clearTimeout(typingTimer.current);
     if (value.trim().length < MIN_CHARS) { closeList(); return; }
     searchedFor.current = value;
-    setResults(searchBinders(value, only));
+    const found = searchBinders(value, only);
+    // Searching this binder, and what's typed is exactly a card's name: the
+    // binder is already narrowed to it, so no list of suggestions
+    if (only && isExactName(found.map((card) => card.name), value)) { closeList(); return; }
+    setResults(found);
     setActive(-1);
   }
 
   // Every time the text changes: search after a short pause in typing.
   function handleChange(value: string) {
     setText(value);
+    onQuery?.(limitTo ? value : '');
     clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(() => runSearch(value, limitTo), TYPING_PAUSE_MS);
   }
@@ -113,6 +138,7 @@ export default function BinderSearch({ currentBinderId }: Props) {
   function goTo(found: Found) {
     closeList();
     setText('');
+    onQuery?.('');
     router.push(`/binders/${encodeURIComponent(found.binderId)}?page=${found.page}&highlight=${found.key}`);
   }
 
@@ -175,7 +201,8 @@ export default function BinderSearch({ currentBinderId }: Props) {
               value={onlyThis}
               onValueChange={(on) => {
                 setOnlyThis(on);
-                if (results !== null) runSearch(text, on ? currentBinderId : null);
+                onQuery?.(on ? text : '');
+                if (results !== null || text.trim().length >= MIN_CHARS) runSearch(text, on ? currentBinderId : null);
               }}
               trackColor={{ true: colors.accent, false: colors.switchTrack }}
               accessibilityLabel={onlyThis ? 'Searching the current binder. Switch to search the whole shelf' : 'Searching the whole shelf. Switch to search the current binder'}
