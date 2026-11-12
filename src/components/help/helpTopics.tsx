@@ -532,6 +532,10 @@ export const helpTopics: HelpTopic[] = [
         bottom, like a pocket in the Binder view): tap <Strong>+</Strong> or <Strong>−</Strong> to change how many
         copies you own (<Strong>−</Strong> on the last copy asks whether to remove the card). On the website, the <Strong>−</Strong> and <Strong>+</Strong> buttons beside
         Sort zoom the card pictures out and in; the app remembers your zoom on that device.
+        <OnComputer>On a computer you can also drag a card's picture (or its link) from Scryfall or EDHREC in another browser
+        window and let go anywhere over the cards in the list or grid: the card is added, in the binder's next
+        empty pocket, or as one more copy if you already have that exact printing. It appears wherever the sort in use puts it,
+        and the view scrolls to it and highlights it for a moment. In a card list it's added the same way, at the end of the list.</OnComputer>
         To add a card from the list or grid, tap the red <Strong>+</Strong> in the corner: it opens the Card
         Finder, and the card goes into the binder's next empty pocket (if every pocket is full, a page is
         added at the end first).

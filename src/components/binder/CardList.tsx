@@ -22,7 +22,7 @@
    into view, so a binder with thousands of cards stays quick.
    ===================================================================== */
 
-import { memo, type ReactElement } from 'react';
+import { memo, useEffect, useRef, type ReactElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
@@ -54,6 +54,10 @@ type Props = {
   // above can say "3 of 42 match"; and a hint to add after it
   searchOf?: number;
   hint?: string;
+  // A card just added (by dropping a picture on the list): its key, which is
+  // scrolled to and highlighted for a moment, and a short note for the line above
+  flashKey?: string | null;
+  note?: string | null;
 };
 
 // A card's picture is 63 by 88 millimeters
@@ -61,8 +65,9 @@ const CARD_RATIO = 88 / 63;
 // The space between grid pictures
 const GRID_GAP = 10;
 
-export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint }: Props) {
+export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint, flashKey, note }: Props) {
   const colors = useColors();
+  const listRef = useRef<FlatList<CardEntry>>(null);
   // Each set's symbol picture (downloaded once, shared with the Card Finder),
   // for the List view
   const setIcons = useQuery({ queryKey: ['set-icons'], queryFn: loadSetIcons, enabled: mode === 'list' });
@@ -71,8 +76,27 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
   const columns = mode === 'grid' ? Math.max(1, Math.floor((room + GRID_GAP) / (minTile + GRID_GAP))) : 1;
   const tile = Math.floor((room - (columns - 1) * GRID_GAP) / columns);
 
+  // A card was just added: scroll to where it sits in the sorted cards (it
+  // may move once its price arrives, so this runs again whenever the order
+  // changes, until the highlight ends)
+  useEffect(() => {
+    if (!flashKey) return;
+    const index = entries.findIndex((entry) => entry.key === flashKey);
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: Math.floor(index / columns), animated: true, viewPosition: 0.3 });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [flashKey, entries, columns]);
+
   return (
     <FlatList
+      ref={listRef}
+      // If the row isn't drawn yet, guess its place, then try again
+      onScrollToIndexFailed={(info) => {
+        listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+        setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.3 }), 350);
+      }}
       // A new key when the columns change, because a list can't change its
       // number of columns on the fly
       key={`${mode}-${columns}`}
@@ -82,12 +106,12 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       columnWrapperStyle={columns > 1 ? { gap: GRID_GAP } : undefined}
       contentContainerStyle={[styles.content, mode === 'grid' && { gap: GRID_GAP }]}
       ListEmptyComponent={empty}
-      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} /> : undefined}
+      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} note={note ?? undefined} /> : undefined}
       renderItem={({ item }) => (
         mode === 'list'
           ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
-                     setIcon={setIcons.data?.get(item.card.set.toLowerCase())} />
-          : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} />
+                     setIcon={setIcons.data?.get(item.card.set.toLowerCase())} highlighted={item.key === flashKey} />
+          : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} />
       )}
     />
   );
@@ -97,7 +121,7 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
    THE SUMMARY LINE above the cards: "42 cards · 31 different · $118.40"
    (also shown above the pockets in the Binder view: the binder screen uses it)
    --------------------------------------------------------------------- */
-export function Summary({ entries, prices, searchOf, hint }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string }) {
+export function Summary({ entries, prices, searchOf, hint, note }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string; note?: string }) {
   const colors = useColors();
   const cards = entries.reduce((sum, { card }) => sum + cardCount(card), 0);
   // What the cards showing are worth (all of them, or just those matching a search)
@@ -107,17 +131,18 @@ export function Summary({ entries, prices, searchOf, hint }: { entries: CardEntr
   const worth = total !== null ? formatPrice(total, prices.currency)
     : prices.failed ? 'prices unavailable' : prices.loading ? 'loading prices…' : '';
   const parts = searchOf !== undefined
-    ? [`${entries.length} of ${searchOf} ${searchOf === 1 ? 'card' : 'cards'} match`, worth, hint].filter(Boolean)
-    : [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth].filter(Boolean);
+    ? [`${entries.length} of ${searchOf} ${searchOf === 1 ? 'card' : 'cards'} match`, worth, hint, note].filter(Boolean)
+    : [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth, note].filter(Boolean);
   return <Text style={[styles.summary, { color: colors.muted }]} accessibilityLiveRegion="polite">{parts.join(' · ')}</Text>;
 }
 
 /* ---------------------------------------------------------------------
    ONE LINE OF THE LIST. "memo" redraws it only when its card changes.
    --------------------------------------------------------------------- */
-const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency, setIcon }: {
+const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency, setIcon, highlighted }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; border: string;
   setIcon: string | undefined;         // the set's symbol picture, once it has downloaded
+  highlighted: boolean;                // just added: tinted for a moment
   price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
   currency: 'USD' | 'EUR';
 }) {
@@ -130,7 +155,7 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
   // The casting cost and the type line (either can be empty, like a land's cost)
   const { manaCost, typeLine } = costAndTypeOf(card);
   return (
-    <View style={[styles.row, { borderBottomColor: border }]}>
+    <View style={[styles.row, { borderBottomColor: border }, highlighted && { backgroundColor: `${colors.accent}2e` }]}>
       {/* The picture and name: tap them for the card's menu */}
       <Pressable
         accessibilityRole="button"
@@ -165,13 +190,15 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
 /* ---------------------------------------------------------------------
    ONE PICTURE IN THE GRID
    --------------------------------------------------------------------- */
-const GridTile = memo(function GridTile({ entry, onPick, onCopies, size }: {
+const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlighted }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; size: number;
+  highlighted: boolean;                // just added: outlined for a moment
 }) {
+  const colors = useColors();
   const { card, key } = entry;
   const count = cardCount(card);
   return (
-    <View style={{ width: size }}>
+    <View style={[{ width: size }, highlighted && { borderRadius: 8, boxShadow: `0px 0px 0px 3px ${colors.accent}` }]}>
       {/* The picture: tap it for the card's menu */}
       <Pressable
         accessibilityRole="button"

@@ -58,7 +58,9 @@ export function useCardDrop(options: CardDropOptions): void {
       event.preventDefault();
       const key = pocketFor(event);
       latest.current.onOver(key);
-      if (event.dataTransfer) event.dataTransfer.dropEffect = key ? 'copy' : 'none';
+      // (Only say "no drop here" when the binder's pockets are showing: in the
+      // List and Grid views the cards area allows drops itself)
+      if (event.dataTransfer && latest.current.binderRef.current) event.dataTransfer.dropEffect = key ? 'copy' : 'none';
     }
     // The drag left the window: no outline
     function leave(event: DragEvent) {

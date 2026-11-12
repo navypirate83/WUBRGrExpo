@@ -27,7 +27,7 @@
    in). Rename the list on the Lists page.
    ===================================================================== */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Image } from 'expo-image';
@@ -47,11 +47,15 @@ import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
+import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
+import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
+import { costAndType, isDoubleSided } from '@/lib/cards';
+import { loadOneCard } from '@/lib/scryfall';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { finishParam } from '@/lib/cardDetails';
-import { fillListDetails, findList, removeCardFromList, setListCardCount, type CardList, type ListCard } from '@/lib/listStorage';
+import { addCardToList, fillListDetails, findList, removeCardFromList, setListCardCount, type CardList, type ListCard } from '@/lib/listStorage';
 import { DriveError, isSignedIn, signInWithGoogle, syncList } from '@/lib/googleDrive';
-import { MAX_COPIES, cardCount, cardCountText, isLocalMode } from '@/lib/binderStorage';
+import { MAX_COPIES, cardCount, cardCountText, isLocalMode, samePrinting } from '@/lib/binderStorage';
 import { downloadListCsv } from '@/lib/binderDownload';
 import { RequestError, pictureSource } from '@/lib/http';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -265,6 +269,63 @@ export default function ListScreen() {
   copiesRef.current = changeCopies;
   const onCopies = useCallback((key: string, step: number) => copiesRef.current(Number(key), step), []);
 
+  /* ----- Dropping a picture from another website (computers) ----- */
+
+  // Let go anywhere over the cards and the card is added: one more copy if
+  // that exact printing is already in the list, otherwise at the end of the
+  // list. The view shows it wherever the sort in use puts it, scrolls to it,
+  // and highlights it for a moment.
+  const listAreaRef = useRef<ComponentRef<typeof View>>(null);
+  const [dropOver, setDropOver] = useState(false);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [addedNote, setAddedNote] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function flash(key: string, note: string) {
+    setFlashKey(key);
+    setAddedNote(note);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => { setFlashKey(null); setAddedNote(null); }, 3000);
+  }
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+  useCardAreaDrop({
+    areaRef: listAreaRef,
+    enabled: true,
+    onOver: setDropOver,
+    onDrop: (dataTransfer) => { handleAreaDrop(dataTransfer); },
+  });
+  async function handleAreaDrop(dataTransfer: DataTransfer) {
+    // (Read what was dropped now: the browser only allows it right away.)
+    const lookup = lookupFromDrop(dataTransfer);
+    if (!lookup) {
+      setStatus({ state: 'error', text: 'That isn\'t a card picture from Scryfall or EDHREC' });
+      return;
+    }
+    setStatus({ state: 'saving', text: 'Finding the card…' });
+    try {
+      const print = await loadOneCard(lookup.path);
+      const face = isDoubleSided(print) ? lookup.face : 0;
+      const card: ListCard = { ...binderCardFrom(print, lookup.face), ...costAndType(print, face) };
+      const current = findList(id);
+      if (!current) return;
+      const index = current.cards.findIndex((existing) => samePrinting(existing, card));
+      let key: string;
+      if (index >= 0) {
+        const have = cardCount(current.cards[index]);
+        if (have >= MAX_COPIES) throw new Error(`You already have ${MAX_COPIES} copies of ${card.name}.`);
+        setListCardCount(id, index, have + 1);
+        key = String(index);
+      } else {
+        addCardToList(id, card);
+        key = String(current.cards.length);
+      }
+      changed();
+      flash(key, `✓ Added ${card.name}${index >= 0 ? ' (one more copy)' : ''}`);
+      announce(`Added ${card.name}${index >= 0 ? ', one more copy' : ''}.`);
+    } catch (err) {
+      setStatus({ state: 'error', text: (err as Error).message });
+    }
+  }
+
   // "Move to a binder": close this window, then open the list of binders.
   // (iPhones can't open one pop-up while another is still fading away,
   // so there it waits a moment.)
@@ -310,9 +371,11 @@ export default function ListScreen() {
       </View>
 
       {/* THE CARDS, with the red "+" floating over them in the corner */}
-      <View style={styles.listArea}>
+      <View ref={listAreaRef} style={styles.listArea} collapsable={false}>
         <CardList2
           entries={entries}
+          flashKey={flashKey}
+          note={addedNote}
           mode={mode}
           width={contentWidth}
           onPick={(key) => setMenuIndex(Number(key))}
@@ -333,6 +396,8 @@ export default function ListScreen() {
           )}
         />
         <AddCardsButton onPress={() => router.push(finderLinkFor(id) as never)} />
+        {/* A picture is being dragged over the cards: outline them */}
+        {dropOver && <View pointerEvents="none" style={[styles.dropOutline, { borderColor: colors.accent }]} />}
       </View>
 
       {/* THE CARD'S WINDOW: its picture, how many copies, then Open in Card
@@ -381,6 +446,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   top: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, zIndex: 10 },
   listArea: { flex: 1 },
+  dropOutline: { position: 'absolute', top: 4, left: 8, right: 8, bottom: 4, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, zIndex: 25 },
   empty: { alignItems: 'center', gap: 8, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS * 1.4, marginTop: 8 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },

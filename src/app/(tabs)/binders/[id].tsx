@@ -45,6 +45,7 @@ import { useAnnouncer } from '@/hooks/useAnnouncer';
 import { useColors } from '@/hooks/useTheme';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { useCardDrop } from '@/hooks/useCardDrop';
+import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
 import { usePointerKind } from '@/hooks/usePointerKind';
 import ShortcutsDialog, { type Shortcut } from '@/components/ShortcutsDialog';
 import PopupWindow from '@/components/PopupWindow';
@@ -61,7 +62,7 @@ import { useBinderPrices } from '@/hooks/useBinderPrices';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import {
   MAX_COPIES, binderDirtyStamp, binderName, binderPages, cardCount, findBinder, firstEmptyPocket, isLocalMode, loadBinder,
-  loadBinderList, pocketKey, saveBinder, saveBinderList, withCount, type BinderCard, type BinderCards,
+  loadBinderList, pocketKey, samePrinting, saveBinder, saveBinderList, withCount, type BinderCard, type BinderCards,
 } from '@/lib/binderStorage';
 import { DriveError, initGoogleSignIn, isSignedIn, signInWithGoogle, syncBinder, updateBinderDetails } from '@/lib/googleDrive';
 import { APP_HEADERS, RequestError, pictureSource } from '@/lib/http';
@@ -658,21 +659,27 @@ function BinderView({ binderId }: { binderId: string }) {
   // binder's next available spot, the first empty pocket. If every pocket
   // is full, a page is added at the end first and its first pocket is used.
   function addCards() {
-    let spot = firstEmptyPocket(cardsRef.current, totalPages);
-    if (!spot) {
-      const pages = totalPages + 1;
-      const list = loadBinderList();
-      const entry = list.find((b) => b.id === binderId);
-      if (entry) {
-        entry.pages = pages;
-        saveBinderList(list);
-        // Tell the account (or Drive) about the new page; if that can't be
-        // reached now, the card's save later will carry it
-        updateBinderDetails(binderId, { pages }).catch(() => { /* retried when the card is saved */ });
-      }
-      spot = { page: pages, slot: 1 };
-    }
+    const spot = nextSpot();
     router.push(searchLinkFor(binderId, pocketKey(spot.page, spot.slot)) as never);
+  }
+
+  // This binder's next available spot: its first empty pocket. If every
+  // pocket is full, a page is added at the end first and its first pocket is
+  // used.
+  function nextSpot(): { page: number; slot: number } {
+    const found = firstEmptyPocket(cardsRef.current, totalPages);
+    if (found) return found;
+    const pages = totalPages + 1;
+    const list = loadBinderList();
+    const entry = list.find((b) => b.id === binderId);
+    if (entry) {
+      entry.pages = pages;
+      saveBinderList(list);
+      // Tell the account (or Drive) about the new page; if that can't be
+      // reached now, the card's save later will carry it
+      updateBinderDetails(binderId, { pages }).catch(() => { /* retried when the card is saved */ });
+    }
+    return { page: pages, slot: 1 };
   }
 
   // Are there empty pockets with cards after them? (Clean-up has something to do.)
@@ -1065,6 +1072,68 @@ function BinderView({ binderId }: { binderId: string }) {
   }
 
   /* =====================================================================
+     DROPPING A PICTURE ON THE LIST OR GRID (computers: see
+     hooks/useCardAreaDrop.web.ts). Let go anywhere over the cards and the
+     card is added: one more copy if that exact printing is already here,
+     otherwise in the binder's next available pocket. The view shows it
+     wherever the sort in use puts it, scrolls to it, and highlights it for
+     a moment.
+     ===================================================================== */
+
+  const listAreaRef = useRef<ComponentRef<typeof View>>(null);
+  const [dropOver, setDropOver] = useState(false);
+  // The card just added (highlighted and scrolled to) and the note about it
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [addedNote, setAddedNote] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function flash(key: string, note: string) {
+    setFlashKey(key);
+    setAddedNote(note);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => { setFlashKey(null); setAddedNote(null); }, 3000);
+  }
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+  useCardAreaDrop({
+    areaRef: listAreaRef,
+    enabled: mode !== 'binder',
+    onOver: setDropOver,
+    onDrop: (dataTransfer) => { handleAreaDrop(dataTransfer); },
+  });
+
+  async function handleAreaDrop(dataTransfer: DataTransfer) {
+    // (Read what was dropped now: the browser only allows it right away.)
+    const lookup = lookupFromDrop(dataTransfer);
+    if (!lookup) {
+      setStatus({ state: 'error', text: 'That isn\'t a card picture from Scryfall or EDHREC' });
+      return;
+    }
+    setStatus({ state: 'saving', text: 'Finding the card…' });
+    try {
+      const card = binderCardFrom(await loadOneCard(lookup.path), lookup.face);
+      // The same printing (and finish) already here: one more copy of it
+      const have = Object.entries(cardsRef.current).find(([, existing]) => samePrinting(existing, card));
+      let key: string;
+      let next: BinderCards;
+      if (have) {
+        key = have[0];
+        if (cardCount(have[1]) >= MAX_COPIES) throw new Error(`You already have ${MAX_COPIES} copies of ${card.name}.`);
+        next = { ...cardsRef.current, [key]: withCount(have[1], cardCount(have[1]) + 1) };
+      } else {
+        const spot = nextSpot();
+        key = pocketKey(spot.page, spot.slot);
+        next = { ...cardsRef.current, [key]: card };
+      }
+      if (!commit(next)) throw new Error('Saving isn\'t working on this device, so the card could not be added.');
+      savedNote.current = `✓ Added ${card.name}`;   // shown once it's saved
+      scheduleDriveSave();
+      flash(key, `✓ Added ${card.name}${have ? ' (one more copy)' : ''}`);
+      announce(`Added ${card.name}${have ? ', one more copy' : ''}.`);
+    } catch (err) {
+      setStatus({ state: 'error', text: (err as Error).message });
+    }
+  }
+
+  /* =====================================================================
      KEYS ON A COMPUTER (anywhere on the screen, not while typing)
        ← → PgUp PgDn   turn the page
        D               download this binder as a .csv file
@@ -1212,9 +1281,11 @@ function BinderView({ binderId }: { binderId: string }) {
       {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red
           "+" floats over them in the corner. */}
       {(mode !== 'binder' || searching) && (
-        <View style={styles.listArea}>
+        <View ref={listAreaRef} style={styles.listArea} collapsable={false}>
           <CardList
             entries={entries}
+            flashKey={flashKey}
+            note={addedNote}
             // Searching in the Binder view: just the matching cards, as a grid
             mode={mode === 'binder' ? 'grid' : mode}
             width={contentWidth}
@@ -1234,6 +1305,8 @@ function BinderView({ binderId }: { binderId: string }) {
             )}
           />
           {mode !== 'binder' && <AddCardsButton onPress={addCards} />}
+          {/* A picture is being dragged over the cards: outline them */}
+          {dropOver && <View pointerEvents="none" style={[styles.dropOutline, { borderColor: colors.accent }]} />}
         </View>
       )}
 
@@ -1478,6 +1551,7 @@ const styles = StyleSheet.create({
   headerButton: { paddingHorizontal: 5 },
   pressed: { opacity: 0.5 },
   listArea: { flex: 1 },
+  dropOutline: { position: 'absolute', top: 4, left: 8, right: 8, bottom: 4, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, zIndex: 25 },
   summaryRow: { paddingHorizontal: 12, paddingTop: 6 },
   emptyList: { alignItems: 'center', gap: 12, paddingTop: 40, paddingHorizontal: 24 },
   menuPicture: { width: '100%', height: 260 },
