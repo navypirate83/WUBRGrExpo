@@ -496,6 +496,10 @@ export const helpTopics: HelpTopic[] = [
         moment the cards stay in name order. Sorting only changes how the list and grid are shown: it never
         moves a card to another pocket. A foil card has a rainbow border in every view. Tap a card in the list or grid for its menu: copies,
         open it in the Card Finder, move it or remove it.
+        In the grid, each card has a <Strong>− 3 +</Strong> bar along its bottom, like a pocket in the Binder view:
+        tap <Strong>+</Strong> or <Strong>−</Strong> to change how many copies you own (<Strong>−</Strong> on the last
+        copy asks whether to remove the card). On the website, the <Strong>−</Strong> and <Strong>+</Strong> buttons beside
+        Sort zoom the card pictures out and in; the app remembers your zoom on that device.
         To add a card from the list or grid, tap the red <Strong>+</Strong> in the corner: it opens the Card
         Finder, and the card goes into the binder's next empty pocket (if every pocket is full, a page is
         added at the end first).

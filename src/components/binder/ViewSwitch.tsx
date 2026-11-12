@@ -7,6 +7,9 @@
      menu down from itself listing every way to sort (see
      lib/binderSort.ts). Tapping an option sorts that way and closes the
      menu; tapping anywhere else closes it too.
+   - Grid, on the website only: two small zoom buttons (− and +) before
+     Sort, to make the card pictures smaller or bigger (the zoom is kept
+     on this device: see lib/binderView.ts).
    - Binder: a Clean-up button that moves every card forward to fill the
      empty pockets (the binder screen does the moving and asks first). It's
      faded when there are no empty pockets in the way.
@@ -14,11 +17,11 @@
    (see lib/binderView.ts).
    ===================================================================== */
 
-import { useRef, useState, type ComponentRef } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
+import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
-import { setBinderSort, setBinderViewMode } from '@/lib/binderView';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, onGridZoomChange, setBinderSort, setBinderViewMode, zoomBinderGrid } from '@/lib/binderView';
 import { BINDER_SORTS, type BinderSort } from '@/lib/binderSort';
 import type { BinderViewMode } from '@/lib/binderViewTypes';
 import { RADIUS } from '@/theme/colors';
@@ -43,6 +46,8 @@ export default function ViewSwitch({ mode, sort, onCleanUp, canCleanUp }: Props)
   const colors = useColors();
   const { width: windowWidth } = useWindowDimensions();
   const current = BINDER_SORTS.find((s) => s.value === sort) ?? BINDER_SORTS[0];
+  // How far the grid is zoomed (a step from 0, the smallest pictures)
+  const zoom = useSyncExternalStore(onGridZoomChange, binderGridZoom, binderGridZoom);
 
   // The Sort button (measured, so the menu can drop down right under it)
   // and where the menu is (null: closed)
@@ -100,8 +105,24 @@ export default function ViewSwitch({ mode, sort, onCleanUp, canCleanUp }: Props)
         </Pressable>
       )}
 
-      {/* List and Grid: Sort, with its menu dropping down */}
+      {/* List and Grid: (Grid on the website: zoom out and in, then) Sort,
+          with its menu dropping down */}
       {mode !== 'binder' && (
+        <View style={styles.right}>
+          {mode === 'grid' && Platform.OS === 'web' && (
+            <View style={styles.zoom} accessibilityRole="toolbar" accessibilityLabel="Zoom the cards">
+              <Pressable accessibilityRole="button" accessibilityLabel="Zoom out" accessibilityState={{ disabled: zoom <= 0 }}
+                         disabled={zoom <= 0} onPress={() => zoomBinderGrid(-1)}
+                         style={({ pressed }) => [styles.button, styles.zoomButton, { backgroundColor: colors.surface, borderColor: colors.border }, zoom <= 0 && styles.faded, pressed && styles.pressed]}>
+                <Ionicons name="remove" size={18} color={colors.text} />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Zoom in" accessibilityState={{ disabled: zoom >= GRID_ZOOM_WIDTHS.length - 1 }}
+                         disabled={zoom >= GRID_ZOOM_WIDTHS.length - 1} onPress={() => zoomBinderGrid(1)}
+                         style={({ pressed }) => [styles.button, styles.zoomButton, { backgroundColor: colors.surface, borderColor: colors.border }, zoom >= GRID_ZOOM_WIDTHS.length - 1 && styles.faded, pressed && styles.pressed]}>
+                <Ionicons name="add" size={18} color={colors.text} />
+              </Pressable>
+            </View>
+          )}
         <View ref={sortButton} collapsable={false}>
           <Pressable
             accessibilityRole="button"
@@ -114,6 +135,7 @@ export default function ViewSwitch({ mode, sort, onCleanUp, canCleanUp }: Props)
             <Text style={[styles.label, { color: colors.muted }]}>{current.short}</Text>
             <Ionicons name="chevron-down" size={12} color={colors.muted} />
           </Pressable>
+        </View>
         </View>
       )}
 
@@ -159,6 +181,9 @@ export default function ViewSwitch({ mode, sort, onCleanUp, canCleanUp }: Props)
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   views: { flexDirection: 'row', gap: 4 },
+  right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  zoom: { flexDirection: 'row', gap: 4 },
+  zoomButton: { width: 34, paddingHorizontal: 0 },
   button: { height: 30, paddingHorizontal: 12, borderRadius: RADIUS - 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   sort: { paddingHorizontal: 10 },
   label: { fontSize: 13, fontWeight: '600' },

@@ -69,7 +69,7 @@ import { loadOneCard } from '@/lib/scryfall';
 import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
-import { binderSort, binderViewMode, onBinderViewChange } from '@/lib/binderView';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -251,6 +251,8 @@ function BinderView({ binderId }: { binderId: string }) {
   const sort = useSyncExternalStore(onBinderViewChange, binderSort, binderSort);
   // The room beside the side menu (the whole window on a phone)
   const contentWidth = useContentWidth();
+  // How big the grid's pictures are at least (the website can zoom them)
+  const gridZoom = useSyncExternalStore(onGridZoomChange, binderGridZoom, binderGridZoom);
   // The cards for the list and grid. First as they come (the prices and
   // the cards' details are looked up from these), then put in the order
   // chosen (see lib/binderSort.ts: some orders need the details and the
@@ -1168,6 +1170,8 @@ function BinderView({ binderId }: { binderId: string }) {
             mode={mode}
             width={contentWidth}
             onPick={(key) => setMenuKey(key)}
+            onCopies={onCopies}
+            minTile={GRID_ZOOM_WIDTHS[gridZoom]}
             prices={prices}
             empty={(
               <View style={styles.emptyList}>
