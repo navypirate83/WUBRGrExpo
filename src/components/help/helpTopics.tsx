@@ -479,13 +479,21 @@ export const helpTopics: HelpTopic[] = [
     title: 'Binder pages',
     lead: (
       <>
-        A binder opens as a <Strong>List</Strong> of its cards: a small picture, the name, the
-        set and number, and how many copies you have. The buttons under the search bar switch
-        between <Strong>List</Strong>, <Strong>Grid</Strong> (card pictures side by side) and{' '}
-        <Strong>Binder</Strong> (the pages of pockets below), and the app remembers your choice.
-        The <Strong>A–Z</Strong> button sorts the list and grid by name or by newest added. Tap
-        a card in the list or grid for its menu: copies, open it in the Card Finder, move it or
-        remove it.
+        A binder opens as its pages of pockets (the <Strong>Binder</Strong> view, below). The
+        buttons under the search bar switch between <Strong>Binder</Strong>, <Strong>List</Strong> (a
+        small picture, the name, the set and number, how many copies you have and what they're
+        worth) and <Strong>Grid</Strong> (card pictures side by side). The app remembers your choice
+        for the next binder you open, one for a phone-sized window and one for a wide screen, and
+        saves it with your account so it follows you to your other devices.
+        In the list and grid, the button at the right (it shows the sort in use, like <Strong>A–Z</Strong>) opens
+        a <Strong>Sort by</Strong> window: <Strong>Name</Strong> (A to Z), <Strong>Newest added</Strong>, <Strong>Price</Strong> (the
+        most valuable first), <Strong>Color</Strong> (White, Blue, Black, Red, Green, then cards of several
+        colors, then colorless), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
+        Artifacts, Sorceries, Instants, Battles, Lands, then anything else), <Strong>Rarity</Strong> (Mythic,
+        Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Cards that tie
+        are in name order. Some sorts need each card's details from the internet, so for a
+        moment the cards stay in name order. Tap a card in the list or grid for its menu: copies,
+        open it in the Card Finder, move it or remove it.
         The <Strong>Binder</Strong> view shows its pages, like a real binder lying open: two pages side by
         side on a tablet or computer, one page at a time on a phone. Each page has 16
         pockets, four across and four down, unless you've chosen another page layout

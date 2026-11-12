@@ -65,6 +65,7 @@ import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { binderSort, binderViewMode, onBinderViewChange } from '@/lib/binderView';
+import { sortEntries } from '@/lib/binderSort';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
@@ -245,20 +246,17 @@ function BinderView({ binderId }: { binderId: string }) {
   const sort = useSyncExternalStore(onBinderViewChange, binderSort, binderSort);
   // The room beside the side menu (the whole window on a phone)
   const contentWidth = useContentWidth();
-  // The cards for the list and grid, in the order chosen: by name (A to
-  // Z), or newest added first (a card with no date counts as oldest)
-  const entries = useMemo<CardEntry[]>(() => {
-    const list = Object.entries(cards).map(([key, card]) => ({ key, card }));
-    if (sort === 'added') {
-      list.sort((a, b) => (b.card.added ?? '').localeCompare(a.card.added ?? '') || a.card.name.localeCompare(b.card.name));
-    } else {
-      list.sort((a, b) => a.card.name.localeCompare(b.card.name) || a.card.set.localeCompare(b.card.set)
-        || a.card.number.localeCompare(b.card.number, undefined, { numeric: true }));
-    }
-    return list;
-  }, [cards, sort]);
+  // The cards for the list and grid. First as they come (the prices and
+  // the cards' details are looked up from these), then put in the order
+  // chosen (see lib/binderSort.ts: some orders need the details and the
+  // prices, so until they arrive the cards are in name order).
+  const baseEntries = useMemo<CardEntry[]>(() => Object.entries(cards).map(([key, card]) => ({ key, card })), [cards]);
   // What the cards are worth at the store chosen in Settings
-  const prices = useBinderPrices(entries);
+  const prices = useBinderPrices(baseEntries);
+  const entries = useMemo<CardEntry[]>(
+    () => sortEntries(baseEntries, sort, { printings: prices.printings, prices: prices.byKey }),
+    [baseEntries, sort, prices.printings, prices.byKey],
+  );
 
   /* ----- The binder's size (worked out from the space on the screen) ----- */
 

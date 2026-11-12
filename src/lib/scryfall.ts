@@ -46,6 +46,7 @@ export type CardFace = {
   image_uris?: ImageUris;
   mana_cost?: string;     // its casting cost, like "{1}{U}{U}"
   type_line?: string;     // like "Creature — Elf Druid"
+  colors?: string[];      // its colors, like ["U", "G"] (none: colorless)
 };
 
 // One printing of a card: a card in one set, one version, one language
@@ -61,6 +62,12 @@ export type ScryfallCard = {
   // "Creature — Elf Druid" (a two-sided card has these on each side,
   // in card_faces, instead)
   mana_cost?: string;
+  // The mana value (the casting cost's total, 0 for a land) and the
+  // colors, like ["W", "U"]. A two-sided card has its colors on each
+  // side, in card_faces, instead. (A card saved before these were kept
+  // may not have them: lib/binderSort.ts works them out when missing.)
+  cmc?: number;
+  colors?: string[];
   type_line?: string;
   released_at: string;
   artist?: string;

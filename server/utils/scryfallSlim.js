@@ -30,6 +30,7 @@ function slimFace(face) {
     image_uris: slimImages(face.image_uris),
     mana_cost: face.mana_cost,
     type_line: face.type_line,
+    colors: face.colors,
   };
 }
 
@@ -66,6 +67,8 @@ export function slimCard(card) {
     collector_number: card.collector_number,
     rarity: card.rarity,
     mana_cost: card.mana_cost,
+    cmc: card.cmc,
+    colors: card.colors,
     type_line: card.type_line,
     released_at: card.released_at,
     artist: card.artist,

@@ -10,7 +10,9 @@
      times how many copies. A card the store has no price for counts as
      nothing in the total (and shows a dash).
    Gives back: each card's price by its pocket key, the total, which
-   currency it's in, and whether prices are still loading.
+   currency it's in, and whether prices are still loading. It also gives
+   back the cards' details themselves (colors, type, rarity...), because
+   sorting a binder by those needs the same lookup (see lib/binderSort.ts).
    ===================================================================== */
 
 import { useMemo } from 'react';
@@ -19,6 +21,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { cardCount } from '@/lib/binderStorage';
 import { copyPrice, currencyOf, loadCardKingdomPrices } from '@/lib/prices';
 import { loadPrintings } from '@/lib/scryfall';
+import type { ScryfallCard } from '@/lib/scryfall';
 import type { CardEntry } from '@/components/binder/CardList';
 
 export type BinderPrices = {
@@ -31,6 +34,8 @@ export type BinderPrices = {
   loading: boolean;
   // Couldn't get the prices?
   failed: boolean;
+  // The cards' details by "set/number" in lowercase (undefined until they arrive)
+  printings: Map<string, ScryfallCard> | undefined;
 };
 
 // How long the looked-up card details are kept before asking again
@@ -84,6 +89,6 @@ export function useBinderPrices(entries: CardEntry[]): BinderPrices {
         if (line !== null) total += line;
       }
     }
-    return { byKey, total: ready ? Math.round(total * 100) / 100 : null, currency, loading, failed };
+    return { byKey, total: ready ? Math.round(total * 100) / 100 : null, currency, loading, failed, printings: printings.data };
   }, [entries, printings.data, cardKingdom.data, priceStore, currency, loading, failed]);
 }

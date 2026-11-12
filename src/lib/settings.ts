@@ -8,6 +8,9 @@
      shows up without anyone having to tick it.
    - priceStore: which store's prices to show in the binders (TCGplayer,
      Card Kingdom or Cardmarket; see prices.ts)
+   - phoneView and wideView: how an opened binder is shown (list, grid or
+     the binder's pockets) on a narrow window and on a wide one, and
+     binderSort: how the list and grid are sorted (see binderView.ts)
    - phoneLayout and wideLayout: pockets across and down each binder page
      on a narrow window (a phone) and on a wide one (see pageLayout.ts).
      Changing the one in use moves every binder's cards to match.
@@ -44,6 +47,8 @@ import { isLocalMode, relayoutAllBinders } from './binderStorage';
 import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
 import { apiRequest } from './api';
 import { DEFAULT_PRICE_STORE, cleanPriceStore, type PriceStore } from './prices';
+import { DEFAULT_BINDER_VIEW, cleanBinderView, type BinderViewMode } from './binderViewTypes';
+import { DEFAULT_BINDER_SORT, cleanBinderSort, type BinderSort } from './binderSort';
 import { isServerSignedIn, SETTINGS_UNSENT_KEY } from './session';
 import {
   DEFAULT_LAYOUT, cleanLayout, currentSizeClass, layoutFor, pageLayout, pocketsPerPage,
@@ -56,6 +61,9 @@ export type Settings = {
   theme: ThemeChoice;
   hiddenFormats: string[];
   priceStore: PriceStore;
+  phoneView: BinderViewMode;
+  wideView: BinderViewMode;
+  binderSort: BinderSort;
   phoneLayout: PageLayout;
   wideLayout: PageLayout;
   accountLayout: PageLayout;
@@ -64,6 +72,9 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   hiddenFormats: [],
   priceStore: DEFAULT_PRICE_STORE,
+  phoneView: DEFAULT_BINDER_VIEW,
+  wideView: DEFAULT_BINDER_VIEW,
+  binderSort: DEFAULT_BINDER_SORT,
   phoneLayout: DEFAULT_LAYOUT,
   wideLayout: DEFAULT_LAYOUT,
   accountLayout: DEFAULT_LAYOUT,
@@ -81,6 +92,9 @@ const DIRTY_KEY = 'settingsDirty';
 const SERVER_DIRTY_KEY = SETTINGS_UNSENT_KEY;
 const HIDDEN_FORMATS_KEY = 'hiddenFormats';
 const PRICE_STORE_KEY = 'priceStore';
+const PHONE_VIEW_KEY = 'phoneBinderView';
+const WIDE_VIEW_KEY = 'wideBinderView';
+const BINDER_SORT_KEY = 'binderSort';
 
 /* ---------------------------------------------------------------------
    TELLING PAGES ABOUT CHANGES
@@ -120,10 +134,23 @@ export function currentSettings(): Settings {
     theme: currentThemeChoice(),
     hiddenFormats: cleanCodes(hidden),
     priceStore: cleanPriceStore(storageGet(PRICE_STORE_KEY)),
+    phoneView: cleanBinderView(storageGet(PHONE_VIEW_KEY)),
+    wideView: cleanBinderView(storageGet(WIDE_VIEW_KEY)),
+    binderSort: cleanBinderSort(storageGet(BINDER_SORT_KEY)),
     phoneLayout: layouts.phone,
     wideLayout: layouts.wide,
     accountLayout: layouts.account,
   };
+}
+
+// Just the view an opened binder is shown in (for a narrow window or a
+// wide one) and its sort, read straight from this device (quicker than
+// reading every setting)
+export function savedBinderView(narrow: boolean): BinderViewMode {
+  return cleanBinderView(storageGet(narrow ? PHONE_VIEW_KEY : WIDE_VIEW_KEY));
+}
+export function savedBinderSort(): BinderSort {
+  return cleanBinderSort(storageGet(BINDER_SORT_KEY));
 }
 
 // Put settings into effect on this device, remember them here, and tell
@@ -136,6 +163,9 @@ function applySettings(settings: Settings): void {
   if (settings.theme !== currentThemeChoice()) setThemeChoice(settings.theme);
   storageSet(HIDDEN_FORMATS_KEY, JSON.stringify(settings.hiddenFormats));
   storageSet(PRICE_STORE_KEY, settings.priceStore);
+  storageSet(PHONE_VIEW_KEY, settings.phoneView);
+  storageSet(WIDE_VIEW_KEY, settings.wideView);
+  storageSet(BINDER_SORT_KEY, settings.binderSort);
   const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
   if (!sameLayout(nowShowing, pageLayout())) {
     relayoutAllBinders(pocketsPerPage(), pocketsPerPage(nowShowing));
@@ -176,6 +206,10 @@ function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Sett
   if (Array.isArray(data.hiddenFormats)) settings.hiddenFormats = cleanCodes(data.hiddenFormats);
   // An older save has no price store: keep the one chosen here
   if (data.priceStore !== undefined) settings.priceStore = cleanPriceStore(data.priceStore);
+  // Likewise the binder views and sort
+  if (data.phoneView !== undefined) settings.phoneView = cleanBinderView(data.phoneView);
+  if (data.wideView !== undefined) settings.wideView = cleanBinderView(data.wideView);
+  if (data.binderSort !== undefined) settings.binderSort = cleanBinderSort(data.binderSort);
   const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
   if (isObject(data.pageLayout)) {
     const single = cleanLayout(data.pageLayout);
@@ -218,15 +252,15 @@ function saveToDrive(): Promise<void> {
 
 // What the server sends back: the saved settings (null if none yet)
 type ServerSettings = {
-  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; binderSort?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
 };
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, priceStore, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  const { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
   await apiRequest('/settings', {
     method: 'PUT',
-    body: { theme, hiddenFormats, priceStore, pageLayout: stored, phoneLayout, wideLayout },
+    body: { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, pageLayout: stored, phoneLayout, wideLayout },
   });
   storageRemove(SERVER_DIRTY_KEY);
 }
