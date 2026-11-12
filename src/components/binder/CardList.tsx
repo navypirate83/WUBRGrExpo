@@ -95,8 +95,9 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
 
 /* ---------------------------------------------------------------------
    THE SUMMARY LINE above the cards: "42 cards · 31 different · $118.40"
+   (also shown above the pockets in the Binder view: the binder screen uses it)
    --------------------------------------------------------------------- */
-function Summary({ entries, prices, searchOf, hint }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string }) {
+export function Summary({ entries, prices, searchOf, hint }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string }) {
   const colors = useColors();
   const cards = entries.reduce((sum, { card }) => sum + cardCount(card), 0);
   // What the cards showing are worth (all of them, or just those matching a search)

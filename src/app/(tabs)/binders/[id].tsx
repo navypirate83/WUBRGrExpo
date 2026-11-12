@@ -53,7 +53,7 @@ import TextField from '@/components/TextField';
 import HelpButton from '@/components/HelpButton';
 import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
-import CardList, { type CardEntry } from '@/components/binder/CardList';
+import CardList, { Summary, type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import AddCardsButton from '@/components/binder/AddCardsButton';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
@@ -73,7 +73,7 @@ import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
-import { fillDetails, finishParam, needsDetails } from '@/lib/cardDetails';
+import { fillDetails, finishParam } from '@/lib/cardDetails';
 import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -273,15 +273,10 @@ function BinderView({ binderId }: { binderId: string }) {
   const searching = isSearching(query);
   const nameFilter = useMemo(() => makeNameFilter(baseEntries, (entry) => entry.card.name), [baseEntries]);
   const matchingEntries = useMemo(() => (searching ? nameFilter(query) : baseEntries), [searching, nameFilter, query, baseEntries]);
-  // Do any cards still lack the details sorting needs (colors, type,
-  // rarity...)? Cards from before they were saved, or from an uploaded
-  // file, don't have them yet.
-  const needsFill = useMemo(() => baseEntries.some((entry) => needsDetails(entry.card)), [baseEntries]);
-  // What the cards are worth at the store chosen in Settings. This looks the
-  // cards up on the internet, so it's only done when it's needed: in the
-  // list and grid (for the prices), or to fill in the missing details.
-  const noCards = useMemo<CardEntry[]>(() => [], []);
-  const prices = useBinderPrices(mode === 'binder' && !needsFill ? noCards : baseEntries);
+  // What the cards are worth at the store chosen in Settings (for the line
+  // above the cards in every view, and the prices in the list). The cards are
+  // looked up on the internet for this, and the answers are kept for a while.
+  const prices = useBinderPrices(baseEntries);
   const entries = useMemo<CardEntry[]>(
     () => sortEntries(matchingEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
     [matchingEntries, sort, reversed, prices.printings, prices.byKey],
@@ -1205,6 +1200,15 @@ function BinderView({ binderId }: { binderId: string }) {
         />
       </View>
 
+      {/* The Binder view's own summary line, above the pockets: how many
+          cards, how many different, and what they're worth (the List and
+          Grid views show it as part of their list) */}
+      {mode === 'binder' && !searching && baseEntries.length > 0 && (
+        <View style={styles.summaryRow}>
+          <Summary entries={baseEntries} prices={prices} />
+        </View>
+      )}
+
       {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red
           "+" floats over them in the corner. */}
       {(mode !== 'binder' || searching) && (
@@ -1474,6 +1478,7 @@ const styles = StyleSheet.create({
   headerButton: { paddingHorizontal: 5 },
   pressed: { opacity: 0.5 },
   listArea: { flex: 1 },
+  summaryRow: { paddingHorizontal: 12, paddingTop: 6 },
   emptyList: { alignItems: 'center', gap: 12, paddingTop: 40, paddingHorizontal: 24 },
   menuPicture: { width: '100%', height: 260 },
   menuWhere: { textAlign: 'center' },

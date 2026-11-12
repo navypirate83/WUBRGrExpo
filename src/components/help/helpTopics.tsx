@@ -538,6 +538,8 @@ export const helpTopics: HelpTopic[] = [
         In the <Strong>Binder</Strong> view, <Strong>Clean-up</Strong> (at the right, under the search bar) asks, then
         moves every card forward to fill the empty pockets, keeping their order. It's faded when there are
         no empty pockets in the way.
+        In every view, a line under the buttons shows how many cards the binder holds, how many different
+        ones, and what they're all worth at the store chosen under <Strong>Price store</Strong> in Settings.
         The <Strong>Binder</Strong> view shows its pages, like a real binder lying open: two pages side by
         side on a tablet or computer, one page at a time on a phone. Each page has 16
         pockets, four across and four down, unless you've chosen another page layout
