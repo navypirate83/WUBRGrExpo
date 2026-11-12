@@ -513,7 +513,9 @@ export const helpTopics: HelpTopic[] = [
         internet; cards made before that get them filled in the first time you open their binder. Sorting only changes how the list and grid are shown: it never
         moves a card to another pocket. A foil card has a rainbow border in every view. Tap a card in the list or grid for its menu: copies,
         open it in the Card Finder, move it or remove it.
-        In the list and the grid, each card has a <Strong>− 3 +</Strong> bar (in the grid it's along the card's
+        In the list, each card's row has its name, then its casting cost (in Magic's own mana symbols),
+        its set's symbol, its set code and number (with a <Strong>*</Strong> for a foil or <Strong>**</Strong> for
+        an etched foil), and its type line. In the list and the grid, each card has a <Strong>− 3 +</Strong> bar (in the grid it's along the card's
         bottom, like a pocket in the Binder view): tap <Strong>+</Strong> or <Strong>−</Strong> to change how many
         copies you own (<Strong>−</Strong> on the last copy asks whether to remove the card). On the website, the <Strong>−</Strong> and <Strong>+</Strong> buttons beside
         Sort zoom the card pictures out and in; the app remembers your zoom on that device.
@@ -601,9 +603,9 @@ export const helpTopics: HelpTopic[] = [
               the card in that pocket.
             </P>
             <P>
-              Cards added with <Strong>Foil</Strong> turned on have a <Strong>rainbow border</Strong>,
-              so you can tell your foils apart at a glance. Tapping a foil card opens it in the MTG
-              Card Finder with Foil already on.
+              Cards added as a foil or an etched foil have a <Strong>rainbow border</Strong>,
+              so you can tell them apart at a glance. Tapping one opens it in the MTG
+              Card Finder with Foil (or Etched) already chosen.
             </P>
           </>
         ),
@@ -826,9 +828,13 @@ export const helpTopics: HelpTopic[] = [
             <P>The picture changes to match what you pick, and that's the printing that gets added to your binder.</P>
             <P>
               Have the <Strong>foil</Strong> version? Tap the <Strong>Foil</Strong> button under the
-              card so it turns orange before adding the card to a binder. The button can only be
-              pressed when that printing comes in foil (or etched foil). If it only comes in foil,
-              the button is already on. Foil cards get a rainbow border in your binder.
+              card before adding it to a binder or list. Each tap steps to the next finish that printing
+              really comes in: <Strong>not foil</Strong> (the button is grayed out), <Strong>Foil</Strong> (the
+              button turns rainbow) and <Strong>Etched</Strong> (the button turns silver; etched foil is a special
+              silvery foil only some printings have), then back round. The button can't be pressed when
+              the printing comes in only one finish. Foil and etched cards get a rainbow border in your
+              binders and lists, and a <Strong>*</Strong> (foil) or <Strong>**</Strong> (etched) after the number in
+              the List view.
             </P>
           </>
         ),
@@ -842,7 +848,8 @@ export const helpTopics: HelpTopic[] = [
               The <Strong>Prices</Strong> box shows what the printing on show costs at three
               stores: <Strong>TCGplayer</Strong>, <Strong>Card Kingdom</Strong> and <Strong>Cardmarket</Strong> (in
               euros). Each has a regular and a foil price; the one that matches
-              the <Strong>Foil</Strong> button is highlighted. The store you chose
+              the <Strong>Foil</Strong> button is highlighted (with Etched chosen, the foil column shows the
+              etched price, marked "etched"). The store you chose
               under <Strong>Price store</Strong> in <HelpLink to="settings-prices">Settings</HelpLink> is listed first.
             </P>
             <P>

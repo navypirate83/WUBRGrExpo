@@ -19,6 +19,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSettings } from '@/hooks/useSettings';
 import { cardCount } from '@/lib/binderStorage';
+import { finishOf } from '@/lib/cardDetails';
 import { copyPrice, currencyOf, loadCardKingdomPrices } from '@/lib/prices';
 import { loadPrintings } from '@/lib/scryfall';
 import type { ScryfallCard } from '@/lib/scryfall';
@@ -83,7 +84,7 @@ export function useBinderPrices(entries: CardEntry[]): BinderPrices {
     if (ready) {
       for (const { key, card } of entries) {
         const print = printings.data!.get(`${card.set}/${card.number}`.toLowerCase());
-        const each = print ? copyPrice(priceStore, print, card.foil === true, cardKingdom.data) : null;
+        const each = print ? copyPrice(priceStore, print, finishOf(card), cardKingdom.data) : null;
         const line = each === null ? null : Math.round(each * cardCount(card) * 100) / 100;
         byKey.set(key, line);
         if (line !== null) total += line;

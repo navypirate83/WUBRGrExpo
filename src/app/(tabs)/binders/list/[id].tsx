@@ -46,6 +46,7 @@ import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
+import { finishParam } from '@/lib/cardDetails';
 import { fillListDetails, findList, removeCardFromList, setListCardCount, type CardList, type ListCard } from '@/lib/listStorage';
 import { DriveError, isSignedIn, signInWithGoogle, syncList } from '@/lib/googleDrive';
 import { MAX_COPIES, cardCount, cardCountText, isLocalMode } from '@/lib/binderStorage';
@@ -69,7 +70,8 @@ function finderLinkFor(listId: string, card?: ListCard): string {
     params.set('number', card.number);
     if (card.face === 1) params.set('face', 'back');
     if (card.lang) params.set('lang', card.lang);
-    if (card.foil) params.set('foil', '1');
+    const finish = finishParam(card);
+    if (finish) params.set('foil', finish);
   }
   params.set('list', listId);
   return `/search?${params}`;

@@ -2,10 +2,13 @@
    A BINDER'S CARDS AS A LIST OR A GRID
    The List and Grid views of an opened binder (the Binder view, with its
    pockets, is drawn by the binder screen itself).
-   - LIST: one line per card: a small picture (with a rainbow border if
-     it's a foil), its name, its set and number, the "− 3 +" copies bar
-     (− and + change how many copies you have), and what they're worth at
-     the store chosen in Settings (a dash when it has no price).
+   - LIST: one row per card: a small picture (with a rainbow border if
+     it's a foil or etched), and beside it three lines: the name; then
+     the casting cost (Scryfall's own mana symbols), the set's symbol, the
+     set code and number, with a "*" after the number for a foil or "**"
+     for an etched foil; then the type line. To the right: the "− 3 +"
+     copies bar (− and + change how many copies you have), and what they're
+     worth at the store chosen in Settings (a dash when it has no price).
    Above both, one quiet line: how many cards, how many different, and the
    total value.
    - GRID: card pictures side by side (a foil has a rainbow border), each
@@ -25,7 +28,11 @@ import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { pictureSource } from '@/lib/http';
 import { cardCount, type BinderCard } from '@/lib/binderStorage';
+import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/prices';
+import { costAndTypeOf, finishOf } from '@/lib/cardDetails';
+import { loadSetIcons } from '@/lib/scryfall';
+import ManaCost from '@/components/lists/ManaCost';
 import FoilFrame from './FoilFrame';
 import CopiesBar from './CopiesBar';
 import type { BinderPrices } from '@/hooks/useBinderPrices';
@@ -52,6 +59,9 @@ const GRID_GAP = 10;
 
 export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty }: Props) {
   const colors = useColors();
+  // Each set's symbol picture (downloaded once, shared with the Card Finder),
+  // for the List view
+  const setIcons = useQuery({ queryKey: ['set-icons'], queryFn: loadSetIcons, enabled: mode === 'list' });
   // The grid's columns, and how wide each picture is
   const room = width - 2 * SPACE.l;
   const columns = mode === 'grid' ? Math.max(1, Math.floor((room + GRID_GAP) / (minTile + GRID_GAP))) : 1;
@@ -71,7 +81,8 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} /> : undefined}
       renderItem={({ item }) => (
         mode === 'list'
-          ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency} />
+          ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
+                     setIcon={setIcons.data?.get(item.card.set.toLowerCase())} />
           : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} />
       )}
     />
@@ -93,22 +104,26 @@ function Summary({ entries, prices }: { entries: CardEntry[]; prices: BinderPric
 /* ---------------------------------------------------------------------
    ONE LINE OF THE LIST. "memo" redraws it only when its card changes.
    --------------------------------------------------------------------- */
-const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency }: {
+const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency, setIcon }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; border: string;
+  setIcon: string | undefined;         // the set's symbol picture, once it has downloaded
   price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
   currency: 'USD' | 'EUR';
 }) {
   const colors = useColors();
   const { card, key } = entry;
   const count = cardCount(card);
-  // "ONE · #123", plus "· Foil" for a foil copy
-  const about = `${card.set.toUpperCase()} · #${card.number}${card.foil ? ' · Foil' : ''}`;
+  // "ONE · #123", with a "*" after the number for a foil, "**" for etched
+  const finish = finishOf(card);
+  const about = `${card.set.toUpperCase()} · #${card.number}${finish === 'etched' ? '**' : finish === 'foil' ? '*' : ''}`;
+  // The casting cost and the type line (either can be empty, like a land's cost)
+  const { manaCost, typeLine } = costAndTypeOf(card);
   return (
     <View style={[styles.row, { borderBottomColor: border }]}>
       {/* The picture and name: tap them for the card's menu */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${card.name}, ${about}, ${count} ${count === 1 ? 'copy' : 'copies'}${typeof price === 'number' ? `, worth ${formatPrice(price, currency)}` : ''}. Opens its menu.`}
+        accessibilityLabel={`${card.name}${finish === 'etched' ? ', etched foil' : finish === 'foil' ? ', foil' : ''}${typeLine ? `, ${typeLine}` : ''}, ${card.set.toUpperCase()} number ${card.number}, ${count} ${count === 1 ? 'copy' : 'copies'}${typeof price === 'number' ? `, worth ${formatPrice(price, currency)}` : ''}. Opens its menu.`}
         onPress={() => onPick(key)}
         style={({ pressed }) => [styles.rowMain, pressed && { backgroundColor: colors.surfaceHover }]}
       >
@@ -117,7 +132,14 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
         </FoilFrame>
         <View style={styles.rowText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
-          <Text style={[styles.about, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
+          {/* The casting cost, then the set's symbol, then the set code and number */}
+          <View style={styles.aboutRow}>
+            {manaCost ? <ManaCost cost={manaCost} size={13} /> : null}
+            {setIcon ? <Image source={{ uri: setIcon }} style={styles.setIcon} contentFit="contain" tintColor={colors.iconTint} /> : null}
+            <Text style={[styles.about, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
+          </View>
+          {/* The type line (one line, with "…" if it's too long) */}
+          {typeLine ? <Text style={[styles.type, { color: colors.muted }]} numberOfLines={1}>{typeLine}</Text> : null}
         </View>
       </Pressable>
       {/* How many copies: the "− 3 +" bar */}
@@ -167,8 +189,13 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACE.m },
   thumbPicture: { width: '100%', height: '100%' },
   rowText: { flex: 1, minWidth: 0 },
-  name: { fontSize: 15, fontWeight: '600' },
-  about: { fontSize: 12, marginTop: 1 },
+  // The three lines are packed a little tighter (not smaller) so they fit
+  // beside the picture without making the row taller
+  name: { fontSize: 15, fontWeight: '600', lineHeight: 17 },
+  aboutRow: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 15 },
+  about: { fontSize: 12, lineHeight: 15, flexShrink: 1 },
+  setIcon: { width: 13, height: 13 },
+  type: { fontSize: 12, lineHeight: 15 },
   rowBar: { width: 84 },
   price: { width: 62, textAlign: 'right', fontSize: 13, fontVariant: ['tabular-nums'] },
   summary: { fontSize: 13, paddingBottom: SPACE.s, paddingTop: 2 },

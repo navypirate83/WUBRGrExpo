@@ -30,7 +30,7 @@ import {
   cardByNamePath, cardBySetPath, loadCard, loadCardNames, loadSetIcons,
 } from '@/lib/scryfall';
 import { prepareNames } from '@/lib/nameSearch';
-import { plural } from '@/lib/cards';
+import { finishFromParam, plural, type Finish } from '@/lib/cards';
 import { binderName, findBinder } from '@/lib/binderStorage';
 import { findList } from '@/lib/listStorage';
 import { RequestError } from '@/lib/http';
@@ -112,9 +112,9 @@ export default function CardFinderScreen() {
     () => lookupFromAddress(setParam, numberParam, faceParam, langParam),
   );
 
-  // Is Foil on? It carries on from card to card. A shared link with
-  // "foil=1" starts with it on.
-  const [foil, setFoil] = useState(() => foilParam === '1');
+  // The finish: not foil, foil or etched. It carries on from card to card.
+  // A shared link with "foil=1" (or "foil=etched") starts with it on.
+  const [finish, setFinish] = useState<Finish>(() => finishFromParam(foilParam));
 
   // A message from adding to a binder (like "That binder is full."),
   // shown under the search box instead of the usual one until the next
@@ -132,7 +132,7 @@ export default function CardFinderScreen() {
     const next = lookupFromAddress(setParam, numberParam, faceParam, langParam);
     if (next) {
       setLookup(next);
-      setFoil(foilParam === '1');
+      setFinish(finishFromParam(foilParam));
       setAddMessage(null);
     }
   }
@@ -337,8 +337,8 @@ export default function CardFinderScreen() {
               startFace={shownLookup?.face ?? 0}
               startLang={shownLookup?.lang ?? null}
               setIcons={setIcons.data}
-              foil={foil}
-              setFoil={setFoil}
+              finish={finish}
+              setFinish={setFinish}
               busy={cardQuery.isFetching}
               announce={announce}
               usingBinders={usingBinders}

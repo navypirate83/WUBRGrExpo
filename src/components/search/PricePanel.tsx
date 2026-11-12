@@ -18,6 +18,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
 import type { ScryfallCard } from '@/lib/scryfall';
+import type { Finish } from '@/lib/cards';
 import {
   cardKingdomPrices, cardmarketPrices, formatPrice, loadCardKingdomPrices, tcgplayerPrices,
   type StorePrices,
@@ -30,8 +31,8 @@ import { RADIUS } from '@/theme/colors';
 type Props = {
   // The printing showing
   print: ScryfallCard;
-  // Is the Foil button on?
-  foil: boolean;
+  // The finish chosen on the Foil button: not foil, foil or etched
+  finish: Finish;
   // Which of the two places this is (see above)
   layout: 'side' | 'below';
 };
@@ -44,7 +45,9 @@ const STORE_ICONS = {
   cardmarket: require('../../../assets/images/stores/cardmarket.png') as number,
 };
 
-export default function PricePanel({ print, foil, layout }: Props) {
+export default function PricePanel({ print, finish, layout }: Props) {
+  // Any foil (including etched) highlights the Foil column
+  const foil = finish !== 'nonfoil';
   const colors = useColors();
   // The store chosen in Settings is listed first
   const { priceStore } = useSettings();
@@ -61,6 +64,10 @@ export default function PricePanel({ print, foil, layout }: Props) {
   // loaded: a message instead of prices
   const ckMessage = cardKingdom.isError ? 'Couldn\'t load'
     : cardKingdom.isPending ? 'Loading…' : null;
+  // The price in the Foil column: the etched one when Etched is chosen (and
+  // the store has one), otherwise the foil one. Is it an etched price?
+  const foilPrice = (prices: StorePrices) => (finish === 'etched' ? prices.etchedFoil ?? prices.foil : prices.foil);
+  const showsEtched = (prices: StorePrices) => (finish === 'etched' ? prices.etchedFoil !== null || prices.etched : prices.etched);
   const showNames = layout === 'below';
   const side = layout === 'side';
 
@@ -112,11 +119,12 @@ export default function PricePanel({ print, foil, layout }: Props) {
             <View style={[styles.cell, side && styles.cellSide, shownCell(false)]}>
               <Text style={[styles.price, side && styles.small, shownText(false)]}>{formatPrice(prices.regular, currency)}</Text>
             </View>
-            {/* "Etched" foil (a special foil finish) gets a tiny note */}
+            {/* "Etched" foil (a special foil finish) gets a tiny note. With
+                Etched chosen, the etched price is the one shown. */}
             <View style={[styles.cell, side && styles.cellSide, shownCell(true)]}
-                  accessibilityLabel={prices.etched ? `Etched foil: ${formatPrice(prices.foil, currency)}` : undefined}>
-              <Text style={[styles.price, side && styles.small, shownText(true)]}>{formatPrice(prices.foil, currency)}</Text>
-              {prices.etched && <Text style={[styles.etched, { color: colors.muted }]}>etched</Text>}
+                  accessibilityLabel={showsEtched(prices) ? `Etched foil: ${formatPrice(foilPrice(prices), currency)}` : undefined}>
+              <Text style={[styles.price, side && styles.small, shownText(true)]}>{formatPrice(foilPrice(prices), currency)}</Text>
+              {showsEtched(prices) && <Text style={[styles.etched, { color: colors.muted }]}>etched</Text>}
             </View>
           </>
         )}

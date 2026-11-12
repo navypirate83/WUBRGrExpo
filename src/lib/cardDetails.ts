@@ -12,6 +12,9 @@
      - Type         the front side's type line  like "Artifact Creature — Golem"
      - Mana value   the casting cost's total    like "4" (0 for a land)
      - Released     when the set came out       like "2022-09-09"
+     - Mana cost    the casting cost            like "{1}{U}{U}" ("none" for
+                    a card with no cost, like a land), drawn as Scryfall's
+                    symbols in the List view
    A card added in the Card Finder, or from a Scryfall picture dropped on
    a pocket, gets them at once. A card made before this (or from an
    uploaded file) gets them filled in the first time its binder is opened,
@@ -21,6 +24,7 @@
 
 import type { ScryfallCard } from './scryfall';
 import type { BinderCard, BinderCards } from './binderStorage';
+import type { Finish } from './cards';
 
 /* ---------------------------------------------------------------------
    READING A PRINTING'S DETAILS
@@ -84,11 +88,12 @@ export function detailsOf(print: ScryfallCard): Record<string, string> {
   if (type) details.Type = type.slice(0, 190);
   details['Mana value'] = String(manaValueOf(print));
   if (print.released_at) details.Released = print.released_at;
+  details['Mana cost'] = costOf(print) || 'none';
   return details;
 }
 
 // The ones sorting needs: does this card have all of them?
-const NEEDED = ['Rarity', 'Colors', 'Type', 'Mana value', 'Released'] as const;
+const NEEDED = ['Rarity', 'Colors', 'Type', 'Mana value', 'Released', 'Mana cost'] as const;
 export function needsDetails(card: BinderCard): boolean {
   return NEEDED.some((name) => !card.extra?.[name]);
 }
@@ -105,6 +110,30 @@ export function storedDetails(card: BinderCard): StoredDetails {
   if (extra['Mana value'] !== undefined && extra['Mana value'] !== '' && Number.isFinite(Number(extra['Mana value']))) out.cmc = Number(extra['Mana value']);
   if (extra.Released) out.released = extra.Released;
   return out;
+}
+
+// A card's finish: not foil, foil, or etched foil (kept as a foil card with
+// the note "etched": see the Foil column of a binder file)
+export function finishOf(card: BinderCard): Finish {
+  return card.foil ? (card.extra?.Foil === 'etched' ? 'etched' : 'foil') : 'nonfoil';
+}
+
+// The Card Finder address's "foil=" for a card ("1", "etched", or none)
+export function finishParam(card: BinderCard): string | undefined {
+  const finish = finishOf(card);
+  return finish === 'etched' ? 'etched' : finish === 'foil' ? '1' : undefined;
+}
+
+// A card's casting cost and type line for the List view. A list's card has
+// its own; a binder's has them saved with its details. (Either can be
+// empty, like the cost of a land.)
+export function costAndTypeOf(card: BinderCard): { manaCost: string; typeLine: string } {
+  const own = card as BinderCard & { manaCost?: string; typeLine?: string };
+  const saved = card.extra?.['Mana cost'];
+  return {
+    manaCost: own.manaCost || (saved && saved !== 'none' ? saved : ''),
+    typeLine: own.typeLine || card.extra?.Type || '',
+  };
 }
 
 // A card with its details added from its printing. What the card already

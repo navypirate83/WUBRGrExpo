@@ -21,7 +21,7 @@
 
 import type { BinderCard } from './binderStorage';
 import { detailsOf } from './cardDetails';
-import { CARD_BACK, foilChoices, imageFor, isDoubleSided } from './cards';
+import { CARD_BACK, finishChoices, imageFor, isDoubleSided } from './cards';
 import type { ScryfallCard } from './scryfall';
 
 // Is something being dragged in from outside the page (a picture, link
@@ -103,15 +103,18 @@ export function lookupFromDrop(dataTransfer: DataTransfer): { path: string; face
 // rarity, colors, type, mana value and release date (see cardDetails.ts).
 export function binderCardFrom(card: ScryfallCard, wantedFace: number): BinderCard {
   const face = isDoubleSided(card) ? wantedFace : 0;
+  // Foil only if that's the only way it was made (and etched if only etched)
+  const made = finishChoices(card);
+  const finish = made.includes('nonfoil') ? 'nonfoil' : made[0];
   return {
     name: card.name,
     set: card.set,
     number: card.collector_number,
     face,
     lang: card.lang && card.lang !== 'en' ? card.lang : undefined,
-    foil: foilChoices(card).onlyFoil ? true : undefined,
+    foil: finish !== 'nonfoil' ? true : undefined,
     image: imageFor(card, face, ['normal', 'large']) ?? CARD_BACK,
     added: new Date().toISOString(),
-    extra: detailsOf(card),
+    extra: { ...detailsOf(card), ...(finish === 'etched' ? { Foil: 'etched' } : {}) },
   };
 }

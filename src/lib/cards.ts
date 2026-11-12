@@ -157,25 +157,43 @@ export function manaSymbolGroups(cost: string): { symbol: string; url: string }[
 }
 
 /* ---------------------------------------------------------------------
-   FOIL
+   FINISHES: NOT FOIL, FOIL AND ETCHED
    Scryfall lists the finishes each printing was made in ("finishes"):
-   "nonfoil", "foil" and/or "etched" (etched foil, which counts as foil
-   here). There's no separate foil picture, so the Foil button just
-   records that you have the foil copy.
+   "nonfoil", "foil" and/or "etched" (etched foil, a special silvery foil).
+   There's no separate foil picture, so the Foil button just records which
+   finish you have. Tapping it steps through the finishes the printing
+   really comes in: not foil, foil, etched, and back round. A printing that
+   comes in only one finish can't be changed.
    --------------------------------------------------------------------- */
 
-// Can this printing be foil at all, and is foil the ONLY way it was made?
-export function foilChoices(print: ScryfallCard): { canBeFoil: boolean; onlyFoil: boolean } {
-  const finishes = print.finishes ?? [];
-  const canBeFoil = finishes.includes('foil') || finishes.includes('etched');
-  return { canBeFoil, onlyFoil: canBeFoil && !finishes.includes('nonfoil') };
+export type Finish = 'nonfoil' | 'foil' | 'etched';
+
+// The finishes a printing comes in, in the order the button steps through them
+const FINISH_ORDER: Finish[] = ['nonfoil', 'foil', 'etched'];
+export function finishChoices(print: ScryfallCard): Finish[] {
+  const made = FINISH_ORDER.filter((finish) => (print.finishes ?? []).includes(finish));
+  return made.length ? made : ['nonfoil'];
 }
 
-// Is the Foil button on, for this printing, when you'd like it on or off?
-// Foil-only printings are always on; printings with no foil are always off.
-export function foilFor(print: ScryfallCard, wanted: boolean): boolean {
-  const { canBeFoil, onlyFoil } = foilChoices(print);
-  return onlyFoil || (canBeFoil && wanted);
+// The finish to use for this printing when you'd like "wanted". If the
+// printing doesn't come in it: a printing with no plain version is always
+// one of its foils; otherwise it's not foil.
+export function finishFor(print: ScryfallCard, wanted: Finish): Finish {
+  const made = finishChoices(print);
+  if (made.includes(wanted)) return wanted;
+  return made.includes('nonfoil') ? 'nonfoil' : made[0];
+}
+
+// The finish a Card Finder address asks for ("foil=1" is foil, "foil=etched"
+// is etched, anything else is not foil)
+export function finishFromParam(value: string | null | undefined): Finish {
+  return value === 'etched' ? 'etched' : value === '1' ? 'foil' : 'nonfoil';
+}
+
+// The next finish when the button is tapped
+export function nextFinish(print: ScryfallCard, current: Finish): Finish {
+  const made = finishChoices(print);
+  return made[(made.indexOf(current) + 1) % made.length];
 }
 
 /* ---------------------------------------------------------------------
@@ -284,14 +302,16 @@ export function formatDate(isoDate: string): string {
 //   ?set=isd&number=51&face=back  (back side)
 //   ?set=isd&number=51&lang=ja    (in Japanese)
 //   ?set=isd&number=51&foil=1     (the foil copy)
+//   ?set=isd&number=51&foil=etched (the etched foil copy)
 // The set code + collector number pin down one specific printing.
 // "lang" is only added when it isn't the printing's own language.
-export function cardSearchParams(print: ScryfallCard, face: number, lang: string, foil: boolean): URLSearchParams {
+export function cardSearchParams(print: ScryfallCard, face: number, lang: string, finish: Finish): URLSearchParams {
   const params = new URLSearchParams();
   params.set('set', print.set);
   params.set('number', print.collector_number);
   if (face === 1) params.set('face', 'back');
   if (lang !== print.lang) params.set('lang', lang);
-  if (foil) params.set('foil', '1');
+  if (finish === 'etched') params.set('foil', 'etched');
+  else if (finish === 'foil') params.set('foil', '1');
   return params;
 }

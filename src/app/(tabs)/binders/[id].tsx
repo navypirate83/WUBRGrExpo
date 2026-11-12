@@ -71,7 +71,7 @@ import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
-import { fillDetails, needsDetails } from '@/lib/cardDetails';
+import { fillDetails, finishParam, needsDetails } from '@/lib/cardDetails';
 import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -181,7 +181,8 @@ function searchLinkFor(binderId: string, key: string, card?: BinderCard): string
     params.set('number', card.number);
     if (card.face === 1) params.set('face', 'back');
     if (card.lang) params.set('lang', card.lang);   // e.g. "ja" for Japanese
-    if (card.foil) params.set('foil', '1');         // opens with Foil already on
+    const finish = finishParam(card);               // opens with Foil (or Etched) already on
+    if (finish) params.set('foil', finish);
   }
   params.set('binder', binderId);
   params.set('binderPage', String(pageOf(key)));

@@ -15,6 +15,7 @@
 
 import { fetchOrExplain, RequestError } from './http';
 import type { ScryfallCard } from './scryfall';
+import type { Finish } from './cards';
 
 // The three stores, as they're named in Settings. Each has its currency.
 export type PriceStore = 'tcgplayer' | 'cardkingdom' | 'cardmarket';
@@ -35,11 +36,13 @@ export function currencyOf(store: PriceStore): 'USD' | 'EUR' {
   return PRICE_STORES.find((s) => s.value === store)?.currency ?? 'USD';
 }
 
-// One store's prices for a printing: regular and foil (null = none
-// known), whether the foil is "etched" foil, and a link to the card there
+// One store's prices for a printing: regular, foil and etched foil (null =
+// none known), whether the "foil" price is really the etched one (a printing
+// made only in etched foil), and a link to the card there
 export type StorePrices = {
   regular: number | null;
   foil: number | null;
+  etchedFoil: number | null;
   etched: boolean;
   url: string;
 };
@@ -73,6 +76,7 @@ export function tcgplayerPrices(print: ScryfallCard): StorePrices {
   return {
     regular: priceNumber(p.usd),
     foil: foil ?? priceNumber(p.usd_etched),
+    etchedFoil: priceNumber(p.usd_etched),
     etched: foil === null && priceNumber(p.usd_etched) !== null,
     url: print.purchase_uris?.tcgplayer ?? searchLink('tcgplayer', print.name),
   };
@@ -85,6 +89,7 @@ export function cardmarketPrices(print: ScryfallCard): StorePrices {
   return {
     regular: priceNumber(p.eur),
     foil: foil ?? priceNumber(p.eur_etched),
+    etchedFoil: priceNumber(p.eur_etched),
     etched: foil === null && priceNumber(p.eur_etched) !== null,
     url: print.purchase_uris?.cardmarket ?? searchLink('cardmarket', print.name),
   };
@@ -135,19 +140,21 @@ export function cardKingdomPrices(print: ScryfallCard, list: CardKingdomPrices):
   return {
     regular: found?.regular ?? null,
     foil: found?.foil ?? null,
+    etchedFoil: null,
     etched: false,
     url: found?.url ?? found?.foilUrl ?? searchLink('cardkingdom', print.name),
   };
 }
 
 // The price of ONE copy of a printing at the chosen store, as the copy is
-// (foil or not): the foil price for a foil copy, the regular price
-// otherwise. null when the store has no price for it. "list" is Card
-// Kingdom's downloaded list (only needed for Card Kingdom).
-export function copyPrice(store: PriceStore, print: ScryfallCard, foil: boolean, list?: CardKingdomPrices): number | null {
+// (its finish): the etched price for an etched copy (the foil price if the
+// store has no separate etched one), the foil price for a foil copy, the
+// regular price otherwise. null when the store has no price for it. "list"
+// is Card Kingdom's downloaded list (only needed for Card Kingdom).
+export function copyPrice(store: PriceStore, print: ScryfallCard, finish: Finish, list?: CardKingdomPrices): number | null {
   const prices = store === 'tcgplayer' ? tcgplayerPrices(print)
     : store === 'cardmarket' ? cardmarketPrices(print)
       : list ? cardKingdomPrices(print, list) : null;
   if (!prices) return null;
-  return foil ? prices.foil : prices.regular;
+  return finish === 'etched' ? prices.etchedFoil ?? prices.foil : finish === 'foil' ? prices.foil : prices.regular;
 }

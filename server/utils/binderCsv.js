@@ -14,7 +14,7 @@ export const CSV_COLUMNS = [
   'Scryfall ID', 'Purchase price', 'Condition', 'Language', 'Proxy',
   'Purchase price currency', 'Added',
   'Page', 'Pocket', 'Side', 'Binder', 'Cover symbol', 'Cover color', 'Pages', 'Page layout',
-  'Colors', 'Type', 'Mana value', 'Released',
+  'Colors', 'Type', 'Mana value', 'Released', 'Mana cost',
 ];
 
 // The ManaBox columns WUBRG'r doesn't use itself: kept in a card's "extra"
@@ -31,6 +31,7 @@ export const KEPT_COLUMNS = {
   'Type': '',
   'Mana value': '',
   'Released': '',
+  'Mana cost': '',
 };
 
 // Other names other apps (Moxfield, Archidekt...) use for the same columns,

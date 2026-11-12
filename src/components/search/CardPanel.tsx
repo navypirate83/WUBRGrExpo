@@ -21,9 +21,11 @@ import { useContentWidth } from '@/hooks/useMenuStyle';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FOIL_COLORS } from '@/components/binder/FoilFrame';
 import { loadLanguages, type ScryfallCard } from '@/lib/scryfall';
 import {
-  CARD_BACK, cardSearchParams, costAndType, faceName, foilChoices, foilFor, groupBySet, imageFor,
+  CARD_BACK, cardSearchParams, costAndType, faceName, finishChoices, finishFor, groupBySet, imageFor, nextFinish, type Finish,
   isDoubleSided, languageName, versionLabel, type SetGroup,
 } from '@/lib/cards';
 import type { BinderCard } from '@/lib/binderStorage';
@@ -64,10 +66,11 @@ type Props = {
   startLang: string | null;
   // Each set's symbol picture (once it has downloaded)
   setIcons?: Map<string, string>;
-  // Is Foil on? It's kept by the Card Finder, so it carries on to the
-  // next card looked up (the same as the original site).
-  foil: boolean;
-  setFoil: (on: boolean) => void;
+  // The finish wanted: not foil, foil or etched. It's kept by the Card
+  // Finder, so it carries on to the next card looked up (the same as the
+  // original site).
+  finish: Finish;
+  setFinish: (finish: Finish) => void;
   // A card is being looked up (shows the spinner)
   busy: boolean;
   // Say something to screen readers
@@ -84,8 +87,16 @@ type Props = {
   onMessage: (text: string | null, isError?: boolean) => void;
 };
 
+// What a tap on the finish button changes it to, in words (for the hint
+// screen readers read out)
+function nextFinishName(print: ScryfallCard | undefined, finish: Finish): string {
+  if (!print) return 'the next finish';
+  const next = nextFinish(print, finish);
+  return next === 'etched' ? 'etched foil' : next === 'foil' ? 'foil' : 'not foil';
+}
+
 export default function CardPanel(props: Props) {
-  const { result, startFace, startLang, setIcons, foil, setFoil, busy, announce } = props;
+  const { result, startFace, startLang, setIcons, finish: wantedFinish, setFinish, busy, announce } = props;
   const { usingBinders, fromBinder, pocket, toList, onMessage } = props;
   const colors = useColors();
   // The "+" Add to binder button (the A key presses it)
@@ -142,17 +153,20 @@ export default function CardPanel(props: Props) {
   // own language, or the languages haven't loaded yet)
   const shown = (lang && languages.data?.find((v) => v.lang === lang)) || print;
 
-  // Is Foil on for this printing? (Foil-only printings are always on;
-  // printings with no foil version are always off.)
-  const foilOn = print ? foilFor(print, foil) : false;
-  const { canBeFoil, onlyFoil } = print ? foilChoices(print) : { canBeFoil: false, onlyFoil: false };
+  // The finish for this printing: the one wanted if it comes in it
+  // (printings with no foil version are always not foil, and ones made only
+  // in foil are always a foil). The button steps through the finishes it
+  // really comes in.
+  const finish: Finish = print ? finishFor(print, wantedFinish) : 'nonfoil';
+  const finishes: Finish[] = print ? finishChoices(print) : ['nonfoil'];
+  const canChange = finishes.length > 1;
 
-  // Whenever the printing changes, remember Foil the way it now shows
+  // Whenever the printing changes, remember the finish the way it now shows
   // (so it carries on to the next version, the same as the original).
   // This runs only when the printing changes ([print?.id]), not every
-  // time Foil does.
+  // time the finish does.
   useEffect(() => {
-    if (print) setFoil(foilFor(print, foil));
+    if (print) setFinish(finishFor(print, wantedFinish));
   }, [print?.id]);
 
   // Switch to another printing: front side, in its own language.
@@ -193,7 +207,7 @@ export default function CardPanel(props: Props) {
   // use its share menu if it has one, or copy the link (see lib/links).
   async function share() {
     if (!print || !shown) return;
-    const params = cardSearchParams(print, face, shown.lang, foilOn);
+    const params = cardSearchParams(print, face, shown.lang, finish);
     const url = `${PUBLIC_SEARCH_ADDRESS}?${params}`;
     const title = `${print.name} — ${print.set_name}`;
     const outcome = await shareLink(url, title);
@@ -216,10 +230,10 @@ export default function CardPanel(props: Props) {
       number: print!.collector_number,
       face: side,
       lang: shown!.lang !== print!.lang ? shown!.lang : undefined,   // only saved if switched
-      foil: foilOn ? true : undefined,                              // only saved if foil
+      foil: finish !== 'nonfoil' ? true : undefined,                // only saved if foil (or etched)
       image: imageFor(shown!, side, ['normal', 'large']) ?? CARD_BACK,
       added: new Date().toISOString(),
-      extra: detailsOf(print!),
+      extra: { ...detailsOf(print!), ...(finish === 'etched' ? { Foil: 'etched' } : {}) },
     };
   }
 
@@ -372,7 +386,7 @@ export default function CardPanel(props: Props) {
         {/* PRICES beside the card (just the stores' icons) */}
         {buttonsBeside && (
           <View style={[styles.sideColumn, styles.leftColumn, { width: besideWidth }]}>
-            {print && pricesBeside && <PricePanel print={print} foil={foilOn} layout="side" />}
+            {print && pricesBeside && <PricePanel print={print} finish={finish} layout="side" />}
           </View>
         )}
 
@@ -404,28 +418,38 @@ export default function CardPanel(props: Props) {
               <Text style={[styles.pillText, { color: colors.text }]}>Flip card ↻</Text>
             </Pressable>
           )}
-          {/* Foil OFF looks "ghosted" (see-through, with a dashed
-              outline); ON it's filled with the bright orange and has
-              black text (the same orange in both themes, so the black
-              text is always easy to read). Can't be pressed when the
-              printing has no foil version (very faint), or ONLY comes
-              in foil (it stays on). */}
+          {/* The finish button. Not foil looks "ghosted" (see-through, with a
+              dashed outline); Foil is filled with a rainbow; Etched is
+              filled with silver. Both have black text (on a light fill in
+              either theme, so it's always easy to read). Each tap steps to
+              the next finish the printing comes in. It can't be pressed
+              when the printing comes in only one finish (very faint if
+              that's not foil; it stays as it is if it's a foil). */}
           <Pressable
-            accessibilityRole="switch"
-            accessibilityLabel="Foil"
-            accessibilityState={{ checked: foilOn, disabled: !canBeFoil || onlyFoil }}
-            accessibilityHint={!canBeFoil ? 'This printing has no foil version'
-              : onlyFoil ? 'This printing only comes in foil' : 'I have the foil version'}
-            disabled={!canBeFoil || onlyFoil}
-            onPress={() => { hapticTap(); setFoil(!foilOn); }}
+            accessibilityRole="button"
+            accessibilityLabel={`Finish: ${finish === 'etched' ? 'etched foil' : finish === 'foil' ? 'foil' : 'not foil'}`}
+            accessibilityHint={!canChange
+              ? (finish === 'nonfoil' ? 'This printing has no foil version' : 'This printing only comes in one finish')
+              : `Tap to change it to ${nextFinishName(print, finish)}`}
+            disabled={!canChange}
+            onPress={() => { if (print) { hapticTap(); setFinish(nextFinish(print, finish)); } }}
             style={({ pressed }) => [
               styles.pill,
-              foilOn ? styles.foilOn : [styles.foilOff, { borderColor: colors.border }],
-              !foilOn && !canBeFoil && styles.foilNone,
+              styles.finishPill,
+              finish === 'nonfoil' && [styles.foilOff, { borderColor: colors.border }],
+              finish === 'nonfoil' && finishes.length === 1 && styles.foilNone,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.pillText, styles.foilText, { color: foilOn ? '#000000' : colors.text }]}>Foil</Text>
+            {finish === 'foil' && (
+              <LinearGradient colors={[...FOIL_COLORS]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            )}
+            {finish === 'etched' && (
+              <LinearGradient colors={['#f4f5f7', '#aeb3bc', '#e6e8ec', '#8f959f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            )}
+            <Text style={[styles.pillText, styles.foilText, { color: finish === 'nonfoil' ? colors.text : '#000000' }]}>
+              {finish === 'etched' ? 'Etched' : 'Foil'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -463,7 +487,7 @@ export default function CardPanel(props: Props) {
           LEGALITY: only once a card is showing */}
       <View style={styles.section}>
         {result && <Rulings card={result.card} />}
-        {print && !pricesBeside && <PricePanel print={print} foil={foilOn} layout="below" />}
+        {print && !pricesBeside && <PricePanel print={print} finish={finish} layout="below" />}
         {print && <Legality print={print} />}
       </View>
 
@@ -524,7 +548,9 @@ const styles = StyleSheet.create({
   pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, justifyContent: 'center', borderWidth: 1 },
   pillText: { fontSize: 15 },
   foilText: { fontWeight: '600' },
-  foilOn: { backgroundColor: '#e38a5c', borderColor: '#e38a5c' },
+  // The finish button's rainbow or silver is drawn behind its text, so the
+  // button clips it to its rounded corners
+  finishPill: { overflow: 'hidden' },
   foilOff: { borderStyle: 'dashed', opacity: 0.55 },
   foilNone: { opacity: 0.25 },
   cardInfo: { alignItems: 'center', marginTop: 12, gap: 2 },
