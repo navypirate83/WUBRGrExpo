@@ -83,6 +83,23 @@ export function zoomBinderGrid(direction: 1 | -1): void {
   zoomListeners.forEach((listener) => listener());
 }
 
+// Jump straight to a zoom step (used by the pinch), and stop at the ends
+export function setBinderGridZoom(step: number): void {
+  const next = Math.min(GRID_ZOOM_WIDTHS.length - 1, Math.max(0, Math.round(step)));
+  if (next === binderGridZoom()) return;
+  storageSet(GRID_ZOOM_KEY, String(next));
+  zoomListeners.forEach((listener) => listener());
+}
+
+// The zoom step whose picture width is closest (in proportion) to this width
+export function zoomStepForWidth(width: number): number {
+  let best = 0;
+  GRID_ZOOM_WIDTHS.forEach((w, step) => {
+    if (Math.abs(Math.log(w / width)) < Math.abs(Math.log(GRID_ZOOM_WIDTHS[best] / width))) best = step;
+  });
+  return best;
+}
+
 // Ask to be told when the zoom changes (used with useSyncExternalStore)
 export function onGridZoomChange(listener: () => void): () => void {
   zoomListeners.add(listener);

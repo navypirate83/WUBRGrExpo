@@ -2,8 +2,12 @@
    PINCH TO ZOOM THE GRID
    On a touch screen (a phone, a tablet, a touch-screen computer), spreading
    two fingers apart on the Grid view makes the card pictures bigger, and
-   pinching them together makes them smaller: the same one step at a time as
-   the - and + buttons (see zoomBinderGrid in lib/binderView.ts).
+   pinching them together makes them smaller. The pictures follow the
+   fingers: when the pinch starts, the picture width and the distance
+   between the fingers are noted, and as the fingers move the width follows
+   in proportion (fingers twice as far apart: pictures about twice as wide),
+   landing on the nearest of the zoom sizes (see GRID_ZOOM_WIDTHS in
+   lib/binderView.ts). So one spread or pinch can cross the whole range.
    It only WATCHES the touches (it doesn't take them over), so one-finger
    scrolling and tapping work as always. On the website, the page is told
    it may scroll but not pinch-zoom itself over the grid, so the pinch is
@@ -11,10 +15,7 @@
    ===================================================================== */
 import { useEffect, useRef, type ElementRef } from 'react';
 import { Platform, View, type GestureResponderEvent } from 'react-native';
-import { zoomBinderGrid } from '@/lib/binderView';
-
-// How much farther apart (or closer) the fingers must get for one step
-const STEP_RATIO = 1.25;
+import { GRID_ZOOM_WIDTHS, binderGridZoom, setBinderGridZoom, zoomStepForWidth } from '@/lib/binderView';
 
 // The distance between the first two fingers touching (null if fewer than two)
 function fingerGap(event: GestureResponderEvent): number | null {
@@ -49,8 +50,13 @@ type PinchProps = {
 };
 
 export function usePinchZoom(enabled: boolean): PinchProps {
-  // The finger gap the last step (or the start of the pinch) was measured from
-  const from = useRef<number | null>(null);
+  // When a pinch starts: the finger gap and the picture width at that moment
+  const from = useRef<{ gap: number; width: number } | null>(null);
+  // Start measuring a pinch from the fingers now (nothing if fewer than two)
+  const begin = (event: GestureResponderEvent) => {
+    const gap = fingerGap(event);
+    from.current = gap === null || gap < 1 ? null : { gap, width: GRID_ZOOM_WIDTHS[binderGridZoom()] };
+  };
   // The view around the grid (on the website, the page's own element for it)
   const box = useRef<ElementRef<typeof View>>(null);
 
@@ -76,15 +82,15 @@ export function usePinchZoom(enabled: boolean): PinchProps {
     dataSet: { pinchGrid: '' },
     // A browser may not zoom the page itself over the grid; scrolling is still fine
     style: { touchAction: 'pan-x pan-y' } as object,
-    onTouchStart: (event: GestureResponderEvent) => { from.current = fingerGap(event); },
+    onTouchStart: begin,
     onTouchMove: (event: GestureResponderEvent) => {
       const gap = fingerGap(event);
-      if (gap === null || from.current === null || from.current < 1) { from.current = gap; return; }
-      const ratio = gap / from.current;
-      if (ratio >= STEP_RATIO) { zoomBinderGrid(1); from.current = gap; }
-      else if (ratio <= 1 / STEP_RATIO) { zoomBinderGrid(-1); from.current = gap; }
+      if (gap === null) { from.current = null; return; }
+      if (from.current === null) { begin(event); return; }
+      // The width follows the fingers, in proportion
+      setBinderGridZoom(zoomStepForWidth(from.current.width * (gap / from.current.gap)));
     },
-    onTouchEnd: (event: GestureResponderEvent) => { from.current = fingerGap(event); },
+    onTouchEnd: begin,
     onTouchCancel: () => { from.current = null; },
   };
 }
