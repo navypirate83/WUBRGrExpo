@@ -533,7 +533,7 @@ export const helpTopics: HelpTopic[] = [
         an etched foil), and its type line. In the list and the grid, each card has a <Strong>− 3 +</Strong> bar (in the grid it's along the card's
         bottom, like a pocket in the Binder view): tap <Strong>+</Strong> or <Strong>−</Strong> to change how many
         copies you own (<Strong>−</Strong> on the last copy asks whether to remove the card). On the website, the <Strong>−</Strong> and <Strong>+</Strong> buttons beside
-        Sort zoom the card pictures out and in, and on a phone, tablet or touch screen you can <Strong>pinch</Strong> the grid with two fingers (spread apart to zoom in, pinch together to zoom out) to do the same; the app remembers your zoom on that device.
+        Sort zoom the card pictures out and in, and on a phone, tablet or touch screen you can <Strong>pinch</Strong> the grid with two fingers (spread apart to zoom in, pinch together to zoom out) to do the same. The grid stretches smoothly under your fingers, with a dashed outline and "n across" showing about how big the cards will be, and snaps to the nearest size when you let go, keeping the card you were pinching on the screen; the app remembers your zoom on that device.
         <OnComputer>On a computer you can also drag a card's picture (or its link) from Scryfall or EDHREC in another browser
         window and let go anywhere over the cards in the list or grid: the card is added, in the binder's next
         empty pocket, or as one more copy if you already have that exact printing. It appears wherever the sort in use puts it,

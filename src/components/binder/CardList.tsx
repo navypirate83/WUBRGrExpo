@@ -15,19 +15,26 @@
      with the same "− 3 +" copies bar (see CopiesBar.tsx) along its bottom.
      (− on the last copy asks about removing the card.)
      On the website the pictures can be zoomed in and out (see
-     ViewSwitch.tsx), and on any touch screen by pinching (see
-     usePinchZoom.ts); "minTile" is how wide they are at least.
+     ViewSwitch.tsx), and on any touch screen by pinching; "minTile" is how
+     wide they are at least. While two fingers pinch, the whole grid is
+     stretched or shrunk live under them (cards may run off the screen or
+     leave gaps), with a dashed outline showing about how big a card will
+     be; when the fingers lift, the grid snaps to the nearest zoom size,
+     keeping the card that was under the fingers in view (see
+     usePinchZoom.ts).
    Tapping a card calls "onPick" (the binder screen opens that card's
    menu: copies, open in the Card Finder, move, remove).
    The cards come in already sorted. Rows are drawn only as they scroll
    into view, so a binder with thousands of cards stays quick.
    ===================================================================== */
 
-import { memo, useEffect, useRef, type ReactElement } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, setBinderGridZoom, zoomStepForWidth } from '@/lib/binderView';
 import { pictureSource } from '@/lib/http';
 import { cardCount, type BinderCard } from '@/lib/binderStorage';
 import { useQuery } from '@tanstack/react-query';
@@ -77,8 +84,85 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
   const room = width - 2 * SPACE.l;
   const columns = mode === 'grid' ? Math.max(1, Math.floor((room + GRID_GAP) / (minTile + GRID_GAP))) : 1;
   const tile = Math.floor((room - (columns - 1) * GRID_GAP) / columns);
-  // Two fingers spreading or pinching on the grid zoom it a step
-  const pinch = usePinchZoom(mode === 'grid');
+
+  /* ----- Pinching the grid (see the top of this file) ----- */
+  // How much the grid is stretched right now, and the point it stretches from
+  const scale = useSharedValue(1);
+  const originX = useSharedValue(0);
+  const originY = useSharedValue(0);
+  const stretched = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    transformOrigin: `${originX.value}px ${originY.value}px`,
+  }));
+  // While two fingers are down: the list doesn't scroll, and a dashed
+  // outline shows the card size it would snap to (which zoom step, and where)
+  const [pinching, setPinching] = useState(false);
+  const [preview, setPreview] = useState<{ step: number; x: number; y: number } | null>(null);
+  // The zoom step when the pinch began, and the card that was under the
+  // fingers (its place in the list, and how far down the screen it was)
+  const startStep = useRef(0);
+  const anchor = useRef<{ index: number; y: number } | null>(null);
+  // How far the list is scrolled, and where its cards start (below the summary line)
+  const scrollY = useRef(0);
+  const summary = useRef({ y: 0, height: 0 });
+
+  // The card under a point of the screen (the one the fingers cover most)
+  function cardAt(x: number, y: number): number {
+    const top = summary.current.y + summary.current.height + GRID_GAP;
+    const row = Math.max(0, Math.floor((scrollY.current + y - top) / (Math.round(tile * CARD_RATIO) + GRID_GAP)));
+    const column = Math.min(columns - 1, Math.max(0, Math.floor((x - SPACE.l) / (tile + GRID_GAP))));
+    return Math.min(entries.length - 1, row * columns + column);
+  }
+  // The zoom step that stretching by this much would land on
+  const stepFor = (by: number) => zoomStepForWidth(GRID_ZOOM_WIDTHS[startStep.current] * by);
+
+  const pinch = usePinchZoom(mode === 'grid', {
+    onStart: ({ x, y }) => {
+      startStep.current = binderGridZoom();
+      anchor.current = entries.length > 0 ? { index: cardAt(x, y), y } : null;
+      originX.value = x;
+      originY.value = y;
+      scale.value = 1;
+      setPinching(true);
+      setPreview({ step: startStep.current, x, y });
+    },
+    // The grid follows the fingers smoothly; only the outline changes size in steps
+    onMove: (by) => {
+      scale.value = by;
+      const step = stepFor(by);
+      setPreview((now) => (now && now.step !== step ? { ...now, step } : now));
+    },
+    // Fingers lifted: really change the zoom, once
+    onEnd: (by) => {
+      const step = stepFor(by);
+      setPinching(false);
+      setPreview(null);
+      if (step === startStep.current) { scale.value = 1; anchor.current = null; return; }
+      setBinderGridZoom(step);
+    },
+  });
+
+  // The zoom really changed: take the stretch off, and scroll so the card
+  // that was under the fingers is at the same height on the screen
+  useLayoutEffect(() => {
+    scale.value = 1;
+    const target = anchor.current;
+    if (!target || mode !== 'grid') return;
+    anchor.current = null;
+    const top = summary.current.y + summary.current.height + GRID_GAP;
+    const cardHeight = Math.round(tile * CARD_RATIO);
+    const offset = Math.max(0, top + Math.floor(target.index / columns) * (cardHeight + GRID_GAP) + cardHeight / 2 - target.y);
+    // The list is rebuilt for the new columns, so try again once it has laid out
+    const timers = [60, 350].map((wait) => setTimeout(() => listRef.current?.scrollToOffset({ offset, animated: false }), wait));
+    return () => timers.forEach(clearTimeout);
+  }, [minTile]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The outline for the card size the pinch would land on: how big, and how many fit across
+  let outline: { size: number; across: number } | null = null;
+  if (preview) {
+    const across = Math.max(1, Math.floor((room + GRID_GAP) / (GRID_ZOOM_WIDTHS[preview.step] + GRID_GAP)));
+    outline = { size: Math.floor((room - (across - 1) * GRID_GAP) / across), across };
+  }
 
   // A card was just added: scroll to where it sits in the sorted cards (it
   // may move once its price arrives, so this runs again whenever the order
@@ -95,8 +179,22 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
 
   return (
     <View {...pinch} style={[styles.fill, pinch.style]}>
+    <Animated.View style={[styles.fill, stretched]}>
     <FlatList
       ref={listRef}
+      // In the grid every row is the same height, so say exactly where each
+      // row is. Then scrolling to a card after a zoom lands exactly, instead
+      // of on a guess for rows that haven't been drawn yet. (Each "item" here
+      // is a row of cards; the cards start below the summary line.)
+      getItemLayout={mode === 'grid' && summary.current.height > 0
+        ? (_rows, row) => {
+            const cardHeight = Math.round(tile * CARD_RATIO);
+            return { length: cardHeight, offset: summary.current.y + summary.current.height + GRID_GAP + row * (cardHeight + GRID_GAP), index: row };
+          }
+        : undefined}
+      scrollEnabled={!pinching}
+      scrollEventThrottle={16}
+      onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
       // If the row isn't drawn yet, guess its place, then try again
       onScrollToIndexFailed={(info) => {
         listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
@@ -111,7 +209,11 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       columnWrapperStyle={columns > 1 ? { gap: GRID_GAP } : undefined}
       contentContainerStyle={[styles.content, mode === 'grid' && { gap: GRID_GAP }]}
       ListEmptyComponent={empty}
-      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} note={note ?? undefined} /> : undefined}
+      ListHeaderComponent={entries.length > 0
+        ? <View onLayout={(event) => { summary.current = { y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height }; }}>
+            <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} note={note ?? undefined} />
+          </View>
+        : undefined}
       renderItem={({ item }) => (
         mode === 'list'
           ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
@@ -119,6 +221,16 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
           : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} />
       )}
     />
+    </Animated.View>
+    {/* While pinching: a dashed outline of the card size the grid will snap to */}
+    {outline && preview && (
+      <View pointerEvents="none" style={[styles.outline, {
+        left: preview.x - outline.size / 2, top: preview.y - (outline.size * CARD_RATIO) / 2,
+        width: outline.size, height: Math.round(outline.size * CARD_RATIO), borderColor: colors.accent,
+      }]}>
+        <Text style={[styles.outlineText, { color: colors.accent, backgroundColor: colors.bg }]}>{outline.across} across</Text>
+      </View>
+    )}
     </View>
   );
 }
@@ -228,7 +340,10 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlig
 // The look: rows with a thin line under each, and grid tiles with a tag
 const styles = StyleSheet.create({
   // The view around the list and grid (it catches the two-finger pinch)
-  fill: { flex: 1 },
+  fill: { flex: 1, overflow: 'hidden' },
+  // The dashed outline shown while pinching
+  outline: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { fontSize: 12, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   // The part of a line you tap for the menu: the picture and the name
