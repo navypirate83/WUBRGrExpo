@@ -6,13 +6,15 @@
    - added:  newest added first
    - price:  most valuable first (what the copies are worth at the store
              chosen in Settings); cards with no price go last
-   - color:  White, Blue, Black, Red, Green (one color each), then cards
-             of two or more colors, then colorless
+   - color:  White, Blue, Black, Red, Green (one color each), then Gold
+             (every card of two or more colors, together), then colorless
    - set:    in the order the sets came out, oldest first
    - type:   Creatures, Enchantments, Artifacts, Sorceries, Instants,
-             Battles, Lands (then anything else, like Planeswalkers). A
-             card with two types goes by the first one in that list, so an
-             Artifact Creature is a Creature.
+             Battles, Planeswalkers, Lands (then anything else). A card
+             with two types goes by the first one in that list, so an
+             Artifact Creature is a Creature. The exception: anything
+             that is a Land is a Land, whatever else it is (an Artifact
+             Land, or a Land Creature, goes under Lands).
    - rarity: Mythic, Rare, Uncommon, Common, Special
    - value:  mana value (the casting cost's total), lowest first
    Most of these need the card's details from Scryfall (its colors, type,
@@ -108,27 +110,25 @@ function typeLineOf(print: ScryfallCard): string {
    THE ORDERS (each gives a number to compare: lower comes first)
    --------------------------------------------------------------------- */
 
-// Color: 0–4 for White, Blue, Black, Red, Green alone; 5 for two or more
-// colors; 6 for colorless. (Cards of several colors are then put in order
-// by which colors they have: see colorTiebreak.)
+// Color: 0–4 for White, Blue, Black, Red, Green alone; 5 for "Gold" (two
+// or more colors, all in one group); 6 for colorless.
 function colorGroup(colors: string[]): number {
   if (colors.length === 0) return 6;
   if (colors.length > 1) return 5;
   return 'WUBRG'.indexOf(colors[0]);
 }
-// For several colors: the colors written in W U B R G order as digits
-// ("WU" -> "01", "UR" -> "13"), which sort the way a person expects
-function colorTiebreak(colors: string[]): string {
-  return colors.map((c) => 'WUBRG'.indexOf(c)).sort().join('');
-}
 
 // Type: Creatures 0, Enchantments 1, Artifacts 2, Sorceries 3, Instants 4,
-// Battles 5, Lands 6, anything else (like Planeswalkers) 7. A card with
-// more than one type counts as the first of its types in this list.
-const TYPE_ORDER = ['creature', 'enchantment', 'artifact', 'sorcery', 'instant', 'battle', 'land'];
+// Battles 5, Planeswalkers 6, Lands 7, anything else 8. A card with more
+// than one type counts as the first of its types in this list, EXCEPT a
+// Land, which is always a Land. Only the types before the dash are
+// looked at ("Creature", not the "Island" in "Land — Island").
+const TYPE_ORDER = ['creature', 'enchantment', 'artifact', 'sorcery', 'instant', 'battle', 'planeswalker', 'land'];
 function typeRank(print: ScryfallCard): number {
-  const line = typeLineOf(print);
-  const found = TYPE_ORDER.findIndex((type) => line.includes(type));
+  const types = typeLineOf(print).split('—')[0];
+  const has = (type: string) => new RegExp(`\\b${type}\\b`).test(types);
+  if (has('land')) return TYPE_ORDER.indexOf('land');
+  const found = TYPE_ORDER.findIndex(has);
   return found === -1 ? TYPE_ORDER.length : found;
 }
 
@@ -185,7 +185,7 @@ export function sortEntries(entries: SortEntry[], sort: BinderSort, context: Sor
         const cb = pb ? colorsOf(pb) : null;
         // Details missing: last
         if (!ca || !cb) return (ca ? -1 : cb ? 1 : 0) || byName(a, b);
-        return colorGroup(ca) - colorGroup(cb) || colorTiebreak(ca).localeCompare(colorTiebreak(cb)) || byName(a, b);
+        return colorGroup(ca) - colorGroup(cb) || byName(a, b);
       });
     case 'set':
       // Oldest set first; sets from the same day by set code, then collector number

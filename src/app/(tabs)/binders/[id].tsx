@@ -4,7 +4,11 @@
    pictures, or its pages of pockets (the "Binder" view): the buttons under
    the search bar switch between them, and the app remembers your choice
    (see lib/binderView.ts and components/binder/CardList.tsx).
-   Tapping a card in the list or grid opens its menu.
+   Tapping a card in the list or grid opens its menu. A red "+" in the
+   corner of the list and grid opens the Card Finder aimed at the
+   binder's next empty pocket (adding a page when every pocket is full).
+   In the Binder view, a Clean-up button moves every card forward to fill
+   the empty pockets.
    The rest of this note is about the Binder view.
    The Binder view shows its pages like a real binder lying open: one
    page at a time on a phone, two side by side on a wider screen (a
@@ -51,13 +55,14 @@ import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
 import CardList, { type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch from '@/components/binder/ViewSwitch';
+import AddCardsButton from '@/components/binder/AddCardsButton';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import {
-  MAX_COPIES, binderDirtyStamp, binderName, binderPages, cardCount, findBinder, isLocalMode, loadBinder,
-  pocketKey, saveBinder, withCount, type BinderCard, type BinderCards,
+  MAX_COPIES, binderDirtyStamp, binderName, binderPages, cardCount, findBinder, firstEmptyPocket, isLocalMode, loadBinder,
+  loadBinderList, pocketKey, saveBinder, saveBinderList, withCount, type BinderCard, type BinderCards,
 } from '@/lib/binderStorage';
-import { DriveError, initGoogleSignIn, isSignedIn, signInWithGoogle, syncBinder } from '@/lib/googleDrive';
+import { DriveError, initGoogleSignIn, isSignedIn, signInWithGoogle, syncBinder, updateBinderDetails } from '@/lib/googleDrive';
 import { APP_HEADERS, RequestError, pictureSource } from '@/lib/http';
 import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
 import { loadOneCard } from '@/lib/scryfall';
@@ -215,10 +220,10 @@ function BinderView({ binderId }: { binderId: string }) {
 
   // How many pages: the binder's own number, but never fewer than the
   // highest page that has a card on it, so no card is ever out of sight.
-  const [totalPages] = useState(() => {
-    const highestUsed = Math.max(0, ...Object.keys(cards).map(pageOf));
-    return Math.max(binderPages(binderId), highestUsed);
-  });
+  // (Worked out each time, so a page added by the "+" button, or a card
+  // added on a new page, shows up straight away.)
+  const highestUsed = useMemo(() => Math.max(0, ...Object.keys(cards).map(pageOf)), [cards]);
+  const totalPages = Math.max(binderPages(binderId), highestUsed);
 
   // Keep a new set of cards: save it on this device and show it.
   // Returns false (and changes nothing) if saving isn't working.
@@ -618,16 +623,55 @@ function BinderView({ binderId }: { binderId: string }) {
     openPocket(key);
   }, [openPocket]);
 
-  // "Add cards" (the list's empty page): the Card Finder, aimed at this
-  // binder's first empty pocket
+  // The red "+" (List and Grid views): the Card Finder, aimed at this
+  // binder's next available spot, the first empty pocket. If every pocket
+  // is full, a page is added at the end first and its first pocket is used.
   function addCards() {
-    for (let page = 1; page <= totalPages; page++) {
-      for (let slot = 1; slot <= perPage; slot++) {
-        const key = pocketKey(page, slot);
-        if (!cardsRef.current[key]) { router.push(searchLinkFor(binderId, key) as never); return; }
+    let spot = firstEmptyPocket(cardsRef.current, totalPages);
+    if (!spot) {
+      const pages = totalPages + 1;
+      const list = loadBinderList();
+      const entry = list.find((b) => b.id === binderId);
+      if (entry) {
+        entry.pages = pages;
+        saveBinderList(list);
+        // Tell the account (or Drive) about the new page; if that can't be
+        // reached now, the card's save later will carry it
+        updateBinderDetails(binderId, { pages }).catch(() => { /* retried when the card is saved */ });
       }
+      spot = { page: pages, slot: 1 };
     }
-    showMessage('This binder is full', 'Every pocket has a card in it.');
+    router.push(searchLinkFor(binderId, pocketKey(spot.page, spot.slot)) as never);
+  }
+
+  // Are there empty pockets with cards after them? (Clean-up has something to do.)
+  // The cards fill pockets 1, 2, 3... in order when there are no gaps, so a
+  // gap means some card sits further along than the number of cards.
+  const hasGaps = useMemo(() => {
+    const count = Object.keys(cards).length;
+    return Object.keys(cards).some((key) => (pageOf(key) - 1) * perPage + slotOf(key) > count);
+  }, [cards, perPage]);
+
+  // Clean-up (Binder view): after asking, move every card forward, keeping
+  // their order (page by page, pocket by pocket), so all the empty pockets
+  // are at the end. The number of pages stays as it is.
+  async function cleanUp() {
+    if (!hasGaps) return;
+    const yes = await askYesNo('Clean up this binder?',
+      'Every card moves forward to fill the empty pockets, keeping its order. The empty pockets end up at the end.',
+      'Clean up', 'Cancel');
+    if (!yes) return;
+    const ordered = Object.entries(cardsRef.current).sort(([a], [b]) => pageOf(a) - pageOf(b) || slotOf(a) - slotOf(b));
+    const next: BinderCards = {};
+    ordered.forEach(([, card], index) => {
+      next[pocketKey(Math.floor(index / perPage) + 1, (index % perPage) + 1)] = card;
+    });
+    if (!commit(next)) {
+      showMessage('Couldn\'t save', 'Saving isn\'t working on this device, so the cards could not be moved.');
+      return;
+    }
+    scrollToTop();
+    announce('Cards moved together');
   }
 
   // The windows: the card's menu, "Remove card?" and "Move card to…"
@@ -1111,25 +1155,28 @@ function BinderView({ binderId }: { binderId: string }) {
           shelf) */}
       <View style={styles.top}>
         <BinderSearch currentBinderId={binderId} />
-        {/* List / Grid / Binder, and the sort */}
-        <ViewSwitch mode={mode} sort={sort} />
+        {/* List / Grid / Binder, and the sort (or Clean-up in the Binder view) */}
+        <ViewSwitch mode={mode} sort={sort} onCleanUp={cleanUp} canCleanUp={hasGaps} />
       </View>
 
-      {/* THE LIST OR GRID of cards. Tapping a card opens its menu. */}
+      {/* THE LIST OR GRID of cards. Tapping a card opens its menu. The red
+          "+" floats over them in the corner. */}
       {mode !== 'binder' && (
-        <CardList
-          entries={entries}
-          mode={mode}
-          width={contentWidth}
-          onPick={(key) => setMenuKey(key)}
-          prices={prices}
-          empty={(
-            <View style={styles.emptyList}>
-              <Text style={[styles.dialogText, { color: colors.muted }]}>No cards in this binder yet.</Text>
-              <Button label="Add cards" icon="add" onPress={addCards} />
-            </View>
-          )}
-        />
+        <View style={styles.listArea}>
+          <CardList
+            entries={entries}
+            mode={mode}
+            width={contentWidth}
+            onPick={(key) => setMenuKey(key)}
+            prices={prices}
+            empty={(
+              <View style={styles.emptyList}>
+                <Text style={[styles.dialogText, { color: colors.muted }]}>No cards in this binder yet. Tap the red + to add some.</Text>
+              </View>
+            )}
+          />
+          <AddCardsButton onPress={addCards} />
+        </View>
       )}
 
       {/* The space the binder fills (measured, so it can be sized to fit):
@@ -1372,7 +1419,8 @@ const styles = StyleSheet.create({
   headerName: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
   headerButton: { paddingHorizontal: 8 },
   pressed: { opacity: 0.5 },
-  emptyList: { alignItems: 'center', gap: 12, paddingTop: 40 },
+  listArea: { flex: 1 },
+  emptyList: { alignItems: 'center', gap: 12, paddingTop: 40, paddingHorizontal: 24 },
   menuPicture: { width: '100%', height: 260 },
   menuWhere: { textAlign: 'center' },
   menuCopies: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },

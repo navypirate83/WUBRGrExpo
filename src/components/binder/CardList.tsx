@@ -144,7 +144,7 @@ const GridTile = memo(function GridTile({ entry, onPick, size }: { entry: CardEn
 
 // The look: rows with a thin line under each, and grid tiles with a tag
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: SPACE.l, paddingVertical: SPACE.s, flexGrow: 1 },
+  content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   thumb: { width: 34, height: 48, borderRadius: 4 },
   rowText: { flex: 1, minWidth: 0 },

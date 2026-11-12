@@ -485,15 +485,23 @@ export const helpTopics: HelpTopic[] = [
         worth) and <Strong>Grid</Strong> (card pictures side by side). The app remembers your choice
         for the next binder you open, one for a phone-sized window and one for a wide screen, and
         saves it with your account so it follows you to your other devices.
-        In the list and grid, the button at the right (it shows the sort in use, like <Strong>A–Z</Strong>) opens
-        a <Strong>Sort by</Strong> window: <Strong>Name</Strong> (A to Z), <Strong>Newest added</Strong>, <Strong>Price</Strong> (the
-        most valuable first), <Strong>Color</Strong> (White, Blue, Black, Red, Green, then cards of several
-        colors, then colorless), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
-        Artifacts, Sorceries, Instants, Battles, Lands, then anything else), <Strong>Rarity</Strong> (Mythic,
+        In the list and grid, the button at the right (it shows the sort in use, like <Strong>A–Z</Strong>) drops
+        down a menu: <Strong>Name</Strong> (A to Z), <Strong>Newest added</Strong>, <Strong>Price</Strong> (the
+        most valuable first), <Strong>Color</Strong> (White, Blue, Black, Red, Green, then <Strong>Gold</Strong> for
+        every card of two or more colors, then colorless), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
+        Artifacts, Sorceries, Instants, Battles, Planeswalkers, Lands, then anything else; anything that is a
+        Land counts as a Land, even an Artifact Land), <Strong>Rarity</Strong> (Mythic,
         Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Cards that tie
         are in name order. Some sorts need each card's details from the internet, so for a
-        moment the cards stay in name order. Tap a card in the list or grid for its menu: copies,
+        moment the cards stay in name order. Sorting only changes how the list and grid are shown: it never
+        moves a card to another pocket. Tap a card in the list or grid for its menu: copies,
         open it in the Card Finder, move it or remove it.
+        To add a card from the list or grid, tap the red <Strong>+</Strong> in the corner: it opens the Card
+        Finder, and the card goes into the binder's next empty pocket (if every pocket is full, a page is
+        added at the end first).
+        In the <Strong>Binder</Strong> view, <Strong>Clean-up</Strong> (at the right, under the search bar) asks, then
+        moves every card forward to fill the empty pockets, keeping their order. It's faded when there are
+        no empty pockets in the way.
         The <Strong>Binder</Strong> view shows its pages, like a real binder lying open: two pages side by
         side on a tablet or computer, one page at a time on a phone. Each page has 16
         pockets, four across and four down, unless you've chosen another page layout
