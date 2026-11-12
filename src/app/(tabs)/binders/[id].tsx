@@ -1,6 +1,12 @@
 /* =====================================================================
-   ONE BINDER: ITS PAGES OF POCKETS (/binders/<id>)
-   Opening a binder shows its pages like a real binder lying open: one
+   ONE BINDER: ITS CARDS (/binders/<id>)
+   A binder opens as a LIST of its cards (the usual way), a GRID of card
+   pictures, or its pages of pockets (the "Binder" view): the buttons under
+   the search bar switch between them, and the app remembers your choice
+   (see lib/binderView.ts and components/binder/CardList.tsx).
+   Tapping a card in the list or grid opens its menu.
+   The rest of this note is about the Binder view.
+   The Binder view shows its pages like a real binder lying open: one
    page at a time on a phone, two side by side on a wider screen (a
    tablet, or a computer's browser window). Each page has the pockets
    across and down chosen in Settings (see Pocket.tsx and
@@ -23,7 +29,7 @@
    saved). The bell in the header sets a reminder about this binder.
    ===================================================================== */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Image } from 'expo-image';
@@ -43,6 +49,8 @@ import TextField from '@/components/TextField';
 import HelpButton from '@/components/HelpButton';
 import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
+import CardList, { type CardEntry } from '@/components/binder/CardList';
+import ViewSwitch from '@/components/binder/ViewSwitch';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import {
   MAX_COPIES, binderDirtyStamp, binderName, binderPages, cardCount, findBinder, isLocalMode, loadBinder,
@@ -55,6 +63,8 @@ import { loadOneCard } from '@/lib/scryfall';
 import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
+import { binderSort, binderViewMode, onBinderViewChange } from '@/lib/binderView';
+import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
 
@@ -226,6 +236,26 @@ function BinderView({ binderId }: { binderId: string }) {
       setCardsState(fresh);
     }
   }, [binderId]));
+
+  /* ----- How the cards are shown: a list, a grid or the binder's pockets ----- */
+
+  // The view and sort chosen (remembered on this device)
+  const mode = useSyncExternalStore(onBinderViewChange, binderViewMode, binderViewMode);
+  const sort = useSyncExternalStore(onBinderViewChange, binderSort, binderSort);
+  // The room beside the side menu (the whole window on a phone)
+  const contentWidth = useContentWidth();
+  // The cards for the list and grid, in the order chosen: by name (A to
+  // Z), or newest added first (a card with no date counts as oldest)
+  const entries = useMemo<CardEntry[]>(() => {
+    const list = Object.entries(cards).map(([key, card]) => ({ key, card }));
+    if (sort === 'added') {
+      list.sort((a, b) => (b.card.added ?? '').localeCompare(a.card.added ?? '') || a.card.name.localeCompare(b.card.name));
+    } else {
+      list.sort((a, b) => a.card.name.localeCompare(b.card.name) || a.card.set.localeCompare(b.card.set)
+        || a.card.number.localeCompare(b.card.number, undefined, { numeric: true }));
+    }
+    return list;
+  }, [cards, sort]);
 
   /* ----- The binder's size (worked out from the space on the screen) ----- */
 
@@ -586,6 +616,18 @@ function BinderView({ binderId }: { binderId: string }) {
     if (dragRef.current || Date.now() - lastHoldEnd.current < 400) return;
     openPocket(key);
   }, [openPocket]);
+
+  // "Add cards" (the list's empty page): the Card Finder, aimed at this
+  // binder's first empty pocket
+  function addCards() {
+    for (let page = 1; page <= totalPages; page++) {
+      for (let slot = 1; slot <= perPage; slot++) {
+        const key = pocketKey(page, slot);
+        if (!cardsRef.current[key]) { router.push(searchLinkFor(binderId, key) as never); return; }
+      }
+    }
+    showMessage('This binder is full', 'Every pocket has a card in it.');
+  }
 
   // The windows: the card's menu, "Remove card?" and "Move card to…"
   // (each with the pocket it's about), the reminder, and Keyboard shortcuts
@@ -1068,9 +1110,29 @@ function BinderView({ binderId }: { binderId: string }) {
           shelf) */}
       <View style={styles.top}>
         <BinderSearch currentBinderId={binderId} />
+        {/* List / Grid / Binder, and the sort */}
+        <ViewSwitch mode={mode} sort={sort} />
       </View>
 
-      {/* The space the binder fills (measured, so it can be sized to fit) */}
+      {/* THE LIST OR GRID of cards. Tapping a card opens its menu. */}
+      {mode !== 'binder' && (
+        <CardList
+          entries={entries}
+          mode={mode}
+          width={contentWidth}
+          onPick={(key) => setMenuKey(key)}
+          empty={(
+            <View style={styles.emptyList}>
+              <Text style={[styles.dialogText, { color: colors.muted }]}>No cards in this binder yet.</Text>
+              <Button label="Add cards" icon="add" onPress={addCards} />
+            </View>
+          )}
+        />
+      )}
+
+      {/* The space the binder fills (measured, so it can be sized to fit):
+          the Binder view's pockets */}
+      {mode === 'binder' && (
       <View ref={areaRef} style={styles.area} onLayout={onAreaLayout} collapsable={false}>
         {area.width > 0 && (<>
           {/* The page scrolls up and down when it's taller than the space
@@ -1172,6 +1234,7 @@ function BinderView({ binderId }: { binderId: string }) {
           )}
         </>)}
       </View>
+      )}
 
       {/* THE CARD'S MENU (hold a card and let go without dragging): its
           picture, how many copies, and what can be done with it */}
@@ -1180,7 +1243,7 @@ function BinderView({ binderId }: { binderId: string }) {
                      buttons={[{ label: 'Close', onPress: () => setMenuKey(null), kind: 'secondary' }]}>
           <Image source={pictureSource(menuCard.image)} style={styles.menuPicture} contentFit="contain" />
           <Text style={[styles.menuWhere, { color: colors.muted }]}>
-            {placeName(menuKey)}{menuCard.foil ? ' · foil' : ''}
+            {mode === 'binder' ? placeName(menuKey) : ''}{mode === 'binder' && menuCard.foil ? ' · ' : ''}{menuCard.foil ? 'foil' : ''}
           </Text>
           {/* How many copies: − and + */}
           <View style={styles.menuCopies}>
@@ -1307,6 +1370,7 @@ const styles = StyleSheet.create({
   headerName: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
   headerButton: { paddingHorizontal: 8 },
   pressed: { opacity: 0.5 },
+  emptyList: { alignItems: 'center', gap: 12, paddingTop: 40 },
   menuPicture: { width: '100%', height: 260 },
   menuWhere: { textAlign: 'center' },
   menuCopies: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },

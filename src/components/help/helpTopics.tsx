@@ -479,7 +479,14 @@ export const helpTopics: HelpTopic[] = [
     title: 'Binder pages',
     lead: (
       <>
-        Opening a binder shows its pages, like a real binder lying open: two pages side by
+        A binder opens as a <Strong>List</Strong> of its cards: a small picture, the name, the
+        set and number, and how many copies you have. The buttons under the search bar switch
+        between <Strong>List</Strong>, <Strong>Grid</Strong> (card pictures side by side) and{' '}
+        <Strong>Binder</Strong> (the pages of pockets below), and the app remembers your choice.
+        The <Strong>A–Z</Strong> button sorts the list and grid by name or by newest added. Tap
+        a card in the list or grid for its menu: copies, open it in the Card Finder, move it or
+        remove it.
+        The <Strong>Binder</Strong> view shows its pages, like a real binder lying open: two pages side by
         side on a tablet or computer, one page at a time on a phone. Each page has 16
         pockets, four across and four down, unless you've chosen another page layout
         in <HelpLink to="settings-layout">Settings</HelpLink>. The binder's name is at the top
