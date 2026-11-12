@@ -19,6 +19,7 @@ import { CARD_BACK } from '@/lib/cards';
 import { pictureSource } from '@/lib/http';
 import { MAX_COPIES, cardCount, type BinderCard } from '@/lib/binderStorage';
 import { fixed } from '@/theme/colors';
+import { FOIL_COLORS } from './FoilFrame';
 import { useColors } from '@/hooks/useTheme';
 
 type Props = {
@@ -61,7 +62,7 @@ function Pocket(props: Props) {
           {/* A foil card: a rainbow glow around the picture */}
           {card.foil && (
             <LinearGradient
-              colors={['#ff5f6d', '#ffc371', '#47e891', '#3ab0ff', '#b16cff']}
+              colors={[...FOIL_COLORS]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[StyleSheet.absoluteFill, styles.foil]}

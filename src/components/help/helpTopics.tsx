@@ -494,7 +494,7 @@ export const helpTopics: HelpTopic[] = [
         Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Cards that tie
         are in name order. Some sorts need each card's details from the internet, so for a
         moment the cards stay in name order. Sorting only changes how the list and grid are shown: it never
-        moves a card to another pocket. Tap a card in the list or grid for its menu: copies,
+        moves a card to another pocket. A foil card has a rainbow border in every view. Tap a card in the list or grid for its menu: copies,
         open it in the Card Finder, move it or remove it.
         To add a card from the list or grid, tap the red <Strong>+</Strong> in the corner: it opens the Card
         Finder, and the card goes into the binder's next empty pocket (if every pocket is full, a page is

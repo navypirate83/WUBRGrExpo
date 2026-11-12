@@ -2,13 +2,14 @@
    A BINDER'S CARDS AS A LIST OR A GRID
    The List and Grid views of an opened binder (the Binder view, with its
    pockets, is drawn by the binder screen itself).
-   - LIST: one line per card: a small picture, its name, its set and
+   - LIST: one line per card: a small picture (with a rainbow border if
+     it's a foil), its name, its set and
      number, how many copies you have, and what they're worth at the
      store chosen in Settings (a dash when it has no price).
    Above both, one quiet line: how many cards, how many different, and the
    total value.
-   - GRID: card pictures side by side, with a small orange "×3" tag on a
-     card you have more than one copy of.
+   - GRID: card pictures side by side (a foil has a rainbow border), with
+     a small orange "×3" tag on a card you have more than one copy of.
    Tapping a card calls "onPick" (the binder screen opens that card's
    menu: copies, open in the Card Finder, move, remove).
    The cards come in already sorted. Rows are drawn only as they scroll
@@ -22,6 +23,7 @@ import { useColors } from '@/hooks/useTheme';
 import { pictureSource } from '@/lib/http';
 import { cardCount, type BinderCard } from '@/lib/binderStorage';
 import { formatPrice } from '@/lib/prices';
+import FoilFrame from './FoilFrame';
 import type { BinderPrices } from '@/hooks/useBinderPrices';
 import { RADIUS, SPACE } from '@/theme/colors';
 
@@ -103,7 +105,9 @@ const ListRow = memo(function ListRow({ entry, onPick, border, price, currency }
       onPress={() => onPick(key)}
       style={({ pressed }) => [styles.row, { borderBottomColor: border }, pressed && { backgroundColor: colors.surfaceHover }]}
     >
-      <Image source={pictureSource(card.image)} style={styles.thumb} contentFit="cover" />
+      <FoilFrame foil={card.foil === true} width={34} height={48} radius={4}>
+        <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
+      </FoilFrame>
       <View style={styles.rowText}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
         <Text style={[styles.about, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
@@ -132,7 +136,9 @@ const GridTile = memo(function GridTile({ entry, onPick, size }: { entry: CardEn
       onPress={() => onPick(key)}
       style={({ pressed }) => [{ width: size }, pressed && styles.pressed]}
     >
-      <Image source={pictureSource(card.image)} style={{ width: size, height: Math.round(size * CARD_RATIO), borderRadius: 6 }} contentFit="cover" />
+      <FoilFrame foil={card.foil === true} width={size} height={Math.round(size * CARD_RATIO)} radius={6} border={3}>
+        <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
+      </FoilFrame>
       {count > 1 && (
         <View style={[styles.tag, { backgroundColor: colors.accent }]}>
           <Text style={[styles.tagText, { color: colors.accentText }]}>×{count}</Text>
@@ -146,7 +152,7 @@ const GridTile = memo(function GridTile({ entry, onPick, size }: { entry: CardEn
 const styles = StyleSheet.create({
   content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  thumb: { width: 34, height: 48, borderRadius: 4 },
+  thumbPicture: { width: '100%', height: '100%' },
   rowText: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: '600' },
   about: { fontSize: 12, marginTop: 1 },
