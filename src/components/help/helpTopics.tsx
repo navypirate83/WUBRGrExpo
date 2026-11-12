@@ -617,14 +617,14 @@ export const helpTopics: HelpTopic[] = [
               and side) is added. Pockets that already hold a card don't accept drops.
             </P>
             <P>
-              To <Strong>look at a card</Strong> already in the binder, tap it: it opens in the MTG
-              Card Finder. Picking a different printing there and pressing <Strong>+</Strong> replaces
-              the card in that pocket.
+              To <Strong>look at a card</Strong> already in the binder, tap it: its menu opens, the same one
+              as in the List and Grid views. <Strong>Open in Card Finder</Strong> there shows the card, and
+              picking a different printing and pressing <Strong>+</Strong> replaces the card in that pocket.
             </P>
             <P>
               Cards added as a foil or an etched foil have a <Strong>rainbow border</Strong>,
-              so you can tell them apart at a glance. Tapping one opens it in the MTG
-              Card Finder with Foil (or Etched) already chosen.
+              so you can tell them apart at a glance. <Strong>Open in Card Finder</Strong> in its menu shows it
+              with Foil (or Etched) already chosen.
             </P>
           </>
         ),
@@ -673,7 +673,7 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet>Let go anywhere else to put it back.</Bullet>
             <P>
-              <Strong>Hold a card still for half a second</Strong> (a finger, or the mouse button), and its menu opens instead: a big
+              <Strong>Tapping a card</Strong> (or holding it still for half a second) opens its menu: a big
               picture of the card, its copies (<Strong>−</Strong> and <Strong>+</Strong>), and <Strong>Open in Card
               Finder</Strong>, <Strong>Move to another binder</Strong> and <Strong>Remove from this binder</Strong>.
             </P>

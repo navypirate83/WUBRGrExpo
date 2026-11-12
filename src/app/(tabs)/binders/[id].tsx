@@ -18,14 +18,15 @@
    Touching the binder:
    - SWIPE left or right to turn the page (or tap Previous / Next): the
      page swings over like a real page turning
-   - TAP a card to open it in the Card Finder, or an empty pocket's "+"
-     to pick a card for it
+   - TAP a card for its menu (the same one the List and Grid views open),
+     or an empty pocket's "+" to pick a card for it
    - the "− 3 +" bar changes how many copies you own
    - REST a finger on a card, then drag it (with a mouse: press and
      drag) onto another pocket, swapping with any card there. Holding it
      at the binder's left or right edge turns the page.
-   - HOLD a card still for half a second for its menu: copies, open it,
-     move it to another binder, or remove it.
+   - HOLD a card still for half a second: its menu opens too (the menu:
+     copies, open it in the Card Finder, move it to another binder, or
+     remove it).
    On a computer, the arrow and Page Up / Down keys turn pages, and card
    pictures dragged in from Scryfall or EDHREC fill empty pockets.
    Every change is saved on this device straight away, then to Google
@@ -646,12 +647,15 @@ function BinderView({ binderId }: { binderId: string }) {
     router.push(searchLinkFor(binderId, key, cardsRef.current[key]) as never);
   }, [binderId]);
 
-  // Tapping a pocket opens it. A tap while a finger is resting on the
-  // binder, or right after one let go, doesn't count: the drag code
+  // Tapping a pocket with a card in it opens that card's menu (the same as
+  // tapping a card in the List or Grid view); tapping an empty pocket opens
+  // the Card Finder to pick a card for it. A tap while a finger is resting
+  // on the binder, or right after one let go, doesn't count: the drag code
   // below has already dealt with that touch.
   const lastHoldEnd = useRef(0);
   const onOpen = useCallback((key: string) => {
     if (dragRef.current || Date.now() - lastHoldEnd.current < 400) return;
+    if (cardsRef.current[key]) { setHighlightKey(null); setMenuKey(key); return; }
     openPocket(key);
   }, [openPocket]);
 

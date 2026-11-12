@@ -74,7 +74,7 @@ function Pocket(props: Props) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${card.name}${card.foil ? ', foil' : ''}${count > 1 ? `, ${count} copies` : ''}, page ${page}, pocket ${slot}`}
-            accessibilityHint="Opens the card in the Card Finder. Rest your finger on it, then move, to pick it up."
+            accessibilityHint="Opens the card's menu. Rest your finger on it, then move, to pick it up."
             onPress={() => onOpen(key)}
             onLongPress={onHold ? () => onHold(key) : undefined}
             style={[styles.cardHolder, card.foil && styles.foilInset, faded && styles.faded]}
