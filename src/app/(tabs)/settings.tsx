@@ -3,14 +3,14 @@
    The app's settings, in groups, laid out like a phone's own Settings
    app (see components/settings/SettingsParts.tsx). The groups:
    - Appearance: the theme (Dark, System or Light)
-   - Binders: the price store (whose prices the binders show), and the
-     page layouts (pockets across and down each page): one for phones
+   - Collection: the price store (whose prices the binders show), and the
+     binder slot layouts (pockets across and down each page): one for phones
      (narrow windows) and one for wide screens
    - Search: which formats show in the Card Finder's Format Legality box
    - Account: who's signed in, and signing in or out
    - Device memory: "Reset device memory", the only way to clear the collection
    - About: the app's version, links, and the fan content notice
-   Binders and Search only show for someone using the binders (signed
+   Collection and Search only show for someone using the binders (signed
    in, or using the app locally): before that there's nowhere to save
    them. The theme can be changed by anyone (it's kept on this device).
    Each change saves straight away; the line at the top says where.
@@ -113,11 +113,11 @@ export default function SettingsScreen() {
           <FullScreenSwitch />
         </SettingsSection>
 
-        {/* BINDERS: how every binder's pages are laid out. There are two
+        {/* COLLECTION: how every binder's pages are laid out. There are two
             layouts, so a phone can have bigger pockets than a computer:
             the window's width decides which one shows (see pageLayout.ts) */}
         {usingBinders && (
-          <SettingsSection title="Binders">
+          <SettingsSection title="Collection">
             <SettingBlock
               name="Price store"
               description="Which store's prices to show for your cards in the binders (and first on the Card Finder). TCGplayer and Card Kingdom are in US dollars, Cardmarket in euros."
@@ -125,13 +125,13 @@ export default function SettingsScreen() {
               <PriceStorePicker value={settings.priceStore} onChange={(priceStore) => change({ priceStore })} />
             </SettingBlock>
             <SettingBlock
-              name="Page layout on a phone"
+              name="Binder slot layout on a phone"
               description="How many pockets across and down each binder page has when the window is narrow (under 600 wide): a phone held upright, or the website in a narrow window. Like 3 × 3 for 9-pocket pages. Changing it keeps your cards in the same order, flowing onto more or fewer pages; change it back and every card returns to where it was."
             >
               <LayoutPicker value={settings.phoneLayout} onChange={(phoneLayout) => change({ phoneLayout })} />
             </SettingBlock>
             <SettingBlock
-              name="Page layout on a wide screen"
+              name="Binder slot layout on a wide screen"
               description="The same, for a wider window: a computer, a tablet, or a phone held sideways. Your binders keep the same cards in the same order whichever layout is showing."
             >
               <LayoutPicker value={settings.wideLayout} onChange={(wideLayout) => change({ wideLayout })} />

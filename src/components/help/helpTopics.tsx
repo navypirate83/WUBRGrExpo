@@ -278,7 +278,7 @@ export const helpTopics: HelpTopic[] = [
               the binder's own name, cover and size (the same on every line).
             </Bullet>
             <Bullet>
-              <Strong>Page layout</Strong>: the pockets across and down a page (like "4x4") that
+              <Strong>Binder slot layout</Strong>: the pockets across and down a page (like "4x4") that
               the Page and Pocket numbers count in. A file saved with one layout opens correctly
               with another: its cards stay in the same order.
             </Bullet>
@@ -1009,7 +1009,7 @@ export const helpTopics: HelpTopic[] = [
               Tap <Strong>Settings</Strong> (the gear) at the bottom right of the screen.
             </P>
             <P>
-              Settings are in groups: <Strong>Appearance</Strong>, <Strong>Binders</Strong>, <Strong>Search</Strong>, <Strong>Account</Strong> and <Strong>About</Strong>.
+              Settings are in groups: <Strong>Appearance</Strong>, <Strong>Collection</Strong>, <Strong>Search</Strong>, <Strong>Account</Strong> and <Strong>About</Strong>.
               Each change saves as soon as you make it: there's no Save button. The line at the
               top of the screen says where it was saved.
             </P>
@@ -1073,13 +1073,13 @@ export const helpTopics: HelpTopic[] = [
       },
       {
         id: 'settings-layout',
-        title: 'Page layout',
+        title: 'Binder slot layout',
         body: (
           <>
             <P>
-              Under <Strong>Binders</Strong> there are two page layouts, so a phone can have
-              bigger pockets than a computer: <Strong>Page layout on a phone</Strong> and <Strong>Page
-              layout on a wide screen</Strong>. Each sets how many pockets every binder page
+              Under <Strong>Collection</Strong> there are two binder slot layouts, so a phone can have
+              bigger pockets than a computer: <Strong>Binder slot layout on a phone</Strong> and <Strong>Binder
+              slot layout on a wide screen</Strong>. Each sets how many pockets every binder page
               has: tap <Strong>−</Strong> and <Strong>+</Strong> beside <Strong>Across</Strong> and <Strong>Down</Strong> (1
               to 6 each). For example, 3 × 3 for 9-pocket pages, 4 × 3 for 12, or 3 × 5. Both
               start at 4 × 4 (16 pockets). The small picture under them shows one page, with
