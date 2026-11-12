@@ -146,7 +146,6 @@ function ThemedStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'WUBRG\'r' }} />
         {/* Screens that slide in on top of the tabs */}
         <Stack.Screen name="help" options={{ title: 'Help' }} />
-        <Stack.Screen name="decklists" options={{ title: 'Decks' }} />
         <Stack.Screen name="login" options={{ title: 'Account' }} />
       </Stack>
       {/* The "Phone and Google Drive don't match" window: invisible until

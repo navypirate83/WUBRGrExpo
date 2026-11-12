@@ -8,6 +8,9 @@
    - lists.tsx: your lists (/binders/lists), switched to and from the
                 shelf with the Binders / Lists buttons. It swaps in
                 without sliding, since it's the shelf's other side.
+   - decks.tsx: your decks (/binders/decks), the shelf's third side
+                (not built yet). Switched to and from the others the
+                same way as lists, with no sliding.
    - list/[id].tsx: one list (/binders/list/abc123), sliding in over
                 the lists
    - [id].tsx:  one binder (/binders/abc123: the part in [brackets] is
@@ -43,6 +46,8 @@ export default function BindersLayout() {
       <Stack.Screen name="index" options={{ title: 'The Shelf' }} />
       {/* Your lists: no sliding in, and no back arrow (the switch goes back) */}
       <Stack.Screen name="lists" options={{ title: 'Lists', animation: 'none', headerBackVisible: false, headerLeft: () => null }} />
+      {/* Your decks (not built yet): the same as the lists page */}
+      <Stack.Screen name="decks" options={{ title: 'Decks', animation: 'none', headerBackVisible: false, headerLeft: () => null }} />
       {/* One list: it slides in over the lists, with a back arrow. Its
           title is set by the list screen itself (the list's name). */}
       <Stack.Screen name="list/[id]" options={{ title: 'List' }} />

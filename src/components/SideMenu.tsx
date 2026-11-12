@@ -3,7 +3,7 @@
    When the window is wide enough (see lib/layoutSize.ts), this replaces
    the tabs along the bottom. It has two sizes:
      - "full": the app's name in its five colors, then Home, a "Shelf"
-       group with Binders and Lists under it, Card Finder, Settings,
+       group with Binders, Lists and Decks under it, Card Finder, Settings,
        Help, and your account at the bottom
      - "slim": the same, but icons only, in a narrow strip
    A button above Help collapses the full menu to the slim one (and
@@ -40,9 +40,10 @@ const NOTEBOOK_PICTURE = require('../../assets/images/notebook-outline.svg') as 
 // An Ionicons icon's name, written the way the icon set spells it
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// Is this address the Lists page (or one list)? Everything else under
-// /binders is the Binders page (the shelf, or one binder).
+// Is this address the Lists page (or one list), or the Decks page?
+// Everything else under /binders is the Binders page (the shelf, or one binder).
 const LISTS_ADDRESS = /^\/binders\/lists?(\/|$)/;
+const DECKS_ADDRESS = /^\/binders\/decks(\/|$)/;
 
 export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   const colors = useColors();
@@ -56,7 +57,8 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
 
   const onHome = path === '/';
   const onLists = LISTS_ADDRESS.test(path);
-  const onBinders = path.startsWith('/binders') && !onLists;
+  const onDecks = DECKS_ADDRESS.test(path);
+  const onBinders = path.startsWith('/binders') && !onLists && !onDecks;
   const onSearch = path === '/search';
   const onSettings = path === '/settings';
 
@@ -96,14 +98,15 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
 
       <MenuItem slim={slim} label="Home" icon="home-outline" activeIcon="home" active={onHome} onPress={() => router.navigate('/')} />
 
-      {/* The Shelf: a heading (not a page of its own) with the two things on it under it */}
+      {/* The Shelf: a heading (not a page of its own) with the things on it under it */}
       <View style={[styles.groupHeading, slim && styles.centered]} accessibilityRole="header">
-        <Ionicons name={onBinders || onLists ? 'library' : 'library-outline'} size={22} color={colors.text} />
+        <Ionicons name={onBinders || onLists || onDecks ? 'library' : 'library-outline'} size={22} color={colors.text} />
         {!slim && <Text style={[styles.groupText, { color: colors.text }]}>Shelf</Text>}
       </View>
       <View style={[styles.subItems, !slim && { borderLeftColor: colors.border }, slim && styles.subItemsSlim]}>
         <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate('/binders')} />
         <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => router.navigate('/binders/lists')} />
+        <MenuItem slim={slim} sub label="Decks" icon="albums-outline" activeIcon="albums" active={onDecks} onPress={() => router.navigate('/binders/decks')} />
       </View>
 
       <MenuItem slim={slim} label="Card Finder" icon="search-outline" activeIcon="search" active={onSearch} onPress={() => router.navigate('/search')} />

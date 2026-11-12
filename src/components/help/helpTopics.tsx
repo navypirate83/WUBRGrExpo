@@ -53,9 +53,10 @@ export const helpTopics: HelpTopic[] = [
         name, cover symbol and color), with how many cards it has under it. As many fit
         across as the screen has room for, and more rows appear as you make more. Tap <Strong>The
         Shelf</Strong> (the row of books) at the bottom of the screen to get to it.
-        The two picture buttons at the top switch between your <Strong>Binders</Strong> (the open
-        binder) and your <Strong>Lists</Strong> (the spiral notebook); the faded one is the page
-        you're on. (See <HelpLink to="my-binders-lists">Lists</HelpLink>.)
+        The three picture buttons at the top switch between your <Strong>Binders</Strong> (the open
+        binder), your <Strong>Lists</Strong> (the spiral notebook) and your <Strong>Decks</Strong> (the
+        stack of cards, which isn't built yet); the faded one is the page you're on.
+        (See <HelpLink to="my-binders-lists">Lists</HelpLink>.)
       </>
     ),
     sections: [
@@ -361,13 +362,13 @@ export const helpTopics: HelpTopic[] = [
             <P>
               <Strong>On a tablet, an opened foldable phone, or the website in a wide window</Strong>, the
               tabs move from the bottom to a <Strong>menu down the left side</Strong>. It has Home, a{' '}
-              <Strong>Shelf</Strong> heading with <Strong>Binders</Strong> and <Strong>Lists</Strong> under
+              <Strong>Shelf</Strong> heading with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
               it, Card Finder, Settings and Help. At the bottom is your account: tap it for Account
               settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
               out, it has Log in and Create account buttons. On a narrower window, or a phone held
               sideways, the menu is just the icons on its own. On a wide window, the small round arrow button at the top of the menu collapses
               the menu to just the icons (and expands it again); the app remembers your choice. With the menu
-              showing, the shelf leaves out its own Binders and Lists buttons, since the menu has them. A normal
+              showing, the shelf leaves out its own Binders, Lists and Decks buttons, since the menu has them. A normal
               phone keeps the tabs along the bottom.
             </P>
             <P>
