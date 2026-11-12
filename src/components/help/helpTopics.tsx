@@ -1009,7 +1009,7 @@ export const helpTopics: HelpTopic[] = [
               Tap <Strong>Settings</Strong> (the gear) at the bottom right of the screen.
             </P>
             <P>
-              Settings are in groups: <Strong>Appearance</Strong>, <Strong>Collection</Strong>, <Strong>Search</Strong>, <Strong>Account</Strong> and <Strong>About</Strong>.
+              Settings are in groups: <Strong>Appearance</Strong>, <Strong>Accessibility</Strong> (website only: <Strong>Allow pinch to zoom</Strong>; the website normally doesn't let the browser zoom the page when you pinch, like an app, so turn this on if you need to enlarge it; the Grid view of a binder still zooms its cards when you pinch it), <Strong>Collection</Strong>, <Strong>Search</Strong>, <Strong>Account</Strong> and <Strong>About</Strong>.
               Each change saves as soon as you make it: there's no Save button. The line at the
               top of the screen says where it was saved.
             </P>

@@ -2,7 +2,7 @@
    FINISHING THE WEBSITE FOR GITHUB PAGES
    "npm run build" first runs "expo export -p web", which makes the
    finished website in the "dist" folder. Then this little script adds
-   three things:
+   a few things:
    - the "install as an app" tags in index.html: a link to manifest.json (in
      the "public" folder, which says the site opens as a standalone app,
      with no address bar) and the matching tags iPhones read. Without
@@ -32,7 +32,10 @@ const appTags = [
   '<meta name="apple-mobile-web-app-capable" content="yes">',
   '<meta name="apple-mobile-web-app-title" content="WUBRG\'r">',
 ].join('\n');
-const html = fs.readFileSync(indexPath, 'utf8');
+// The page's own pinch-to-zoom is switched off too (the app has its own zoom
+// in the Grid view; see src/lib/noPageZoom.ts), by changing the viewport tag
+const html = fs.readFileSync(indexPath, 'utf8')
+  .replace(/<meta name="viewport" content="[^"]*"\s*\/?>/, '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no" />');
 if (!html.includes('</head>')) throw new Error('index.html has no </head> to add the app tags to');
 fs.writeFileSync(indexPath, html.replace('</head>', `${appTags}\n</head>`));
 

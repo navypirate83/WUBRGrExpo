@@ -27,6 +27,7 @@ import { loadSession } from '@/lib/session';
 import { followScreenSize } from '@/lib/settings';
 import { hrefFor, recordVisit } from '@/lib/navHistory';
 import { loadPictureCache } from '@/lib/pictureCache';
+import { disablePageZoom } from '@/lib/noPageZoom';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { RequestError } from '@/lib/http';
 import { useColors, useTheme } from '@/hooks/useTheme';
@@ -66,6 +67,10 @@ export const unstable_settings = { initialRouteName: '(tabs)' };
 export default function RootLayout() {
   // Has everything saved on this device been read yet?
   const [ready, setReady] = useState(false);
+
+  // On the website, turn off the browser's own pinch-to-zoom for the whole
+  // app (the Grid view has its own pinch zoom: see lib/noPageZoom.ts)
+  useEffect(() => { disablePageZoom(); }, []);
 
   // Read it all once, when the app starts, then hide the splash screen.
   // Then pick up a saved login to the WUBRG'r server (it doesn't wait for

@@ -3,6 +3,7 @@
    The app's settings, in groups, laid out like a phone's own Settings
    app (see components/settings/SettingsParts.tsx). The groups:
    - Appearance: the theme (Dark, System or Light)
+   - Accessibility (website only): a switch to allow the browser's pinch to zoom
    - Collection: the price store (whose prices the binders show), and the
      binder slot layouts (pockets across and down each page): one for phones
      (narrow windows) and one for wide screens
@@ -20,7 +21,7 @@
    ===================================================================== */
 
 import { useState, useSyncExternalStore } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAccount } from '@/hooks/useAccount';
 import { useSettings } from '@/hooks/useSettings';
 import { useColors } from '@/hooks/useTheme';
@@ -34,6 +35,7 @@ import PriceStorePicker from '@/components/settings/PriceStorePicker';
 import FormatSwitches from '@/components/settings/FormatSwitches';
 import AccountSection from '@/components/settings/AccountSection';
 import FullScreenSwitch from '@/components/settings/FullScreenSwitch';
+import PinchZoomSwitch from '@/components/settings/PinchZoomSwitch';
 import PhoneMemorySection from '@/components/settings/PhoneMemorySection';
 import PicturesSection from '@/components/settings/PicturesSection';
 import AboutSection from '@/components/settings/AboutSection';
@@ -112,6 +114,13 @@ export default function SettingsScreen() {
           {/* Website only: fill the screen, hiding the browser's address bar */}
           <FullScreenSwitch />
         </SettingsSection>
+
+        {/* ACCESSIBILITY (website only): allow the browser's pinch-to-zoom */}
+        {Platform.OS === 'web' && (
+          <SettingsSection title="Accessibility">
+            <PinchZoomSwitch />
+          </SettingsSection>
+        )}
 
         {/* COLLECTION: how every binder's pages are laid out. There are two
             layouts, so a phone can have bigger pockets than a computer:
