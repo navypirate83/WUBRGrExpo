@@ -1120,6 +1120,13 @@ export const helpTopics: HelpTopic[] = [
               information comes from. On the website (not the phone app) it also has a
               {' '}<Strong>Download Android App from Google Drive</Strong> link under the website address.
             </P>
+            <P>
+              <Strong>Server status</Strong> says whether the WUBRG'r server (the one that keeps
+              your account's binders) is running. On the website a small live badge at the right
+              end of the row shows it. In the phone app, tap the row to open the status page in
+              your browser. If the badge says the server is down, your binders still work on
+              this device and sync when it's back.
+            </P>
           </>
         ),
       },
