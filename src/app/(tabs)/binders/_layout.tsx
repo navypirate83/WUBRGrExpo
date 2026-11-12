@@ -18,11 +18,13 @@
    ===================================================================== */
 
 import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, usePathname } from 'expo-router';
 import HelpButton from '@/components/HelpButton';
 import AppHeader from '@/components/AppHeader';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useColors } from '@/hooks/useTheme';
+import { rememberShelfPlace } from '@/lib/shelfMemory';
 
 // The shelf is always at the bottom of this stack, even when a binder
 // is opened straight from its address (a shared link, a reminder, or
@@ -43,6 +45,12 @@ function shelfHeaderRight(page: 'binders' | 'lists' | 'decks') {
 
 export default function BindersLayout() {
   const colors = useColors();
+  // Note where you are in the shelf every time the address changes, so the
+  // Binders / Lists / Decks buttons and the Shelf button can bring you back
+  // to it (see lib/shelfMemory.ts). This stays on while you visit Settings
+  // or the Card Finder; those addresses are ignored.
+  const pathname = usePathname();
+  useEffect(() => { rememberShelfPlace(pathname); }, [pathname]);
   return (
     <Stack
       screenOptions={{

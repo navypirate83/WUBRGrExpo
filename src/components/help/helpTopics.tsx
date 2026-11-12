@@ -350,7 +350,13 @@ export const helpTopics: HelpTopic[] = [
               It also has buttons for <Strong>Lists</Strong> (your card lists)
               and <Strong>Decks</Strong> (your decklists, still being built).
             </Bullet>
-            <Bullet><Strong>The Shelf</Strong> (the row of books): your shelf of binders.</Bullet>
+            <Bullet>
+              <Strong>The Shelf</Strong> (the row of books): your binders, lists and decks. It takes you back to
+              wherever you were in the shelf, like the binder you had open (on the same page), even after a trip
+              to Settings or the Card Finder. The <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> buttons
+              in the header do the same for their own part: after visiting Lists, the Binders button opens
+              the binder you were in, not the shelf.
+            </Bullet>
             <Bullet><Strong>Card Finder</Strong> (the magnifying glass): the MTG Card Finder, to look up any card.</Bullet>
             <Bullet>
               <Strong>Settings</Strong> (the gear): the theme (light or dark) and more
@@ -362,8 +368,8 @@ export const helpTopics: HelpTopic[] = [
             <P>
               <Strong>On a tablet, an opened foldable phone, or the website in a wide window</Strong>, the
               tabs move from the bottom to a <Strong>menu down the left side</Strong>. It has Home, a{' '}
-              <Strong>The Shelf</Strong> heading with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
-              it, Card Finder, Settings and Help. At the bottom is your account: tap it for Account
+              <Strong>The Shelf</Strong> heading (tap it to go back to where you were in the shelf) with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
+              it (each opens the last place you were in that part), Card Finder, Settings and Help. At the bottom is your account: tap it for Account
               settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
               out, it has Log in and Create account buttons. On a narrower window, or a phone held
               sideways, the menu is just the icons on its own. On a wide window, the small round arrow button at the top of the menu collapses

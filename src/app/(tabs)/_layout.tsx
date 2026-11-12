@@ -3,7 +3,8 @@
    The app's four main screens, one tab each: Home, The Shelf (your
    binders), Card Finder (searching Scryfall) and Settings. Tapping a
    tab switches screens; each screen stays as you left it (scrolled
-   down, a search typed in) when you switch back.
+   down, a search typed in) when you switch back. The Shelf tab takes you
+   back to the last place you were in the shelf (see lib/shelfMemory.ts).
    This is Expo Router's "Tabs": every file in this (tabs) folder is one
    tab, and the list below says each one's title and icon. (The brackets
    in "(tabs)" mean the folder's name isn't part of the address: Card
@@ -14,7 +15,7 @@
    windows (phones) keep the bottom tabs exactly as before.
    ===================================================================== */
 
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HelpButton from '@/components/HelpButton';
@@ -23,6 +24,7 @@ import AppHeader from '@/components/AppHeader';
 import SideMenu from '@/components/SideMenu';
 import { useMenuStyle } from '@/hooks/useMenuStyle';
 import { useColors } from '@/hooks/useTheme';
+import { shelfHref } from '@/lib/shelfMemory';
 
 // One tab's icon: an outline normally, filled in when it's the tab you're on
 function tabIcon(name: keyof typeof Ionicons.glyphMap, filled: keyof typeof Ionicons.glyphMap) {
@@ -74,6 +76,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="binders"
         options={{ title: 'The Shelf', headerShown: false, tabBarIcon: tabIcon('library-outline', 'library') }}
+        // Tapping it goes back to where you were in the shelf (the binder or
+        // list you had open), even after a trip to Settings or the Card Finder
+        listeners={{ tabPress: (event) => { event.preventDefault(); router.navigate(shelfHref() as never); } }}
       />
       {/* Card Finder: searching for any Magic card */}
       <Tabs.Screen

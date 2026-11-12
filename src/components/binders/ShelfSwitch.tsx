@@ -5,6 +5,8 @@
    notebook (your lists) and a Commander deck box (your decks). The
    button for the page you're already on is faded out and can't be
    pressed; the others switch to their pages.
+   Each button goes to the last place you were in that section (the binder
+   or list you had open), not just its first page: see lib/shelfMemory.ts.
    When the side menu is showing it already has Binders, Lists and Decks,
    so this switch hides itself.
    Switching "replaces" the page instead of piling the new one on top,
@@ -17,6 +19,7 @@ import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { useMenuStyle } from '@/hooks/useMenuStyle';
+import { sectionHref } from '@/lib/shelfMemory';
 import { RADIUS } from '@/theme/colors';
 
 // The pages, each with its picture (one of the app's own line drawings)
@@ -47,7 +50,7 @@ export default function ShelfSwitch({ current }: { current: Page }) {
             accessibilityLabel={here ? `${PAGES[page].name} (showing)` : `Show your ${PAGES[page].name.toLowerCase()}`}
             accessibilityState={{ disabled: here, selected: here }}
             disabled={here}
-            onPress={() => router.replace(PAGES[page].to as never)}
+            onPress={() => router.replace(sectionHref(page) as never)}
             style={({ pressed }) => [
               styles.button,
               { backgroundColor: colors.surface, borderColor: colors.border },

@@ -6,6 +6,9 @@
        group with Binders, Lists and Decks under it, Card Finder, Settings,
        Help, and your account at the bottom
      - "slim": the same, but icons only, in a narrow strip
+   The Binders, Lists and Decks lines go to the last place in that section
+   (the binder you had open, say), and "The Shelf" is a button that goes
+   back to the last place in the shelf (see lib/shelfMemory.ts).
    A button above Help collapses the full menu to the slim one (and
    expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
@@ -29,6 +32,7 @@ import { useColors } from '@/hooks/useTheme';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { changedSinceSync, syncQuietly } from '@/lib/serverSync';
 import { setMenuCollapsed } from '@/lib/menuPreference';
+import { sectionHref, shelfHref } from '@/lib/shelfMemory';
 import { signOut as serverSignOut } from '@/lib/session';
 import { FULL_MENU_WIDTH, SLIM_MENU_WIDTH } from '@/lib/layoutSize';
 import { RADIUS, SPACE } from '@/theme/colors';
@@ -99,15 +103,22 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
 
       <MenuItem slim={slim} label="Home" icon="home-outline" activeIcon="home" active={onHome} onPress={() => router.navigate('/')} />
 
-      {/* The Shelf: a heading (not a page of its own) with the things on it under it */}
-      <View style={[styles.groupHeading, slim && styles.centered]} accessibilityRole="header">
+      {/* The Shelf: a button back to where you were in the shelf, with the
+          things on it under it */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="The Shelf"
+        accessibilityHint="Goes back to where you were in the shelf"
+        onPress={() => router.navigate(shelfHref() as never)}
+        style={({ pressed }) => [styles.groupHeading, slim && styles.centered, pressed && { opacity: 0.6 }]}
+      >
         <Ionicons name={onBinders || onLists || onDecks ? 'library' : 'library-outline'} size={22} color={colors.text} />
         {!slim && <Text style={[styles.groupText, { color: colors.text }]}>The Shelf</Text>}
-      </View>
+      </Pressable>
       <View style={[styles.subItems, !slim && { borderLeftColor: colors.border }, slim && styles.subItemsSlim]}>
-        <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate('/binders')} />
-        <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => router.navigate('/binders/lists')} />
-        <MenuItem slim={slim} sub label="Decks" picture={DECK_BOX_PICTURE} active={onDecks} onPress={() => router.navigate('/binders/decks')} />
+        <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate(sectionHref('binders') as never)} />
+        <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => router.navigate(sectionHref('lists') as never)} />
+        <MenuItem slim={slim} sub label="Decks" picture={DECK_BOX_PICTURE} active={onDecks} onPress={() => router.navigate(sectionHref('decks') as never)} />
       </View>
 
       <MenuItem slim={slim} label="Card Finder" icon="search-outline" activeIcon="search" active={onSearch} onPress={() => router.navigate('/search')} />

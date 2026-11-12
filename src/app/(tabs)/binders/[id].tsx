@@ -72,6 +72,7 @@ import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
 import { sortEntries } from '@/lib/binderSort';
 import { fillDetails, needsDetails } from '@/lib/cardDetails';
+import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
@@ -333,11 +334,16 @@ function BinderView({ binderId }: { binderId: string }) {
   // always odd (1–2, 3–4…), like a real binder opened flat.
   const [currentPageState, setCurrentPage] = useState(() => {
     const start = parseInt(params.page ?? '', 10);
-    return start >= 1 && start <= totalPages ? start : 1;
+    if (start >= 1 && start <= totalPages) return start;
+    // No page in the address: the page this binder was on when you left it
+    const before = rememberedBinderPage(binderId);
+    return before !== undefined && before >= 1 && before <= totalPages ? before : 1;
   });
   const currentPage = perView === 2 && currentPageState % 2 === 0 ? currentPageState - 1 : currentPageState;
   const currentRef = useRef(currentPage);
   currentRef.current = currentPage;
+  // Remember the page, so coming back to this binder opens on it
+  useEffect(() => { rememberBinderPage(binderId, currentPage); }, [binderId, currentPage]);
   const lastShown = Math.min(currentPage + perView - 1, totalPages);
   const shown = range(currentPage, lastShown);
 
