@@ -9,7 +9,10 @@
      Binders button opens Colorless again (not the shelf of binders)
    - the Shelf button (the tab along the bottom, or "The Shelf" in the side
      menu) goes to the last place in the shelf at all, whichever section,
-     so after a trip to Settings or the Card Finder you're back at it
+     so after a trip to Settings or the Card Finder you're back at it. The
+     exception is the bottom tab on a phone while you're ALREADY inside a
+     binder, list or deck: then it goes to that section's main page
+     (shelfRootHref below)
    - an opened binder also remembers which page it was on
    A binder or list that has been deleted since is forgotten: its button
    goes to the section's first page instead.
@@ -72,6 +75,16 @@ export function sectionHref(section: ShelfSection): string {
 // Where the Shelf button should go: the last place in the whole shelf
 export function shelfHref(): string {
   return sectionHref(lastSection);
+}
+
+// If this address is inside the shelf, the main page of the section it's in
+// (the shelf of binders, the lists page, or the decks page); otherwise
+// null. The bottom Shelf tab on a phone uses it: pressed while you're inside
+// a binder or list, it goes up to the main page; when you're already on the
+// main page it stays there.
+export function shelfRootHref(pathname: string): string | null {
+  const section = sectionOf(pathname);
+  return section ? FIRST_PAGE[section] : null;
 }
 
 // An opened binder's page number, remembered so it opens on the same page

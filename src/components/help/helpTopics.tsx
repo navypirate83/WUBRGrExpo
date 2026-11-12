@@ -360,7 +360,8 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               <Strong>The Shelf</Strong> (the row of books): your binders, lists and decks. It takes you back to
               wherever you were in the shelf, like the binder you had open (on the same page), even after a trip
-              to Settings or the Card Finder. The <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> buttons
+              to Settings or the Card Finder. (On a phone, if you're already inside a binder or list, tapping it takes you
+              up to the main page instead: the shelf of binders, or the lists page.) The <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> buttons
               in the header do the same for their own part: after visiting Lists, the Binders button opens
               the binder you were in, not the shelf.
             </Bullet>
