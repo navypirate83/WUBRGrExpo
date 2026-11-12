@@ -21,6 +21,8 @@
 
 import { storageGet, storageKeys, storageRemove, storageSet } from './storage';
 import { samePrinting, type BinderCard } from './binderStorage';
+import { needsDetails, withDetails } from './cardDetails';
+import type { ScryfallCard } from './scryfall';
 
 // One card in a list: a binder card, plus its casting cost (like
 // "{1}{U}{U}") and type line (like "Creature — Elf Druid")
@@ -152,6 +154,38 @@ export function addCardToList(id: string, card: ListCard): boolean {
   const list = findList(id);
   if (!list || list.cards.some((c) => samePrinting(c, card))) return false;
   return changeList(id, (l) => ({ ...l, cards: [...l.cards, card] }));
+}
+
+// Change how many copies of the card at this spot (0 is the first) a list
+// has. One copy is saved as no count at all, the same as a binder's cards.
+export function setListCardCount(id: string, index: number, count: number): boolean {
+  return changeList(id, (l) => ({
+    ...l,
+    cards: l.cards.map((card, i) => {
+      if (i !== index) return card;
+      const next = { ...card };
+      if (count > 1) next.count = count;
+      else delete next.count;
+      return next;
+    }),
+  }));
+}
+
+// Save the details sorting needs (colors, type, rarity, mana value, release
+// date: see cardDetails.ts) with the cards of a list that don't have them
+// yet, from their printings (by "set/number" in lowercase). Returns true if
+// anything was filled in.
+export function fillListDetails(id: string, printings: Map<string, ScryfallCard>): boolean {
+  const list = findList(id);
+  if (!list) return false;
+  let changed = false;
+  const cards = list.cards.map((card) => {
+    const print = needsDetails(card) ? printings.get(`${card.set}/${card.number}`.toLowerCase()) : undefined;
+    if (!print) return card;
+    changed = true;
+    return withDetails(card, print) as ListCard;
+  });
+  return changed && changeList(id, (l) => ({ ...l, cards }));
 }
 
 // Take the card at this spot (0 is the first) out of a list

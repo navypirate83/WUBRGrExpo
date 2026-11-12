@@ -1,6 +1,7 @@
 /* =====================================================================
-   THE VIEW SWITCH (inside an opened binder)
+   THE VIEW SWITCH (inside an opened binder or card list)
    A row of small buttons under the search bar: List, Grid and Binder
+   (an opened card list has no pockets, so it's given just List and Grid)
    (the one you're on is filled in orange), and one more button at the
    right that depends on the view:
    - List and Grid: a Sort button that shows the sort in use and drops a
@@ -39,13 +40,18 @@ type Props = {
   mode: BinderViewMode;
   sort: BinderSort;
   reversed: boolean;       // the sort is the other way round
+  // Which views to offer (a binder has all three; a card list just List and
+  // Grid), and what to do when one is picked (a binder and a card list each
+  // remember their own choice)
+  modes?: BinderViewMode[];
+  onView?: (mode: BinderViewMode) => void;
   // Clean-up (Binder view): called when it's tapped, and whether there's
   // anything for it to do
-  onCleanUp: () => void;
-  canCleanUp: boolean;
+  onCleanUp?: () => void;
+  canCleanUp?: boolean;
 };
 
-export default function ViewSwitch({ mode, sort, reversed, onCleanUp, canCleanUp }: Props) {
+export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBinderViewMode, onCleanUp, canCleanUp = false }: Props) {
   const colors = useColors();
   const { width: windowWidth } = useWindowDimensions();
   const current = BINDER_SORTS.find((s) => s.value === sort) ?? BINDER_SORTS[0];
@@ -70,7 +76,7 @@ export default function ViewSwitch({ mode, sort, reversed, onCleanUp, canCleanUp
     <View style={styles.row}>
       {/* One small button per view: the chosen one is filled with the accent color */}
       <View style={styles.views} accessibilityRole="tablist">
-        {VIEWS.map((view) => {
+        {VIEWS.filter((view) => !modes || modes.includes(view.mode)).map((view) => {
           const on = view.mode === mode;
           return (
             <Pressable
@@ -78,7 +84,7 @@ export default function ViewSwitch({ mode, sort, reversed, onCleanUp, canCleanUp
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               accessibilityLabel={`${view.label} view`}
-              onPress={() => setBinderViewMode(view.mode)}
+              onPress={() => onView(view.mode)}
               style={({ pressed }) => [
                 styles.button,
                 { backgroundColor: on ? colors.accent : colors.surface, borderColor: on ? colors.accent : colors.border },

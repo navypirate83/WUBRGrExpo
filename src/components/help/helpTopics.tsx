@@ -187,13 +187,20 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet><Strong>Load again</Strong>: pull the lists down and let go.</Bullet>
             <P>
-              Inside a list, each card shows a small picture, its name, its casting cost and its
-              type. Tap <Strong>Add card</Strong> to find one in the Card Finder, then tap
-              its <Strong>+</Strong> to put it in the list. Tap a card to open it in the Card Finder.
+              Inside a list, the cards are shown the way a binder shows its cards, as a <Strong>List</Strong> (a
+              small picture, the name, the set and number, a <Strong>− 3 +</Strong> bar for how many copies you
+              want, and the price) or a <Strong>Grid</Strong> of card pictures. The buttons under the search
+              box switch between them, and the app remembers your choice (one for a phone-sized window, one for a
+              wide screen, saved with your account). A list has no pockets, so there's no Binder view. The sort button
+              at the right works like a binder's (tap the sort in use again to reverse it), foil cards have the rainbow
+              border, a line above the cards shows how many cards and what they're worth at the store chosen
+              under <Strong>Price store</Strong> in Settings, and on the website the grid can be zoomed in and out.
               The search box narrows the list to the cards whose name or type matches.
             </P>
             <P>
-              <Strong>Hold a card</Strong> for its window: a big picture of it, <Strong>Move to a
+              Tap the red <Strong>+</Strong> to find a card in the Card Finder, then tap its <Strong>+</Strong> to put it
+              in the list. Tap a card for its window: a big picture of it, how many copies (<Strong>−</Strong> and <Strong>+</Strong>; <Strong>−</Strong> on
+              the last copy asks whether to delete it), <Strong>Open in Card Finder</Strong>, <Strong>Move to a
               binder</Strong> (pick a binder: the card goes into its first empty pocket and leaves the
               list) and <Strong>Delete from list</Strong> (it asks first).
             </P>

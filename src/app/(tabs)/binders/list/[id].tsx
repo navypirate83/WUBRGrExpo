@@ -1,20 +1,24 @@
 /* =====================================================================
    ONE LIST (/binders/list/<id>)
-   A list's cards, one row each, in the order they were added. Each row
-   has a small picture of the card, and beside it:
-     - the card's name (bold, on top)
-     - its casting cost, as Magic's symbols
-     - its type line (like "Creature — Elf Druid")
-   Above the cards:
-     - a search box that narrows the rows to the cards whose name or type
-       matches what's typed
-     - "Add card": opens the Card Finder; its "+" then puts the card
-       shown into this list and comes back here
-   Touching a card: tap it to open it in the Card Finder; press and HOLD
-   it for its window: a big picture of it, "Move to a binder" (pick a
+   A list's cards, shown the way an opened binder shows its cards: as a
+   LIST (picture, name, set and number, "− 3 +" copies bar, price) or a GRID
+   of card pictures (zoomable on the website), with the same sort menu,
+   rainbow border on foils, prices and total, and red "+" as a binder (see
+   components/binder/CardList.tsx, ViewSwitch.tsx and AddCardsButton.tsx).
+   A card list has no pockets, so it has no Binder view. The view chosen is
+   remembered separately for a phone-sized window and a wide one, and the
+   sort is the binders' (see lib/binderView.ts).
+   Above the cards: a search box that narrows them to the cards whose name
+   or type line matches what's typed.
+   Touching a card: tap it for its window: a big picture, how many
+   copies (− and +), "Open in Card Finder", "Move to a binder" (pick a
    binder from the list that pops up: the card goes into that binder's
    first empty pocket and leaves the list) and "Delete from list" (it
-   asks first).
+   asks first). The red "+" opens the Card Finder; its "+" there puts the
+   card shown into this list and comes back here.
+   (The screen as it was before this look, with each card's casting cost
+   and type line in its row, is described in the project's notes: it was
+   reworked on 2026-11-12.)
    THE HEADER, like a binder's: the list's name with a check mark beside
    it (green when everything is saved, red while it isn't: tap it to see
    which), then the download button (the list as a .csv file) and Help.
@@ -23,8 +27,8 @@
    in). Rename the list on the Lists page.
    ===================================================================== */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -34,25 +38,21 @@ import TextField from '@/components/TextField';
 import Button from '@/components/Button';
 import PopupWindow from '@/components/PopupWindow';
 import HelpButton from '@/components/HelpButton';
-import ManaCost from '@/components/lists/ManaCost';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
-import { findList, removeCardFromList, type CardList, type ListCard } from '@/lib/listStorage';
+import CardList2, { type CardEntry } from '@/components/binder/CardList';
+import ViewSwitch from '@/components/binder/ViewSwitch';
+import AddCardsButton from '@/components/binder/AddCardsButton';
+import { useBinderPrices } from '@/hooks/useBinderPrices';
+import { useContentWidth } from '@/hooks/useMenuStyle';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
+import { sortEntries } from '@/lib/binderSort';
+import { fillListDetails, findList, removeCardFromList, setListCardCount, type CardList, type ListCard } from '@/lib/listStorage';
 import { DriveError, isSignedIn, signInWithGoogle, syncList } from '@/lib/googleDrive';
-import { cardCountText, isLocalMode } from '@/lib/binderStorage';
+import { MAX_COPIES, cardCount, cardCountText, isLocalMode } from '@/lib/binderStorage';
 import { downloadListCsv } from '@/lib/binderDownload';
-import { CARD_BACK } from '@/lib/cards';
 import { RequestError, pictureSource } from '@/lib/http';
 import { askYesNo, showMessage } from '@/lib/dialogs';
-import { hapticTap } from '@/lib/haptics';
 import { RADIUS } from '@/theme/colors';
-
-// The card pictures in the rows: this wide (points), and as tall as a
-// card that wide (a card is 63 by 88 millimeters)
-const PICTURE_WIDTH = 60;
-const PICTURE_HEIGHT = Math.round(PICTURE_WIDTH * 88 / 63);
-
-// The page is never wider than this (points), centered on big screens
-const PAGE_MAX_WIDTH = 760;
 
 // Saving to Drive: wait this long after a change (so quick changes go
 // together in one save), and this long before trying a failed save again
@@ -192,21 +192,42 @@ export default function ListScreen() {
     });
   }, [navigation, list?.name, colors, saved, status.text, status.state]);
 
-  // A list that doesn't exist (deleted, or a broken link): back to the lists
-  if (!list) return <Redirect href={'/binders/lists' as never} />;
+  /* ----- The cards as the list and grid show them ----- */
+
+  // How the cards are shown (a list or a grid), the sort, and the grid's zoom
+  const mode = useSyncExternalStore(onBinderViewChange, listViewMode, listViewMode);
+  const sort = useSyncExternalStore(onBinderViewChange, binderSort, binderSort);
+  const reversed = useSyncExternalStore(onBinderViewChange, binderSortReversed, binderSortReversed);
+  const gridZoom = useSyncExternalStore(onGridZoomChange, binderGridZoom, binderGridZoom);
+  const contentWidth = useContentWidth();
 
   // The cards to show: all of them, or those whose name or type contains
-  // what's typed (capitals don't matter). "index" is each card's spot
-  // in the whole list.
+  // what's typed (capitals don't matter). Each one's "key" is its spot in
+  // the whole list (0 is the first), as text.
   const wanted = filter.trim().toLowerCase();
-  const rows = list.cards
-    .map((card, index) => ({ card, index }))
-    .filter(({ card }) => !wanted || card.name.toLowerCase().includes(wanted) || card.typeLine.toLowerCase().includes(wanted));
+  const baseEntries = useMemo<CardEntry[]>(
+    () => (list?.cards ?? [])
+      .map((card, index) => ({ key: String(index), card }))
+      .filter(({ card }) => !wanted || card.name.toLowerCase().includes(wanted) || card.typeLine.toLowerCase().includes(wanted)),
+    [list, wanted],
+  );
+  // What the cards are worth, and their details from Scryfall (for sorting
+  // by something a card doesn't have saved yet)
+  const prices = useBinderPrices(baseEntries);
+  const entries = useMemo<CardEntry[]>(
+    () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
+    [baseEntries, sort, reversed, prices.printings, prices.byKey],
+  );
+  // Once the lookup arrives, save the missing details with the cards (once:
+  // after that they have them, so there's nothing left to fill in)
+  useEffect(() => {
+    if (prices.printings && fillListDetails(id, prices.printings)) changed();
+  }, [prices.printings, list]);
 
-  /* ----- The held card's window ----- */
+  /* ----- The card's window ----- */
 
-  const menuCard = menuIndex !== null ? list.cards[menuIndex] : undefined;
-  const movingCard = movingIndex !== null ? list.cards[movingIndex] : undefined;
+  const menuCard = menuIndex !== null ? list?.cards[menuIndex] : undefined;
+  const movingCard = movingIndex !== null ? list?.cards[movingIndex] : undefined;
 
   // "Delete from list": ask, then take the card out
   async function confirmDelete(index: number) {
@@ -217,6 +238,24 @@ export default function ListScreen() {
     removeCardFromList(id, index);
     changed();
   }
+
+  // One more or one fewer copy of the card at this spot. "−" on the last
+  // copy is a delete (it asks first).
+  function changeCopies(index: number, step: number) {
+    const card = list?.cards[index];
+    if (!card) return;
+    const count = cardCount(card);
+    if (step < 0 && count === 1) { confirmDelete(index); return; }
+    const now = Math.min(MAX_COPIES, count + step);
+    if (now === count) return;
+    setListCardCount(id, index, now);
+    changed();
+    announce(`${now} ${now === 1 ? 'copy' : 'copies'} of ${card.name}.`);
+  }
+  // A version that never changes between redraws, for the rows
+  const copiesRef = useRef(changeCopies);
+  copiesRef.current = changeCopies;
+  const onCopies = useCallback((key: string, step: number) => copiesRef.current(Number(key), step), []);
 
   // "Move to a binder": close this window, then open the list of binders.
   // (iPhones can't open one pop-up while another is still fading away,
@@ -234,73 +273,71 @@ export default function ListScreen() {
     changed();
   }
 
+  // A list that doesn't exist (deleted, or a broken link): back to the lists
+  if (!list) return <Redirect href={'/binders/lists' as never} />;
+
   return (
     // The keyboard pushes everything up instead of covering the search box
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                           keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
-      <FlatList
-        showsVerticalScrollIndicator={false}
-        data={rows}
-        keyExtractor={({ card, index }) => `${index}-${card.set}-${card.number}`}
-        contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
-        // At the top: the search box and Add card
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <TextField
-              accessibilityLabel="Search this list"
-              placeholder="Search this list…"
-              value={filter}
-              onChangeText={setFilter}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            <Button label="Add card" icon="add" onPress={() => router.push(finderLinkFor(id) as never)} />
-          </View>
-        }
-        // No cards (or none matching the search): say so, not a blank page
-        ListEmptyComponent={
-          <View style={[styles.empty, { borderColor: colors.border }]}>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {list.cards.length ? 'No cards match' : 'No cards yet'}
-            </Text>
-            <Text style={[styles.emptyText, { color: colors.muted }]}>
-              {list.cards.length ? `None of the ${cardCountText(list.cards.length)} match "${filter.trim()}".` : 'Tap Add card above to find one.'}
-            </Text>
-          </View>
-        }
-        renderItem={({ item: { card, index } }) => (
-          // One card: tap to open it in the Card Finder, hold for its window
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${card.name}, ${card.typeLine}`}
-            accessibilityHint="Opens the card in the Card Finder. Hold to move it to a binder or delete it."
-            onPress={() => router.push(finderLinkFor(id, card) as never)}
-            onLongPress={() => { hapticTap(); setMenuIndex(index); }}
-            delayLongPress={500}
-            style={({ pressed }) => [styles.row, { borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceHover }]}
-          >
-            {/* The card's picture, shrunk */}
-            <Image source={pictureSource(card.image)} placeholder={pictureSource(CARD_BACK)}
-                   style={styles.picture} contentFit="cover" recyclingKey={card.image} />
-            {/* Its name, casting cost and type line */}
-            <View style={styles.words}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
-              <ManaCost cost={card.manaCost} />
-              <Text style={[styles.type, { color: colors.muted }]} numberOfLines={2}>{card.typeLine}</Text>
-            </View>
-          </Pressable>
-        )}
-      />
+      {/* The search box, and the List / Grid switch with the sort */}
+      <View style={styles.top}>
+        <TextField
+          accessibilityLabel="Search this list"
+          placeholder="Search this list…"
+          value={filter}
+          onChangeText={setFilter}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        <ViewSwitch mode={mode} sort={sort} reversed={reversed} modes={['list', 'grid']} onView={setListViewMode} />
+      </View>
 
-      {/* THE HELD CARD'S WINDOW: its picture, then Move to a binder and
-          Delete from list */}
+      {/* THE CARDS, with the red "+" floating over them in the corner */}
+      <View style={styles.listArea}>
+        <CardList2
+          entries={entries}
+          mode={mode}
+          width={contentWidth}
+          onPick={(key) => setMenuIndex(Number(key))}
+          onCopies={onCopies}
+          minTile={GRID_ZOOM_WIDTHS[gridZoom]}
+          prices={prices}
+          // No cards (or none matching the search): say so, not a blank page
+          empty={(
+            <View style={[styles.empty, { borderColor: colors.border }]}>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                {list.cards.length ? 'No cards match' : 'No cards yet'}
+              </Text>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                {list.cards.length ? `None of the ${cardCountText(list.cards.length)} match "${filter.trim()}".` : 'Tap the red + to find one.'}
+              </Text>
+            </View>
+          )}
+        />
+        <AddCardsButton onPress={() => router.push(finderLinkFor(id) as never)} />
+      </View>
+
+      {/* THE CARD'S WINDOW: its picture, how many copies, then Open in Card
+          Finder, Move to a binder and Delete from list */}
       {menuCard && menuIndex !== null && (
         <PopupWindow title={menuCard.name} onClose={() => setMenuIndex(null)}
                      buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
           <Image source={pictureSource(menuCard.image)} style={styles.menuPicture} contentFit="contain" />
+          {/* How many copies: − and + */}
+          <View style={styles.menuCopies}>
+            <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from list'}
+                    onPress={() => changeCopies(menuIndex, -1)} />
+            <Text style={[styles.menuCount, { color: colors.text }]}>
+              {cardCount(menuCard)} {cardCount(menuCard) === 1 ? 'copy' : 'copies'}
+            </Text>
+            <Button label="+" kind="secondary" accessibilityLabel="One more copy" disabled={cardCount(menuCard) >= MAX_COPIES}
+                    onPress={() => changeCopies(menuIndex, 1)} />
+          </View>
           <View style={styles.menu}>
+            <Button label="Open in Card Finder" icon="search" kind="secondary"
+                    onPress={() => { const card = menuCard; setMenuIndex(null); router.push(finderLinkFor(id, card) as never); }} />
             <Button label="Move to a binder" icon="albums-outline" kind="secondary" onPress={() => moveToBinder(menuIndex)} />
             <Button label="Delete from list" icon="trash-outline" kind="danger" onPress={() => confirmDelete(menuIndex)} />
           </View>
@@ -322,17 +359,12 @@ export default function ListScreen() {
   );
 }
 
-// The page's look: the rows sit in a column, each with a thin line under
-// it, the picture on the left and the words beside it
+// The page's look: the search box and switch at the top, the cards filling
+// the rest
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  page: { padding: 16, width: '100%', maxWidth: PAGE_MAX_WIDTH, alignSelf: 'center', flexGrow: 1 },
-  header: { gap: 10, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  picture: { width: PICTURE_WIDTH, height: PICTURE_HEIGHT, borderRadius: 4 },
-  words: { flex: 1, gap: 4 },
-  name: { fontSize: 17, fontWeight: '700' },
-  type: { fontSize: 14 },
+  top: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, zIndex: 10 },
+  listArea: { flex: 1 },
   empty: { alignItems: 'center', gap: 8, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS * 1.4, marginTop: 8 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
@@ -342,7 +374,9 @@ const styles = StyleSheet.create({
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
   headerButton: { paddingHorizontal: 8 },
   pressed: { opacity: 0.5 },
-  // The held card's window: a big picture, then the two buttons
+  // The card's window: a big picture, the copies, then the buttons
   menuPicture: { width: '100%', height: 260 },
+  menuCopies: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  menuCount: { fontSize: 17, fontWeight: '700' },
   menu: { gap: 8 },
 });

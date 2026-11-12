@@ -14,15 +14,25 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import { changeSettings, onSettingsChange, savedBinderSort, savedBinderSortReversed, savedBinderView } from './settings';
+import { changeSettings, onSettingsChange, savedBinderSort, savedBinderSortReversed, savedBinderView, savedListView } from './settings';
 import { storageGet, storageSet } from './storage';
 import { currentSizeClass } from './pageLayout';
-import type { BinderViewMode } from './binderViewTypes';
+import type { BinderViewMode, ListViewMode } from './binderViewTypes';
 import { canReverse, type BinderSort } from './binderSort';
 
 // The view for this window's size (narrow or wide)
 export function binderViewMode(): BinderViewMode {
   return savedBinderView(currentSizeClass() === 'phone');
+}
+
+// The view for an opened card LIST (a list or a grid), for this window's
+// size. Chosen separately from the binders' view.
+export function listViewMode(): ListViewMode {
+  return savedListView(currentSizeClass() === 'phone');
+}
+export function setListViewMode(mode: BinderViewMode): void {
+  if (mode === 'binder') return;   // a list has no pockets, so no Binder view
+  changeSettings(currentSizeClass() === 'phone' ? { phoneListView: mode } : { wideListView: mode }).catch(() => { /* kept on this device */ });
 }
 
 // The sort chosen, and whether it's the other way round

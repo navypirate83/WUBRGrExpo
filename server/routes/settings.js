@@ -36,12 +36,17 @@ const DEFAULT_PRICE_STORE = 'tcgplayer';
 // How an opened binder is shown (a list, a grid, or its pockets), and how
 // its list and grid are sorted
 const VIEWS = ['list', 'grid', 'binder'];
+// An opened card list has no pockets, so no Binder view
+const LIST_VIEWS = ['list', 'grid'];
 const SORTS = ['name', 'added', 'price', 'color', 'set', 'type', 'rarity', 'value'];
 const DEFAULT_VIEW = 'binder';
+const DEFAULT_LIST_VIEW = 'list';
 const DEFAULT_SORT = 'name';
 // The settings an older app doesn't send: each with the values allowed.
 // A save that leaves one out keeps the one already saved.
-const OPTIONAL = { priceStore: PRICE_STORES, phoneView: VIEWS, wideView: VIEWS, binderSort: SORTS };
+const OPTIONAL = {
+  priceStore: PRICE_STORES, phoneView: VIEWS, wideView: VIEWS, phoneListView: LIST_VIEWS, wideListView: LIST_VIEWS, binderSort: SORTS,
+};
 // Optional like the above, but yes or no instead of one of a list
 const OPTIONAL_FLAGS = ['binderSortReversed'];
 
@@ -108,6 +113,8 @@ function answer(user) {
       priceStore: saved.priceStore ?? DEFAULT_PRICE_STORE,
       phoneView: saved.phoneView ?? DEFAULT_VIEW,
       wideView: saved.wideView ?? DEFAULT_VIEW,
+      phoneListView: saved.phoneListView ?? DEFAULT_LIST_VIEW,
+      wideListView: saved.wideListView ?? DEFAULT_LIST_VIEW,
       binderSort: saved.binderSort ?? DEFAULT_SORT,
       binderSortReversed: saved.binderSortReversed ?? false,
       pageLayout: stored,

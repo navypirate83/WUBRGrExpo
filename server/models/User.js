@@ -67,6 +67,9 @@ const userSchema = new mongoose.Schema(
       // how its list and grid are sorted
       phoneView: { type: String, enum: ['list', 'grid', 'binder'] },
       wideView: { type: String, enum: ['list', 'grid', 'binder'] },
+      // The same for an opened card list (no Binder view)
+      phoneListView: { type: String, enum: ['list', 'grid'] },
+      wideListView: { type: String, enum: ['list', 'grid'] },
       binderSort: { type: String, enum: ['name', 'added', 'price', 'color', 'set', 'type', 'rarity', 'value'] },
       // Whether the sort is the other way round (cheapest first, oldest first...)
       binderSortReversed: { type: Boolean },

@@ -8,6 +8,8 @@
      shows up without anyone having to tick it.
    - priceStore: which store's prices to show in the binders (TCGplayer,
      Card Kingdom or Cardmarket; see prices.ts)
+   - phoneListView and wideListView: how an opened card list is shown (list
+     or grid) on a narrow window and on a wide one
    - phoneView and wideView: how an opened binder is shown (list, grid or
      the binder's pockets) on a narrow window and on a wide one, and
      binderSort and binderSortReversed: how the list and grid are sorted,
@@ -48,7 +50,9 @@ import { isLocalMode, relayoutAllBinders } from './binderStorage';
 import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
 import { apiRequest } from './api';
 import { DEFAULT_PRICE_STORE, cleanPriceStore, type PriceStore } from './prices';
-import { DEFAULT_BINDER_VIEW, cleanBinderView, type BinderViewMode } from './binderViewTypes';
+import {
+  DEFAULT_BINDER_VIEW, DEFAULT_LIST_VIEW, cleanBinderView, cleanListView, type BinderViewMode, type ListViewMode,
+} from './binderViewTypes';
 import { DEFAULT_BINDER_SORT, cleanBinderSort, type BinderSort } from './binderSort';
 import { isServerSignedIn, SETTINGS_UNSENT_KEY } from './session';
 import {
@@ -64,6 +68,8 @@ export type Settings = {
   priceStore: PriceStore;
   phoneView: BinderViewMode;
   wideView: BinderViewMode;
+  phoneListView: ListViewMode;
+  wideListView: ListViewMode;
   binderSort: BinderSort;
   binderSortReversed: boolean;
   phoneLayout: PageLayout;
@@ -76,6 +82,8 @@ const DEFAULT_SETTINGS: Settings = {
   priceStore: DEFAULT_PRICE_STORE,
   phoneView: DEFAULT_BINDER_VIEW,
   wideView: DEFAULT_BINDER_VIEW,
+  phoneListView: DEFAULT_LIST_VIEW,
+  wideListView: DEFAULT_LIST_VIEW,
   binderSort: DEFAULT_BINDER_SORT,
   binderSortReversed: false,
   phoneLayout: DEFAULT_LAYOUT,
@@ -97,6 +105,8 @@ const HIDDEN_FORMATS_KEY = 'hiddenFormats';
 const PRICE_STORE_KEY = 'priceStore';
 const PHONE_VIEW_KEY = 'phoneBinderView';
 const WIDE_VIEW_KEY = 'wideBinderView';
+const PHONE_LIST_VIEW_KEY = 'phoneListView';
+const WIDE_LIST_VIEW_KEY = 'wideListView';
 const BINDER_SORT_KEY = 'binderSort';
 const SORT_REVERSED_KEY = 'binderSortReversed';
 
@@ -140,6 +150,8 @@ export function currentSettings(): Settings {
     priceStore: cleanPriceStore(storageGet(PRICE_STORE_KEY)),
     phoneView: cleanBinderView(storageGet(PHONE_VIEW_KEY)),
     wideView: cleanBinderView(storageGet(WIDE_VIEW_KEY)),
+    phoneListView: cleanListView(storageGet(PHONE_LIST_VIEW_KEY)),
+    wideListView: cleanListView(storageGet(WIDE_LIST_VIEW_KEY)),
     binderSort: cleanBinderSort(storageGet(BINDER_SORT_KEY)),
     binderSortReversed: storageGet(SORT_REVERSED_KEY) === '1',
     phoneLayout: layouts.phone,
@@ -153,6 +165,9 @@ export function currentSettings(): Settings {
 // reading every setting)
 export function savedBinderView(narrow: boolean): BinderViewMode {
   return cleanBinderView(storageGet(narrow ? PHONE_VIEW_KEY : WIDE_VIEW_KEY));
+}
+export function savedListView(narrow: boolean): ListViewMode {
+  return cleanListView(storageGet(narrow ? PHONE_LIST_VIEW_KEY : WIDE_LIST_VIEW_KEY));
 }
 export function savedBinderSort(): BinderSort {
   return cleanBinderSort(storageGet(BINDER_SORT_KEY));
@@ -173,6 +188,8 @@ function applySettings(settings: Settings): void {
   storageSet(PRICE_STORE_KEY, settings.priceStore);
   storageSet(PHONE_VIEW_KEY, settings.phoneView);
   storageSet(WIDE_VIEW_KEY, settings.wideView);
+  storageSet(PHONE_LIST_VIEW_KEY, settings.phoneListView);
+  storageSet(WIDE_LIST_VIEW_KEY, settings.wideListView);
   storageSet(BINDER_SORT_KEY, settings.binderSort);
   storageSet(SORT_REVERSED_KEY, settings.binderSortReversed ? '1' : '0');
   const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
@@ -218,6 +235,8 @@ function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Sett
   // Likewise the binder views and sort
   if (data.phoneView !== undefined) settings.phoneView = cleanBinderView(data.phoneView);
   if (data.wideView !== undefined) settings.wideView = cleanBinderView(data.wideView);
+  if (data.phoneListView !== undefined) settings.phoneListView = cleanListView(data.phoneListView);
+  if (data.wideListView !== undefined) settings.wideListView = cleanListView(data.wideListView);
   if (data.binderSort !== undefined) settings.binderSort = cleanBinderSort(data.binderSort);
   if (typeof data.binderSortReversed === 'boolean') settings.binderSortReversed = data.binderSortReversed;
   const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
@@ -262,15 +281,15 @@ function saveToDrive(): Promise<void> {
 
 // What the server sends back: the saved settings (null if none yet)
 type ServerSettings = {
-  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; binderSort?: unknown; binderSortReversed?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; phoneListView?: unknown; wideListView?: unknown; binderSort?: unknown; binderSortReversed?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
 };
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, binderSortReversed, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  const { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
   await apiRequest('/settings', {
     method: 'PUT',
-    body: { theme, hiddenFormats, priceStore, phoneView, wideView, binderSort, binderSortReversed, pageLayout: stored, phoneLayout, wideLayout },
+    body: { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, pageLayout: stored, phoneLayout, wideLayout },
   });
   storageRemove(SERVER_DIRTY_KEY);
 }
