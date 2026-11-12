@@ -2,15 +2,15 @@
    BINDERS, LISTS OR DECKS: THE SWITCH ABOVE THE SEARCH BAR
    Three picture buttons side by side at the top of The Shelf tab: an
    open binder (your binders), a spiral notebook (your lists) and a stack
-   of cards (your decks), then the name of the page you're on. The button
-   for the page you're already on is faded out and can't be pressed; the
-   others switch to their pages.
+   of cards (your decks). The button for the page you're already on is
+   faded out and can't be pressed; the others switch to their pages. (The
+   page's name isn't repeated here: the header above already says it.)
    Switching "replaces" the page instead of piling the new one on top,
    so there's no back arrow between them: they're three views of the
    same shelf.
    ===================================================================== */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -59,18 +59,15 @@ export default function ShelfSwitch({ current }: { current: Page }) {
           </Pressable>
         );
       })}
-      {/* The page you're on */}
-      <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">{PAGES[current].name}</Text>
     </View>
   );
 }
 
-// The switch's look: two square buttons and the page's name, in a row
+// The switch's look: the square buttons, in a row
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   button: { width: 52, height: 44, borderRadius: RADIUS, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   ghost: { opacity: 0.35 },
   pressed: { opacity: 0.6 },
   picture: { width: 34, height: 28 },
-  name: { fontSize: 18, fontWeight: '700', marginLeft: 4 },
 });
