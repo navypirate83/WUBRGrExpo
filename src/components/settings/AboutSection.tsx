@@ -25,8 +25,10 @@ import { SettingRow, SettingsSection } from './SettingsParts';
 const WEBSITE_URL = SITE_URL;
 const SCRYFALL_URL = 'https://scryfall.com/';
 const FAN_POLICY_URL = 'https://company.wizards.com/en/legal/fancontentpolicy';
-// The Android app file, shared from Google Drive (shown on the website only)
-const ANDROID_APP_URL = 'https://drive.google.com/file/d/1nqBXL5YRPTGnGFR8wgdYSCbHNe4y7enc/view?usp=sharing';
+// The Google Drive folder holding the Android app file, shared with anyone
+// who has the link (shown on the website only). It's a folder, not one
+// file, so a newer version put in it is found without changing this link.
+const ANDROID_APP_URL = 'https://drive.google.com/drive/folders/1UVEg-bix-rpSoCbjCq6uOToQi9vmVUDl?usp=sharing';
 
 // The server's status page, and the small live badge picture UptimeRobot
 // makes for it (it says "up", "down" and so on; 24 tall, as wide as its
