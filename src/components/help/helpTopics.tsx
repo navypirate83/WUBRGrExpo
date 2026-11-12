@@ -194,7 +194,7 @@ export const helpTopics: HelpTopic[] = [
               wide screen, saved with your account). A list has no pockets, so there's no Binder view. The sort button
               at the right works like a binder's (tap the sort in use again to reverse it), foil cards have the rainbow
               border, a line above the cards shows how many cards and what they're worth at the store chosen
-              under <Strong>Price store</Strong> in Settings, and on the website the grid can be zoomed in and out.
+              under <Strong>Price store</Strong> in Settings, and the grid can be zoomed in and out (the − and + buttons on the website, or pinching with two fingers on a touch screen).
               The search box narrows the list as you type to the cards whose name matches (small typos are
               fine) or whose type contains what you typed, and a line says how many match.
             </P>
@@ -533,7 +533,7 @@ export const helpTopics: HelpTopic[] = [
         an etched foil), and its type line. In the list and the grid, each card has a <Strong>− 3 +</Strong> bar (in the grid it's along the card's
         bottom, like a pocket in the Binder view): tap <Strong>+</Strong> or <Strong>−</Strong> to change how many
         copies you own (<Strong>−</Strong> on the last copy asks whether to remove the card). On the website, the <Strong>−</Strong> and <Strong>+</Strong> buttons beside
-        Sort zoom the card pictures out and in; the app remembers your zoom on that device.
+        Sort zoom the card pictures out and in, and on a phone, tablet or touch screen you can <Strong>pinch</Strong> the grid with two fingers (spread apart to zoom in, pinch together to zoom out) to do the same; the app remembers your zoom on that device.
         <OnComputer>On a computer you can also drag a card's picture (or its link) from Scryfall or EDHREC in another browser
         window and let go anywhere over the cards in the list or grid: the card is added, in the binder's next
         empty pocket, or as one more copy if you already have that exact printing. It appears wherever the sort in use puts it,

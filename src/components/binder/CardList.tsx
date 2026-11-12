@@ -15,7 +15,8 @@
      with the same "− 3 +" copies bar (see CopiesBar.tsx) along its bottom.
      (− on the last copy asks about removing the card.)
      On the website the pictures can be zoomed in and out (see
-     ViewSwitch.tsx); "minTile" is how wide they are at least.
+     ViewSwitch.tsx), and on any touch screen by pinching (see
+     usePinchZoom.ts); "minTile" is how wide they are at least.
    Tapping a card calls "onPick" (the binder screen opens that card's
    menu: copies, open in the Card Finder, move, remove).
    The cards come in already sorted. Rows are drawn only as they scroll
@@ -26,6 +27,7 @@ import { memo, useEffect, useRef, type ReactElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
+import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { pictureSource } from '@/lib/http';
 import { cardCount, type BinderCard } from '@/lib/binderStorage';
 import { useQuery } from '@tanstack/react-query';
@@ -75,6 +77,8 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
   const room = width - 2 * SPACE.l;
   const columns = mode === 'grid' ? Math.max(1, Math.floor((room + GRID_GAP) / (minTile + GRID_GAP))) : 1;
   const tile = Math.floor((room - (columns - 1) * GRID_GAP) / columns);
+  // Two fingers spreading or pinching on the grid zoom it a step
+  const pinch = usePinchZoom(mode === 'grid');
 
   // A card was just added: scroll to where it sits in the sorted cards (it
   // may move once its price arrives, so this runs again whenever the order
@@ -90,6 +94,7 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
   }, [flashKey, entries, columns]);
 
   return (
+    <View {...pinch} style={[styles.fill, pinch.style]}>
     <FlatList
       ref={listRef}
       // If the row isn't drawn yet, guess its place, then try again
@@ -114,6 +119,7 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
           : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} />
       )}
     />
+    </View>
   );
 }
 
@@ -221,6 +227,8 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlig
 
 // The look: rows with a thin line under each, and grid tiles with a tag
 const styles = StyleSheet.create({
+  // The view around the list and grid (it catches the two-finger pinch)
+  fill: { flex: 1 },
   content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   // The part of a line you tap for the menu: the picture and the name
