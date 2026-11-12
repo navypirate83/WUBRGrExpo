@@ -5,9 +5,11 @@
    open-binder drawing (the chosen one is filled in orange; screen readers
    still hear "List view", "Grid view" and "Binder view"). An opened card
    list has no pockets, so it's given just List and Grid.
-   Right after them can come a few small tool buttons the screen hands in
-   ("extras": the binder's download and reminder buttons, the list's
-   download button): see ToolButton below.
+   Between them and the Sort / Clean-up side can come a few small tool buttons
+   the screen hands in ("extras": the binder's download and reminder
+   buttons, the list's download button): see ToolButton below. They sit in
+   the middle of the free space, and move closer to the other buttons as the
+   window gets narrower.
    (the one you're on is filled in orange), and one more button at the
    right that depends on the view:
    - List and Grid: a Sort button that shows the sort in use and drops a
@@ -108,7 +110,8 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
 
   return (
     <View style={styles.row}>
-      {/* The view buttons, then the tool buttons (download, reminder) */}
+      {/* The view buttons, then the tool buttons (download, reminder) centered
+          in the space that's left before the Sort side */}
       <View style={styles.left}>
       {/* One small button per view: the chosen one is filled with the accent color */}
       <View style={styles.views} accessibilityRole="tablist">
@@ -135,7 +138,7 @@ export default function ViewSwitch({ mode, sort, reversed, modes, onView = setBi
           );
         })}
       </View>
-      {extras}
+      <View style={styles.tools}>{extras}</View>
       </View>
 
       {/* Binder view: Clean-up (faded when there's nothing to clean up) */}
@@ -242,7 +245,10 @@ const styles = StyleSheet.create({
   // Everything stays on ONE line. On a very narrow screen the Sort button
   // drops its word and keeps its icon (see "tight" above) so it still fits.
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  left: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  // The view buttons and, filling the rest of the space, the tool buttons
+  // in the middle of it
+  left: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  tools: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   views: { flexDirection: 'row', gap: 4 },
   viewButton: { width: 34, paddingHorizontal: 0 },
   binderPicture: { width: 24, height: 20 },
