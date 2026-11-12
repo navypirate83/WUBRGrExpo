@@ -3,14 +3,14 @@
    The List and Grid views of an opened binder (the Binder view, with its
    pockets, is drawn by the binder screen itself).
    - LIST: one line per card: a small picture (with a rainbow border if
-     it's a foil), its name, its set and
-     number, how many copies you have, and what they're worth at the
-     store chosen in Settings (a dash when it has no price).
+     it's a foil), its name, its set and number, the "− 3 +" copies bar
+     (− and + change how many copies you have), and what they're worth at
+     the store chosen in Settings (a dash when it has no price).
    Above both, one quiet line: how many cards, how many different, and the
    total value.
    - GRID: card pictures side by side (a foil has a rainbow border), each
-     with the "− 3 +" copies bar along its bottom: − and + change how many
-     copies you have (− on the last copy asks about removing the card).
+     with the same "− 3 +" copies bar (see CopiesBar.tsx) along its bottom.
+     (− on the last copy asks about removing the card.)
      On the website the pictures can be zoomed in and out (see
      ViewSwitch.tsx); "minTile" is how wide they are at least.
    Tapping a card calls "onPick" (the binder screen opens that card's
@@ -24,11 +24,12 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { pictureSource } from '@/lib/http';
-import { MAX_COPIES, cardCount, type BinderCard } from '@/lib/binderStorage';
+import { cardCount, type BinderCard } from '@/lib/binderStorage';
 import { formatPrice } from '@/lib/prices';
 import FoilFrame from './FoilFrame';
+import CopiesBar from './CopiesBar';
 import type { BinderPrices } from '@/hooks/useBinderPrices';
-import { RADIUS, SPACE, fixed } from '@/theme/colors';
+import { SPACE } from '@/theme/colors';
 
 // A card and the pocket it sits in
 export type CardEntry = { key: string; card: BinderCard };
@@ -70,7 +71,7 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} /> : undefined}
       renderItem={({ item }) => (
         mode === 'list'
-          ? <ListRow entry={item} onPick={onPick} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency} />
+          ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency} />
           : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} />
       )}
     />
@@ -92,8 +93,8 @@ function Summary({ entries, prices }: { entries: CardEntry[]; prices: BinderPric
 /* ---------------------------------------------------------------------
    ONE LINE OF THE LIST. "memo" redraws it only when its card changes.
    --------------------------------------------------------------------- */
-const ListRow = memo(function ListRow({ entry, onPick, border, price, currency }: {
-  entry: CardEntry; onPick: (key: string) => void; border: string;
+const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency }: {
+  entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; border: string;
   price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
   currency: 'USD' | 'EUR';
 }) {
@@ -103,26 +104,28 @@ const ListRow = memo(function ListRow({ entry, onPick, border, price, currency }
   // "ONE · #123", plus "· Foil" for a foil copy
   const about = `${card.set.toUpperCase()} · #${card.number}${card.foil ? ' · Foil' : ''}`;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${card.name}, ${about}, ${count} ${count === 1 ? 'copy' : 'copies'}${typeof price === 'number' ? `, worth ${formatPrice(price, currency)}` : ''}. Opens its menu.`}
-      onPress={() => onPick(key)}
-      style={({ pressed }) => [styles.row, { borderBottomColor: border }, pressed && { backgroundColor: colors.surfaceHover }]}
-    >
-      <FoilFrame foil={card.foil === true} width={34} height={48} radius={4}>
-        <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
-      </FoilFrame>
-      <View style={styles.rowText}>
-        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
-        <Text style={[styles.about, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
-      </View>
-      {/* How many copies */}
-      <View style={[styles.count, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.countText, { color: colors.text }]}>×{count}</Text>
-      </View>
+    <View style={[styles.row, { borderBottomColor: border }]}>
+      {/* The picture and name: tap them for the card's menu */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${card.name}, ${about}, ${count} ${count === 1 ? 'copy' : 'copies'}${typeof price === 'number' ? `, worth ${formatPrice(price, currency)}` : ''}. Opens its menu.`}
+        onPress={() => onPick(key)}
+        style={({ pressed }) => [styles.rowMain, pressed && { backgroundColor: colors.surfaceHover }]}
+      >
+        <FoilFrame foil={card.foil === true} width={34} height={48} radius={4}>
+          <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
+        </FoilFrame>
+        <View style={styles.rowText}>
+          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
+          <Text style={[styles.about, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
+        </View>
+      </Pressable>
+      {/* How many copies: the "− 3 +" bar */}
+      <CopiesBar name={card.name} count={count} style={styles.rowBar}
+                 onFewer={() => onCopies(key, -1)} onMore={() => onCopies(key, 1)} />
       {/* What the copies are worth (a dash if the store has no price) */}
       <Text style={[styles.price, { color: colors.muted }]}>{price === undefined ? '' : formatPrice(price, currency)}</Text>
-    </Pressable>
+    </View>
   );
 });
 
@@ -150,19 +153,8 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size }: {
 
       {/* The "− 3 +" bar along the bottom of the card: how many copies you
           own (a bar laid over the card, the same as in a binder pocket) */}
-      <View style={styles.copiesBar}>
-        <Pressable accessibilityRole="button" hitSlop={4}
-                   accessibilityLabel={count > 1 ? `One fewer ${card.name}` : `Remove ${card.name}`}
-                   onPress={() => onCopies(key, -1)} style={styles.copiesButton}>
-          <Text style={styles.copiesText}>−</Text>
-        </Pressable>
-        <Text style={styles.copiesCount} accessibilityLabel={`${count} owned`}>{count}</Text>
-        <Pressable accessibilityRole="button" hitSlop={4} accessibilityLabel={`One more ${card.name}`}
-                   disabled={count >= MAX_COPIES} onPress={() => onCopies(key, 1)}
-                   style={[styles.copiesButton, count >= MAX_COPIES && styles.disabled]}>
-          <Text style={styles.copiesText}>+</Text>
-        </Pressable>
-      </View>
+      <CopiesBar name={card.name} count={count} style={styles.tileBar}
+                 onFewer={() => onCopies(key, -1)} onMore={() => onCopies(key, 1)} />
     </View>
   );
 });
@@ -171,21 +163,16 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size }: {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  // The part of a line you tap for the menu: the picture and the name
+  rowMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACE.m },
   thumbPicture: { width: '100%', height: '100%' },
   rowText: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: '600' },
   about: { fontSize: 12, marginTop: 1 },
-  count: { borderWidth: 1, borderRadius: RADIUS, paddingHorizontal: 10, paddingVertical: 3 },
-  countText: { fontSize: 13, fontWeight: '700' },
+  rowBar: { width: 84 },
   price: { width: 62, textAlign: 'right', fontSize: 13, fontVariant: ['tabular-nums'] },
   summary: { fontSize: 13, paddingBottom: SPACE.s, paddingTop: 2 },
   pressed: { opacity: 0.6 },
-  copiesBar: {
-    position: 'absolute', left: 4, right: 4, bottom: 4, height: 22, borderRadius: 11,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  copiesButton: { width: 24, height: 22, alignItems: 'center', justifyContent: 'center' },
-  copiesText: { color: fixed.accentOnDark, fontSize: 16, fontWeight: '800', lineHeight: 18 },
-  copiesCount: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
-  disabled: { opacity: 0.35 },
+  // A grid tile's bar sits over the bottom of the card
+  tileBar: { position: 'absolute', left: 4, right: 4, bottom: 4 },
 });
