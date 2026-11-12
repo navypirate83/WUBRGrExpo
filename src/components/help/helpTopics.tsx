@@ -831,8 +831,16 @@ export const helpTopics: HelpTopic[] = [
         title: 'Set, version and language',
         body: (
           <>
-            <P>Most cards were printed many times. Use the boxes to pick the exact one you own:</P>
-            <Bullet><Strong>Set</Strong>: every set the card was printed in, with each set's symbol.</Bullet>
+            <P>
+              Most cards were printed many times. Use the boxes to pick the exact one you own. Each
+              one drops a scrolling list down right under it (or above it, if there's no room below),
+              with a check mark on your current choice. Tap a choice to pick it, or tap anywhere else to close the list.
+            </P>
+            <Bullet>
+              <Strong>Set</Strong>: every set the card was printed in, with each set's symbol. A card can be in
+              hundreds of sets, so there's a <Strong>Type to filter</Strong> box at the top of the list: type part of
+              a set's name or code to narrow it.
+            </Bullet>
             <Bullet>
               <Strong>Version</Strong>: the different printings within that set (for example
               borderless or full-art versions).
@@ -889,7 +897,7 @@ export const helpTopics: HelpTopic[] = [
             <Bullet><Strong>Came from a list (its Add card button)?</Strong> The card goes straight to the end of that list.</Bullet>
             <Bullet>
               <Strong>Opened the finder on its own?</Strong> It first asks <Strong>Add to a binder or a
-              list?</Strong> Tap <Strong>Binder</Strong> or <Strong>List</Strong>, then pick which one:
+              list?</Strong> A short list drops down from the <Strong>+</Strong>: tap <Strong>Binder</Strong> or <Strong>List</Strong>, then pick which one:
               each binder or list shows its card count. A binder's card goes into its first empty
               pocket (full binders can't be picked); a list's goes at the end (a list that already
               has the card can't be picked). <Strong>New binder</Strong> or <Strong>New list</Strong> at

@@ -42,7 +42,7 @@ import CardPicture from './CardPicture';
 import { Legality, Rulings } from './CardNotes';
 import AddToBinder, { type AddToBinderHandle } from './AddToBinder';
 import PricePanel from './PricePanel';
-import { PickerButton, PickerSheet, SheetRowText } from './PickerSheet';
+import { PickerButton, PickerSheet, SheetRowText, type Anchor } from './PickerSheet';
 import { PAGE_WIDTH } from './SearchBox';
 
 import { SITE_URL } from '@/lib/site';
@@ -137,6 +137,8 @@ export default function CardPanel(props: Props) {
   // Which pick list is open (the Language or Version sheet), if any.
   // (The Set picker keeps track of its own.)
   const [openSheet, setOpenSheet] = useState<'language' | 'version' | null>(null);
+  // Where the box that opened the list is on the screen (the list drops down under it)
+  const [anchor, setAnchor] = useState<Anchor | undefined>(undefined);
 
   // The printing and set that go with printId
   const print = sets.flatMap((s) => s.prints).find((p) => p.id === printId) ?? startPrint;
@@ -373,7 +375,7 @@ export default function CardPanel(props: Props) {
         inline
         disabled={!shown || languageOptions.length < 2}
         accessibilityLabel={`Language: ${shown ? languageName(shown.lang) : EMPTY_PICKER_TEXT}`}
-        onPress={() => { Keyboard.dismiss(); setOpenSheet('language'); }}
+        onPress={(box) => { Keyboard.dismiss(); setAnchor(box); setOpenSheet('language'); }}
         style={[styles.languagePicker, { maxWidth: cardWidth }]}
       >
         <SheetRowText text={shown ? languageName(shown.lang) : EMPTY_PICKER_TEXT} />
@@ -475,7 +477,7 @@ export default function CardPanel(props: Props) {
         <PickerButton
           disabled={!currentSet}
           accessibilityLabel={`Version: ${print && currentSet ? versionLabel(print) : EMPTY_PICKER_TEXT}`}
-          onPress={() => { Keyboard.dismiss(); setOpenSheet('version'); }}
+          onPress={(box) => { Keyboard.dismiss(); setAnchor(box); setOpenSheet('version'); }}
           style={pickersSideBySide ? styles.half : undefined}
         >
           <SheetRowText text={print && currentSet ? versionLabel(print) : 'Version'} muted={!(print && currentSet)} />
@@ -494,6 +496,7 @@ export default function CardPanel(props: Props) {
       {/* The Language list (drawn only while open) */}
       {openSheet === 'language' && (
         <PickerSheet
+          anchor={anchor}
           title="Language"
           items={languageOptions}
           current={currentLanguage}
@@ -508,6 +511,7 @@ export default function CardPanel(props: Props) {
       {/* The Version list for the set showing (drawn only while open) */}
       {openSheet === 'version' && currentSet && (
         <PickerSheet
+          anchor={anchor}
           title={`Version (${currentSet.name})`}
           items={currentSet.prints}
           current={print}

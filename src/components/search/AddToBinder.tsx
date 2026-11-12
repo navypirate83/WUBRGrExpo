@@ -21,7 +21,7 @@
    list the card went into.
    ===================================================================== */
 
-import { useImperativeHandle, useState, type Ref } from 'react';
+import { useImperativeHandle, useRef, useState, type ComponentRef, type Ref } from 'react';
 import {
   ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle,
 } from 'react-native';
@@ -44,7 +44,7 @@ import {
 } from '@/lib/listStorage';
 import { hapticTap } from '@/lib/haptics';
 import { useColors } from '@/hooks/useTheme';
-import { PickerSheet, ROW_HEIGHT } from './PickerSheet';
+import { PickerSheet, ROW_HEIGHT, type Anchor } from './PickerSheet';
 
 // What the card area can ask this button to do (the A key on a computer)
 export type AddToBinderHandle = { activate: () => void };
@@ -96,6 +96,10 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
   // being typed in the New list window (null: closed), and whether
   // something is being saved (so nothing can be tapped twice)
   const [menu, setMenu] = useState<'kind' | 'binder' | 'list' | null>(null);
+  // The round "+" button, and where it is on the screen: the choices drop
+  // down from it (see PickerSheet.tsx)
+  const plusButton = useRef<ComponentRef<typeof Pressable>>(null);
+  const [anchor, setAnchor] = useState<Anchor | undefined>(undefined);
   const [newOpen, setNewOpen] = useState(false);
   const [newListName, setNewListName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -115,7 +119,9 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
     hapticTap();
     if (toList) addToList(toList);
     else if (fromBinder) addCardToBinder(fromBinder, pocket);
-    else setMenu('kind');
+    else if (plusButton.current) {
+      plusButton.current.measureInWindow((x, y, width, height) => { setAnchor({ x, y, width, height }); setMenu('kind'); });
+    } else setMenu('kind');
   }
 
   // Put the card being shown at the end of a list (unless it's already
@@ -251,6 +257,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
     <>
       {/* The round "+" button (a spinning wheel while it's saving) */}
       <Pressable
+        ref={plusButton}
         accessibilityRole="button"
         accessibilityLabel={toList ? 'Add to list' : fromBinder ? 'Add to binder' : 'Add to a binder or a list'}
         accessibilityHint={toList ? `Puts this card into ${findList(toList)?.name ?? 'the list'}`
@@ -275,6 +282,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
           line drawing and how many there are */}
       {menu === 'kind' && (
         <PickerSheet
+          anchor={anchor}
           title="Add to a binder or a list?"
           items={['binder', 'list'] as const}
           keyOf={(kind) => kind}
@@ -302,6 +310,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
       {/* 2. "Add to which list?": one row per list, then "New list" */}
       {menu === 'list' && (
         <PickerSheet
+          anchor={anchor}
           title="Add to which list?"
           items={lists}
           keyOf={(list) => list.id}
@@ -343,6 +352,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
       {/* 2. "Add to which binder?" */}
       {menu === 'binder' && (
         <PickerSheet
+          anchor={anchor}
           title="Add to which binder?"
           items={binders}
           keyOf={(binder) => binder.id}

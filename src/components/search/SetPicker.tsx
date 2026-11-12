@@ -3,9 +3,10 @@
    Picks which set (expansion) of the card to show. Each choice needs
    its set symbol, so every row is laid out as:
        symbol | CODE | Set Name
-   The box shows the current set; tapping it opens a sheet (a panel
-   from the bottom of the screen: see PickerSheet.tsx) listing every set
-   the card was printed in, newest first. Tapping one picks it.
+   The box shows the current set; tapping it drops a list down under it
+   (see PickerSheet.tsx) of every set the card was printed in, newest
+   first, with a "Type to filter" box at the top (a card can be in
+   hundreds of sets). Tapping one picks it.
    ===================================================================== */
 
 import { useState } from 'react';
@@ -13,7 +14,7 @@ import { Keyboard, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { plural, type SetGroup } from '@/lib/cards';
 import { useColors } from '@/hooks/useTheme';
-import { PickerButton, PickerSheet } from './PickerSheet';
+import { PickerButton, PickerSheet, type Anchor } from './PickerSheet';
 
 type Props = {
   sets: SetGroup[];
@@ -45,8 +46,9 @@ function SetRow({ set, bold }: { set: SetGroup; bold?: boolean }) {
 
 export default function SetPicker({ sets, current, onChoose }: Props) {
   const colors = useColors();
-  // Is the list of sets open?
+  // Is the list of sets open, and where is the box it drops down from?
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<Anchor | undefined>(undefined);
 
   return (
     <>
@@ -56,7 +58,7 @@ export default function SetPicker({ sets, current, onChoose }: Props) {
       <PickerButton
         disabled={!current}
         accessibilityLabel={current ? `Set: ${current.name}` : `Set: ${EMPTY_PICKER_TEXT}`}
-        onPress={() => { Keyboard.dismiss(); setOpen(true); }}
+        onPress={(box) => { Keyboard.dismiss(); setAnchor(box); setOpen(true); }}
       >
         {current
           ? <SetRow set={current} />
@@ -66,6 +68,8 @@ export default function SetPicker({ sets, current, onChoose }: Props) {
       {/* The list of sets, drawn only while it's open */}
       {open && (
         <PickerSheet
+          anchor={anchor}
+          filterable
           title={`Set (${plural(sets.length, 'set')})`}
           items={sets}
           current={current}
