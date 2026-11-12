@@ -18,7 +18,7 @@
 
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import Binder from '../models/Binder.js';
+import Binder, { COVER_SYMBOL_PATTERN } from '../models/Binder.js';
 import Card from '../models/Card.js';
 import { ownerFilter } from '../middleware/auth.js';
 import { handleDbError } from '../middleware/errorHandler.js';
@@ -155,7 +155,7 @@ router.post('/import', async (req, res) => {
   const biggestPage = valid.reduce((most, card) => Math.max(most, card.page), 1);
   const details = validateBinder({
     name: wantedName.trim().slice(0, 12) || 'Imported',
-    color: /^[A-Z]{1,2}$/.test(first['Cover symbol'] ?? '') ? first['Cover symbol'] : null,
+    color: COVER_SYMBOL_PATTERN.test(first['Cover symbol'] ?? '') ? first['Cover symbol'] : null,
     cover: first['Cover color'] || 'black',
     pages: Math.max(biggestPage, Number(first.Pages) || 10),
     pageLayout: layoutText,

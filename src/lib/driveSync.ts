@@ -30,7 +30,7 @@ import {
 } from './googleDrive';
 import {
   binderDirtyStamp, binderPages, clearAllBinders, clearBinderDirty, cleanCover, cleanPageCount,
-  forgetBinder, hasBinderCopy, loadBinder, loadBinderList, manaColor, saveBinder, saveBinderList,
+  forgetBinder, hasBinderCopy, loadBinder, isCoverSymbol, loadBinderList, saveBinder, saveBinderList,
   setLocalMode, isLocalMode, type Binder,
 } from './binderStorage';
 import { deleteCards } from './cardStore';
@@ -167,7 +167,7 @@ async function driveToPhone(binderFiles: BinderFile[], listFiles: BinderFile[]):
       binder: {
         id: file.id,
         name: nameFromFileName(file.name),
-        color: manaColor(labels.color) ? labels.color : null,
+        color: isCoverSymbol(labels.color) ? labels.color : null,
         cover: cleanCover(labels.cover),
         pages: cleanPageCount(labels.pages),
       } as Binder,

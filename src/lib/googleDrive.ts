@@ -42,7 +42,7 @@ import { accountChanged } from './accountEvents';
 import {
   DEFAULT_COVER, DEFAULT_PAGES,
   binderDetails, binderDirtyStamp, cleanCards, cleanCover, cleanPageCount,
-  hasBinderCopy, isLocalMode, loadBinder, loadBinderList, manaColor, markBinderSaved, newLocalBinderId,
+  hasBinderCopy, isLocalMode, loadBinder, isCoverSymbol, loadBinderList, markBinderSaved, newLocalBinderId,
   saveBinder, type Binder, type BinderCards,
 } from './binderStorage';
 import { binderToCsv, cardsFromCsv } from './binderCsv';
@@ -464,7 +464,7 @@ async function convertOldBinderFiles(folderId: string): Promise<void> {
     const labels = file.appProperties ?? {};
     const details: Omit<Binder, 'id'> = {
       name: nameFromFileName(file.name),
-      color: manaColor(labels.color) ? labels.color : null,
+      color: isCoverSymbol(labels.color) ? labels.color : null,
       cover: cleanCover(labels.cover),
       pages: cleanPageCount(labels.pages),
     };

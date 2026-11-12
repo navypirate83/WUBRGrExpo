@@ -47,6 +47,20 @@ describe('binders', () => {
     expect(await Binder.countDocuments()).toBe(1);
   });
 
+  test('a cover can have a set symbol ("set:" and the set code), and it can be changed back to a mana symbol', async () => {
+    const me = await setup();
+    const made = await me.post('/binders', { name: 'Commander', color: 'set:mh3' });
+    expect(made.status).toBe(201);
+    expect(made.body.color).toBe('set:mh3');
+    const id = made.body._id;
+    expect((await me.get(`/binders/${id}`)).body.color).toBe('set:mh3');
+    const changed = await me.put(`/binders/${id}`, { color: 'WU' });
+    expect(changed.status).toBe(200);
+    expect(changed.body.color).toBe('WU');
+    expect((await me.put(`/binders/${id}`, { color: 'set:sld' })).body.color).toBe('set:sld');
+    expect((await me.put(`/binders/${id}`, { color: null })).body.color).toBeNull();
+  });
+
   test('create with a missing name: 400 and nothing saved', async () => {
     const me = await setup();
     const res = await me.post('/binders', { color: 'U' });
@@ -65,6 +79,12 @@ describe('binders', () => {
     ['pages as text', { name: 'ok', pages: '5' }],
     ['bad cover', { name: 'ok', cover: 'javascript:1' }],
     ['bad color', { name: 'ok', color: 'xyz' }],
+    ['a set symbol with no set code', { name: 'ok', color: 'set:' }],
+    ['a set symbol in capitals', { name: 'ok', color: 'set:MH3' }],
+    ['a set symbol with a code too short', { name: 'ok', color: 'set:a' }],
+    ['a set symbol with a code too long', { name: 'ok', color: 'set:abcdefghi' }],
+    ['a set symbol with odd characters', { name: 'ok', color: 'set:mh3/../x' }],
+    ['a set symbol as an object', { name: 'ok', color: { $ne: null } }],
     ['bad layout', { name: 'ok', pageLayout: 'big' }],
   ])('create rejects %s', async (label, body) => {
     const me = await setup();

@@ -77,7 +77,7 @@ export default function NewBinderDialog({ onCreate, onCancel, onUpload }: Props)
   return (
     <PopupWindow title="New binder" onClose={onCancel} buttons={buttons}>
       <NameField value={name} onChange={setName} autoFocus onSubmit={create} />
-      <SymbolChoices legend="Choose a color symbol for the cover, or none." value={symbol} onChange={setSymbol} />
+      <SymbolChoices legend="Cover symbol (or none)" value={symbol} onChange={setSymbol} />
       <CoverChoices value={cover} onChange={setCover} />
     </PopupWindow>
   );

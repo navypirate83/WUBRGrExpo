@@ -106,8 +106,13 @@ export const helpTopics: HelpTopic[] = [
               label. A name like "Binder 3" is filled in for you.
             </Step>
             <Step n={3}>
-              Pick a <Strong>cover symbol</Strong>: none, one of the five colors, colorless,
-              planeswalker, or one of the two-color symbols.
+              Pick a <Strong>cover symbol</Strong> from one of two lists. Tap <Strong>Mana Symbols</Strong> for
+              none, one of the five colors, colorless, planeswalker, or one of the two-color
+              symbols. Tap <Strong>Set Symbols</Strong> for the symbol of any Magic set: type in the
+              search box to find one by set name or code. Sets that share the same symbol (Secret
+              Lair and the Pro Tour promos, say) are listed once, with how many sets use it. Picking
+              from one list replaces what was picked from the other. Alchemy and Arena sets aren't
+              in the list.
             </Step>
             <Step n={4}>
               Pick a <Strong>cover color</Strong>. Choose <Strong>Custom</Strong> for more colors,
@@ -217,7 +222,7 @@ export const helpTopics: HelpTopic[] = [
               or type a number). It can't be made smaller than the pages its cards need; cards on
               pages that go away are moved into empty pockets on the pages that stay,
             </Bullet>
-            <Bullet>its <Strong>cover symbol</Strong> and <Strong>cover color</Strong>.</Bullet>
+            <Bullet>its <Strong>cover symbol</Strong> (a mana symbol or a set symbol) and <Strong>cover color</Strong>.</Bullet>
             <P>Tap <Strong>Save</Strong> to keep the changes, or <Strong>Cancel</Strong> to leave it as it was.</P>
           </>
         ),

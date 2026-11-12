@@ -10,7 +10,7 @@
    ===================================================================== */
 
 import { isBlank, hasControlChars } from './text.js';
-import { isGoodCover } from '../models/Binder.js';
+import { isGoodCover, COVER_SYMBOL_PATTERN } from '../models/Binder.js';
 
 /* ---------- small checks, one per kind of value ---------- */
 
@@ -76,8 +76,8 @@ export function validateBinder(body, { partial = false } = {}) {
     value.name = input.name.trim();
   }
   if (has('color')) {
-    if (input.color !== null && (typeof input.color !== 'string' || !/^[A-Z]{1,2}$/.test(input.color))) {
-      return { error: 'Color must be a mana symbol code like U or WB, or null' };
+    if (input.color !== null && (typeof input.color !== 'string' || !COVER_SYMBOL_PATTERN.test(input.color))) {
+      return { error: 'Color must be a mana symbol code like U or WB, a set symbol like set:mh3, or null' };
     }
     value.color = input.color;
   }

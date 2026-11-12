@@ -65,7 +65,8 @@ const LOCAL_MODE_KEY = 'localOnly';
    --------------------------------------------------------------------- */
 
 // One binder in the list: its id, name, cover symbol ("color": a code
-// from MANA_COLORS, or null for none), cover color ("cover") and pages
+// from MANA_COLORS or a set symbol like "set:mh3", or null for none), cover
+// color ("cover") and pages
 export type Binder = {
   id: string;
   name: string;
@@ -145,6 +146,25 @@ export const MANA_COLORS: ManaColor[] = ([
 // no such code (including no symbol at all).
 export function manaColor(code: string | null | undefined): ManaColor | null {
   return MANA_COLORS.find((c) => c.code === code) ?? null;
+}
+
+// A cover symbol can also be a SET's symbol (the picture a set has on
+// its cards, like Modern Horizons 3's). It's remembered in the same place
+// as a mana symbol, written as "set:" and the set's code ("set:mh3"). An
+// older copy of the app doesn't know that form and simply shows no symbol.
+const SET_SYMBOL_PATTERN = /^set:[a-z0-9]{2,8}$/;
+
+// The set code in a set symbol ("set:mh3" gives "mh3"), or null if this
+// isn't one
+export function setSymbolCode(code: string | null | undefined): string | null {
+  return typeof code === 'string' && SET_SYMBOL_PATTERN.test(code) ? code.slice(4) : null;
+}
+
+// Is this a symbol a cover can have: a mana symbol or a set symbol?
+// (Used to tidy up anything read from a file, an account or Google Drive:
+// anything else counts as "no symbol".)
+export function isCoverSymbol(code: string | null | undefined): code is string {
+  return manaColor(code) !== null || setSymbolCode(code) !== null;
 }
 
 // The colors a binder's cover can be. The shades are in
@@ -371,7 +391,7 @@ export function binderDetails(id: string): Omit<Binder, 'id'> {
   const found = findBinder(id);
   return {
     name: binderName(id),
-    color: found && manaColor(found.color) ? found.color : null,
+    color: found && isCoverSymbol(found.color) ? found.color : null,
     cover: cleanCover(found?.cover),
     pages: binderPages(id),
   };
@@ -481,7 +501,7 @@ export function binderFromFile(data: unknown): Omit<Binder, 'id'> & { cards: Bin
   const name = typeof file.name === 'string' && file.name.trim() ? file.name.trim() : nextBinderName();
   return {
     name: freeBinderName(name),
-    color: typeof file.color === 'string' && manaColor(file.color) ? file.color : null,   // unknown: none
+    color: typeof file.color === 'string' && isCoverSymbol(file.color) ? file.color : null,   // unknown: none
     cover: cleanCover(file.cover),                                                       // unknown: black
     pages,
     cards,

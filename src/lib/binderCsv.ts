@@ -29,7 +29,7 @@ import { CARD_BACK } from './cards';
 import { loadPrintings } from './scryfall';
 import {
   DEFAULT_PAGES, MAX_COPIES, cleanCover, cleanPageCount,
-  freeBinderName, manaColor, minPagesFor, nextBinderName, pocketKey,
+  freeBinderName, isCoverSymbol, minPagesFor, nextBinderName, pocketKey,
   type Binder, type BinderCard, type BinderCards,
 } from './binderStorage';
 import { DEFAULT_LAYOUT, layoutFromText, layoutToText, pageLayout, pocketsPerPage } from './pageLayout';
@@ -227,7 +227,7 @@ function readCsv(text: string): {
     // of pages that holds as many pockets with the layout now.
     if (binder.name === undefined && get('Binder')) binder.name = get('Binder');
     if (binder.color === undefined && get('Cover color')) {
-      binder.color = manaColor(get('Cover symbol')) ? get('Cover symbol') : null;
+      binder.color = isCoverSymbol(get('Cover symbol')) ? get('Cover symbol') : null;
       binder.cover = cleanCover(get('Cover color'));
     }
     if (binder.pages === undefined && get('Pages')) {

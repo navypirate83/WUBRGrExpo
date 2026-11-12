@@ -1,23 +1,32 @@
 /* =====================================================================
    THE PIECES OF THE BINDER WINDOWS
    - NameField: the name box with its "5 / 12" counter
-   - SymbolChoices: the cover symbol (None, the colors, Colorless,
-     Planeswalker, then the two-color symbols)
+   - SymbolChoices: the cover symbol, picked from two scrollable lists
+     ("dropdowns"): Mana Symbols (None, the colors, Colorless,
+     Planeswalker, the two-color symbols) and Set Symbols (the symbol of
+     any Magic set, each picture listed once, with a box to search by
+     name)
    - CoverChoices: the cover color (nine colors, then "Custom", which
      shows a palette of more colors and a box for a color code)
-   Each choice is a tappable tile; the one picked has an orange ring.
+   The cover colors are tappable tiles; the one picked has an orange ring.
    Screen readers hear each tile as a "radio button" (only one in a
    group can be picked) and whether it's picked.
    Used by the New binder and Binder properties windows.
    ===================================================================== */
 
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { COVER_COLORS, MANA_COLORS, NAME_LIMIT, isCustomCover, type ManaColor } from '@/lib/binderStorage';
+import { useQuery } from '@tanstack/react-query';
+import {
+  COVER_COLORS, MANA_COLORS, NAME_LIMIT, isCustomCover, manaColor, setSymbolCode, type ManaColor,
+} from '@/lib/binderStorage';
 import { coverLook } from '@/lib/covers';
+import { loadSetIcons } from '@/lib/scryfall';
+import { SET_SYMBOLS, type SetSymbolEntry } from '@/data/setSymbols';
 import { useColors } from '@/hooks/useTheme';
 import TextField from '@/components/TextField';
+import { PickerButton, PickerSheet, SheetRowText } from '@/components/search/PickerSheet';
 import CoverSwatch from './CoverSwatch';
 
 /* ----- The name box ----- */
@@ -85,39 +94,163 @@ function Choice({ picked, label, name, onPress, children }: {
 
 /* ----- The cover symbol ----- */
 
-// "value" is the picked symbol's code, or "" for None.
+// The "None" row at the top of the Mana Symbols list. It's shaped like a
+// mana symbol (with no picture) so the list can treat every row the same.
+const NO_MANA_SYMBOL: ManaColor = { code: '', name: 'None', short: 'None', group: 'single', symbol: '' };
+const MANA_CHOICES: ManaColor[] = [NO_MANA_SYMBOL, ...MANA_COLORS];
+
+// How a set symbol is remembered ("set:mh3"), and which entry of the list
+// a remembered symbol is. A set the list doesn't know yet (one Scryfall
+// added after the list was made) still works: it's shown by its code.
+const setSymbolValue = (entry: SetSymbolEntry) => `set:${entry.code}`;
+function entryFor(code: string): SetSymbolEntry {
+  return SET_SYMBOLS.find((entry) => entry.codes.includes(code))
+    ?? { code, name: code.toUpperCase(), date: '', codes: [code], search: '' };
+}
+
+// The text in a closed box when nothing from that list is picked
+function Placeholder({ text }: { text: string }) {
+  const colors = useColors();
+  return <Text style={[styles.placeholder, { color: colors.muted }]} numberOfLines={1}>{text}</Text>;
+}
+
+// "value" is the picked symbol: "" for None, a mana symbol's code ("U"), or
+// a set symbol ("set:mh3"). The two lists share it: picking from one
+// replaces anything picked from the other.
 export function SymbolChoices({ legend, value, onChange }: {
   legend: string;
   value: string;
   onChange: (code: string) => void;
 }) {
   const colors = useColors();
+  // Which list is open (if any), and what's typed in the set list's search box
+  const [open, setOpen] = useState<'mana' | 'set' | null>(null);
+  const [search, setSearch] = useState('');
 
-  // One choice: the symbol's picture (or an empty circle for None)
-  const choice = (option: ManaColor | null) => {
-    const code = option?.code ?? '';
-    return (
-      <Choice
-        key={code || 'none'}
-        picked={value === code}
-        name={option?.short ?? 'None'}
-        // Screen readers say both names for two-color symbols ("White and Blue, Azorius")
-        label={option ? (option.short !== option.name ? `${option.name}, ${option.short}` : option.name) : 'None'}
-        onPress={() => onChange(code)}
-      >
-        {option
-          ? <Image source={option.symbol} style={styles.symbol} contentFit="contain" />
-          : <View style={[styles.symbol, styles.noSymbol, { borderColor: colors.muted }]} />}
-      </Choice>
-    );
+  // Every set's symbol picture address (downloaded once, then kept; the same
+  // list the Card Finder uses). Until it arrives, rows show an empty space
+  // where the picture goes.
+  const setIcons = useQuery({ queryKey: ['set-icons'], queryFn: loadSetIcons });
+  const iconOf = (code: string) => setIcons.data?.get(code);
+
+  // What's picked now, as each list sees it
+  const pickedSetCode = setSymbolCode(value);
+  const pickedSet = pickedSetCode ? entryFor(pickedSetCode) : null;
+  const pickedMana = pickedSet ? null : (manaColor(value) ?? NO_MANA_SYMBOL);
+
+  // One mana symbol's picture (or a dashed empty circle for None)
+  const manaPicture = (option: ManaColor) => (option.code
+    ? <Image source={option.symbol} style={styles.listSymbol} contentFit="contain" />
+    : <View style={[styles.listSymbol, styles.noSymbol, { borderColor: colors.muted }]} />);
+
+  // One set symbol's picture. The pictures are black, so they're tinted light
+  // to show up on the dark background (like the Card Finder's set list).
+  const setPicture = (entry: SetSymbolEntry) => {
+    const icon = iconOf(entry.code);
+    return icon
+      ? <Image source={{ uri: icon }} style={styles.listSymbol} contentFit="contain" tintColor={colors.iconTint} />
+      : <View style={styles.listSymbol} />;
   };
 
+  // The set list: every entry, or only those matching what's typed (any
+  // of the group's set names or codes)
+  const wanted = search.trim().toLowerCase();
+  const setItems = wanted ? SET_SYMBOLS.filter((entry) => entry.search.includes(wanted)) : SET_SYMBOLS;
+
+  function closeLists() {
+    setOpen(null);
+    setSearch('');
+  }
+
   return (
-    <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel={legend}>
+    <View style={styles.group} accessibilityLabel={legend}>
       <Text style={[styles.legend, { color: colors.text }]}>{legend}</Text>
-      <View style={styles.grid}>{[null, ...MANA_COLORS.filter((c) => c.group === 'single')].map(choice)}</View>
-      <Text style={[styles.groupTitle, { color: colors.muted }]}>Two colors</Text>
-      <View style={styles.grid}>{MANA_COLORS.filter((c) => c.group === 'two').map(choice)}</View>
+
+      {/* MANA SYMBOLS: the box shows the one picked (or says to choose) */}
+      <PickerButton
+        label="Mana Symbols"
+        accessibilityLabel={`Mana Symbols: ${pickedMana ? pickedMana.name : 'none picked'}`}
+        onPress={() => { Keyboard.dismiss(); setOpen('mana'); }}
+      >
+        {pickedMana ? (
+          <View style={styles.boxRow}>
+            {manaPicture(pickedMana)}
+            <SheetRowText text={pickedMana.short !== pickedMana.name ? `${pickedMana.name}, ${pickedMana.short}` : pickedMana.name} />
+          </View>
+        ) : <Placeholder text="Choose a mana symbol" />}
+      </PickerButton>
+
+      {/* SET SYMBOLS: the same, for the set symbol list */}
+      <PickerButton
+        label="Set Symbols"
+        accessibilityLabel={`Set Symbols: ${pickedSet ? pickedSet.name : 'none picked'}`}
+        onPress={() => { Keyboard.dismiss(); setOpen('set'); }}
+      >
+        {pickedSet ? (
+          <View style={styles.boxRow}>
+            {setPicture(pickedSet)}
+            <SheetRowText text={pickedSet.name} />
+          </View>
+        ) : <Placeholder text="Choose a set symbol" />}
+      </PickerButton>
+
+      {/* The mana symbol list (drawn only while open) */}
+      {open === 'mana' && (
+        <PickerSheet
+          title="Mana Symbols"
+          items={MANA_CHOICES}
+          current={pickedMana}
+          keyOf={(option) => option.code || 'none'}
+          labelOf={(option) => (option.short !== option.name ? `${option.name}, ${option.short}` : option.name)}
+          renderRow={(option, isCurrent) => (
+            <>
+              {manaPicture(option)}
+              {/* Two-color symbols have a nickname too ("White and Blue", "Azorius") */}
+              <SheetRowText text={option.short !== option.name ? `${option.name} · ${option.short}` : option.name} bold={isCurrent} />
+            </>
+          )}
+          onPick={(option) => { onChange(option.code); closeLists(); }}
+          onClose={closeLists}
+        />
+      )}
+
+      {/* The set symbol list (drawn only while open): a search box at the
+          top, then every symbol, newest first. A symbol shared by several
+          sets (Secret Lair and the Pro Tour promos look the same) is listed
+          once, and says how many sets it stands for. */}
+      {open === 'set' && (
+        <PickerSheet
+          title={`Set Symbols (${setItems.length})`}
+          items={setItems}
+          current={pickedSet ? setItems.find((entry) => entry.code === pickedSet.code) ?? null : null}
+          keyOf={(entry) => entry.code}
+          labelOf={(entry) => entry.name}
+          header={(
+            <View style={styles.searchBox}>
+              <TextField
+                accessibilityLabel="Search set symbols"
+                placeholder="Search by set name or code"
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+              />
+            </View>
+          )}
+          footer={setItems.length === 0 ? <Text style={[styles.noMatch, { color: colors.muted }]}>No set symbol matches that.</Text> : undefined}
+          renderRow={(entry, isCurrent) => (
+            <>
+              {setPicture(entry)}
+              <SheetRowText text={entry.name} bold={isCurrent} />
+              {entry.codes.length > 1 && <Text style={[styles.setCount, { color: colors.muted }]}>{entry.codes.length} sets</Text>}
+            </>
+          )}
+          onPick={(entry) => { onChange(setSymbolValue(entry)); closeLists(); }}
+          onClose={closeLists}
+        />
+      )}
     </View>
   );
 }
@@ -209,18 +342,25 @@ export function CoverChoices({ value, onChange }: {
   );
 }
 
-// The look of the choices: tiles in rows that wrap onto the next line
+// The look of the choices: the symbol lists' pieces, and the cover color
+// tiles in rows that wrap onto the next line
 const styles = StyleSheet.create({
   count: { fontSize: 13, textAlign: 'right', marginTop: 4 },
   group: { gap: 8 },
   legend: { fontSize: 15, fontWeight: '600' },
-  groupTitle: { fontSize: 13, fontWeight: '600', marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   choice: { width: 72, alignItems: 'center', gap: 2, paddingVertical: 4 },
   pressed: { opacity: 0.6 },
   ring: { borderWidth: 2.5, borderRadius: 26, padding: 3 },
-  symbol: { width: 40, height: 40 },
-  noSymbol: { borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed' },
+  // The pictures in the symbol lists (a bit smaller than a tile's)
+  listSymbol: { width: 26, height: 26, flexShrink: 0 },
+  noSymbol: { borderRadius: 13, borderWidth: 1.5, borderStyle: 'dashed' },
+  placeholder: { flexShrink: 1, fontSize: 16 },
+  // The picked symbol and its name inside a closed box, with room between
+  boxRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  searchBox: { paddingHorizontal: 2, paddingBottom: 8 },
+  noMatch: { paddingVertical: 16, textAlign: 'center', fontSize: 15 },
+  setCount: { flexShrink: 0, fontSize: 13 },
   choiceName: { fontSize: 12 },
   palette: { gap: 10, marginTop: 4 },
   paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
