@@ -6,9 +6,9 @@
    Coast asks fan projects like this one to show (their "Fan Content
    Policy").
    Server status: on the website, UptimeRobot's live badge sits at the
-   right end of its row (green when the server is up). The phone app can't
-   show a web page inside itself, so there the row is a link to the same
-   status page, like the others.
+   right end of its row (green when the server is up), and tapping it opens
+   the status page. The phone app can't draw web tags like that, so there
+   the row is a link to the same status page, like the others.
    Links open in the phone's web browser (or a new browser tab).
    ===================================================================== */
 
@@ -28,11 +28,11 @@ const FAN_POLICY_URL = 'https://company.wizards.com/en/legal/fancontentpolicy';
 // The Android app file, shared from Google Drive (shown on the website only)
 const ANDROID_APP_URL = 'https://drive.google.com/file/d/1nqBXL5YRPTGnGFR8wgdYSCbHNe4y7enc/view?usp=sharing';
 
-// The server's status page, and the small live badge UptimeRobot makes for
-// it (a tiny web page that shows "Operational" or "Down", 181 by 24)
+// The server's status page, and the small live badge picture UptimeRobot
+// makes for it (it says "up", "down" and so on; 24 tall, as wide as its
+// words need)
 const STATUS_PAGE_URL = 'https://stats.uptimerobot.com/WQDbcwUml0';
-const STATUS_BADGE_URL = 'https://badge.uptimerobot.com/psp/5156fb071badab132d286123bc8f3037?style=logo&theme=dark';
-const STATUS_BADGE_WIDTH = 181;
+const STATUS_BADGE_IMAGE_URL = 'https://badge.uptimerobot.com/psp/5156fb071badab132d286123bc8f3037.svg?theme=dark&style=logo';
 const STATUS_BADGE_HEIGHT = 24;
 
 // The app's version number (from app.json), like "0.2.0"
@@ -62,10 +62,13 @@ function LinkRow({ name, description, url }: { name: string; description?: strin
 
 /* ----- The server's status (website only) ----- */
 
-// "Server status" with the live badge at the right end of the row. If the
-// row is too narrow for both, the badge drops under the name instead of
-// squeezing it. (The badge is a web page shown in a frame, which only the
-// website can do: see the top of this file.)
+// "Server status" with the live badge at the right end of the row, lined
+// up with the other rows' link arrows. If the row is too narrow for both,
+// the badge drops under the name instead of squeezing it. The badge is a
+// picture (so it takes the width its words need, and its right edge is the
+// row's right edge) inside a link to the status page. It's drawn with
+// plain web tags, so this row is for the website only: see the top of
+// this file.
 function ServerStatusRow() {
   const colors = useColors();
   return (
@@ -74,14 +77,18 @@ function ServerStatusRow() {
         <Text style={[styles.name, { color: colors.text }]}>Server status</Text>
         <Text style={[styles.description, { color: colors.muted }]}>wubrgr-server.onrender.com</Text>
       </View>
-      {createElement('iframe', {
-        src: STATUS_BADGE_URL,
-        title: 'Server status: wubrgr-server.onrender.com',
-        width: STATUS_BADGE_WIDTH,
+      {createElement('a', {
+        href: STATUS_PAGE_URL,
+        target: '_blank',
+        rel: 'noopener',
+        // A link that is just the picture (no extra space around it)
+        style: { display: 'block', lineHeight: 0, flexShrink: 0 },
+      }, createElement('img', {
+        src: STATUS_BADGE_IMAGE_URL,
+        alt: 'Server status: wubrgr-server.onrender.com',
         height: STATUS_BADGE_HEIGHT,
-        // No border, and dark colors so the badge's own background blends in
-        style: { border: 0, colorScheme: 'dark', flexShrink: 0 },
-      })}
+        style: { display: 'block', height: STATUS_BADGE_HEIGHT },
+      }))}
     </View>
   );
 }
