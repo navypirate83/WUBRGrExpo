@@ -6,6 +6,8 @@
      Legality box (the codes, like "pauper"). It lists the hidden ones,
      rather than the shown ones, so a new format Scryfall adds later
      shows up without anyone having to tick it.
+   - priceStore: which store's prices to show in the binders (TCGplayer,
+     Card Kingdom or Cardmarket; see prices.ts)
    - phoneLayout and wideLayout: pockets across and down each binder page
      on a narrow window (a phone) and on a wide one (see pageLayout.ts).
      Changing the one in use moves every binder's cards to match.
@@ -41,6 +43,7 @@ import { storageGet, storageRemove, storageSet } from './storage';
 import { isLocalMode, relayoutAllBinders } from './binderStorage';
 import { isSignedIn, readSettingsFile, writeSettingsFile } from './googleDrive';
 import { apiRequest } from './api';
+import { DEFAULT_PRICE_STORE, cleanPriceStore, type PriceStore } from './prices';
 import { isServerSignedIn, SETTINGS_UNSENT_KEY } from './session';
 import {
   DEFAULT_LAYOUT, cleanLayout, currentSizeClass, layoutFor, pageLayout, pocketsPerPage,
@@ -52,6 +55,7 @@ import {
 export type Settings = {
   theme: ThemeChoice;
   hiddenFormats: string[];
+  priceStore: PriceStore;
   phoneLayout: PageLayout;
   wideLayout: PageLayout;
   accountLayout: PageLayout;
@@ -59,6 +63,7 @@ export type Settings = {
 const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   hiddenFormats: [],
+  priceStore: DEFAULT_PRICE_STORE,
   phoneLayout: DEFAULT_LAYOUT,
   wideLayout: DEFAULT_LAYOUT,
   accountLayout: DEFAULT_LAYOUT,
@@ -75,6 +80,7 @@ const DIRTY_KEY = 'settingsDirty';
 // The same kind of marker for the WUBRG'r server (signing out clears it)
 const SERVER_DIRTY_KEY = SETTINGS_UNSENT_KEY;
 const HIDDEN_FORMATS_KEY = 'hiddenFormats';
+const PRICE_STORE_KEY = 'priceStore';
 
 /* ---------------------------------------------------------------------
    TELLING PAGES ABOUT CHANGES
@@ -113,6 +119,7 @@ export function currentSettings(): Settings {
     ...DEFAULT_SETTINGS,
     theme: currentThemeChoice(),
     hiddenFormats: cleanCodes(hidden),
+    priceStore: cleanPriceStore(storageGet(PRICE_STORE_KEY)),
     phoneLayout: layouts.phone,
     wideLayout: layouts.wide,
     accountLayout: layouts.account,
@@ -128,6 +135,7 @@ export function currentSettings(): Settings {
 function applySettings(settings: Settings): void {
   if (settings.theme !== currentThemeChoice()) setThemeChoice(settings.theme);
   storageSet(HIDDEN_FORMATS_KEY, JSON.stringify(settings.hiddenFormats));
+  storageSet(PRICE_STORE_KEY, settings.priceStore);
   const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
   if (!sameLayout(nowShowing, pageLayout())) {
     relayoutAllBinders(pocketsPerPage(), pocketsPerPage(nowShowing));
@@ -166,6 +174,8 @@ function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Sett
   const settings = currentSettings();
   if (data.theme === 'light' || data.theme === 'dark' || data.theme === 'system') settings.theme = data.theme;
   if (Array.isArray(data.hiddenFormats)) settings.hiddenFormats = cleanCodes(data.hiddenFormats);
+  // An older save has no price store: keep the one chosen here
+  if (data.priceStore !== undefined) settings.priceStore = cleanPriceStore(data.priceStore);
   const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
   if (isObject(data.pageLayout)) {
     const single = cleanLayout(data.pageLayout);
@@ -208,15 +218,15 @@ function saveToDrive(): Promise<void> {
 
 // What the server sends back: the saved settings (null if none yet)
 type ServerSettings = {
-  settings: { theme?: unknown; hiddenFormats?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
 };
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  const { theme, hiddenFormats, priceStore, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
   await apiRequest('/settings', {
     method: 'PUT',
-    body: { theme, hiddenFormats, pageLayout: stored, phoneLayout, wideLayout },
+    body: { theme, hiddenFormats, priceStore, pageLayout: stored, phoneLayout, wideLayout },
   });
   storageRemove(SERVER_DIRTY_KEY);
 }

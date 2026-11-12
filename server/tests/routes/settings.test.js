@@ -18,10 +18,11 @@ afterEach(clearTestDb);
 afterAll(disconnectTestDb);
 
 const GOOD = { theme: 'dark', hiddenFormats: ['pauper'], pageLayout: { across: 3, down: 3 } };
-// What reading GOOD back gives: one layout means the phone and wide ones too
-const GOOD_BACK = { ...GOOD, phoneLayout: GOOD.pageLayout, wideLayout: GOOD.pageLayout };
+// What reading GOOD back gives: one layout means the phone and wide ones too,
+// and no price store sent means the default one (TCGplayer)
+const GOOD_BACK = { ...GOOD, priceStore: 'tcgplayer', phoneLayout: GOOD.pageLayout, wideLayout: GOOD.pageLayout };
 // A save from the newer app: the cards stored 4x4, a phone 3x3, a wide screen 5x4
-const TWO = { ...GOOD, pageLayout: { across: 4, down: 4 }, phoneLayout: { across: 3, down: 3 }, wideLayout: { across: 5, down: 4 } };
+const TWO = { ...GOOD, priceStore: 'tcgplayer', pageLayout: { across: 4, down: 4 }, phoneLayout: { across: 3, down: 3 }, wideLayout: { across: 5, down: 4 } };
 
 test('needs a sign-in', async () => {
   expect((await request(app).get('/settings')).status).toBe(401);
@@ -47,7 +48,7 @@ test('a save reads back the same, and a second save replaces it', async () => {
   const changed = { theme: 'light', hiddenFormats: [], pageLayout: { across: 4, down: 4 } };
   await request(app).put('/settings').set('Authorization', auth).send(changed);
   expect((await request(app).get('/settings').set('Authorization', auth)).body.settings)
-    .toEqual({ ...changed, phoneLayout: changed.pageLayout, wideLayout: changed.pageLayout });
+    .toEqual({ ...changed, priceStore: 'tcgplayer', phoneLayout: changed.pageLayout, wideLayout: changed.pageLayout });
 });
 
 test('a newer app saves a phone and a wide layout, and reads them back', async () => {
@@ -82,6 +83,19 @@ test('an older app still sets the one layout, which replaces the newer ones', as
   expect(res.body.settings).toEqual(GOOD_BACK);
 });
 
+test('the price store is saved and read back, and an older app that sends none keeps it', async () => {
+  const user = await makeUser();
+  const auth = bearer(user);
+  const saved = await request(app).put('/settings').set('Authorization', auth).send({ ...GOOD, priceStore: 'cardkingdom' });
+  expect(saved.status).toBe(200);
+  expect(saved.body.settings.priceStore).toBe('cardkingdom');
+  // An older app saves again without a price store: the chosen one stays
+  const older = await request(app).put('/settings').set('Authorization', auth).send({ ...GOOD, theme: 'light' });
+  expect(older.status).toBe(200);
+  expect(older.body.settings.theme).toBe('light');
+  expect(older.body.settings.priceStore).toBe('cardkingdom');
+});
+
 test('bad values are refused and nothing is saved', async () => {
   const user = await makeUser();
   const auth = bearer(user);
@@ -92,6 +106,9 @@ test('bad values are refused and nothing is saved', async () => {
     { ...GOOD, pageLayout: { across: 9, down: 3 } },
     { ...GOOD, pageLayout: { across: 2.5, down: 3 } },
     { theme: 'dark' },
+    // a store that isn't one of the three
+    { ...GOOD, priceStore: 'ebay' },
+    { ...GOOD, priceStore: 5 },
     // the phone and wide layouts: only one of them, or a bad one
     { ...GOOD, phoneLayout: { across: 3, down: 3 } },
     { ...GOOD, wideLayout: { across: 3, down: 3 } },

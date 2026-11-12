@@ -3,8 +3,9 @@
    The app's settings, in groups, laid out like a phone's own Settings
    app (see components/settings/SettingsParts.tsx). The groups:
    - Appearance: the theme (Dark, System or Light)
-   - Binders: the page layouts (pockets across and down each page): one for
-     phones (narrow windows) and one for wide screens
+   - Binders: the price store (whose prices the binders show), and the
+     page layouts (pockets across and down each page): one for phones
+     (narrow windows) and one for wide screens
    - Search: which formats show in the Card Finder's Format Legality box
    - Account: who's signed in, and signing in or out
    - Device memory: "Reset device memory", the only way to clear the collection
@@ -29,6 +30,7 @@ import { MAX_CONTENT_WIDTH, SPACE } from '@/theme/colors';
 import { SettingBlock, SettingsSection } from '@/components/settings/SettingsParts';
 import ThemeChoicePicker from '@/components/settings/ThemeChoicePicker';
 import LayoutPicker from '@/components/settings/LayoutPicker';
+import PriceStorePicker from '@/components/settings/PriceStorePicker';
 import FormatSwitches from '@/components/settings/FormatSwitches';
 import AccountSection from '@/components/settings/AccountSection';
 import FullScreenSwitch from '@/components/settings/FullScreenSwitch';
@@ -116,6 +118,12 @@ export default function SettingsScreen() {
             the window's width decides which one shows (see pageLayout.ts) */}
         {usingBinders && (
           <SettingsSection title="Binders">
+            <SettingBlock
+              name="Price store"
+              description="Which store's prices to show for your cards in the binders (and first on the Card Finder). TCGplayer and Card Kingdom are in US dollars, Cardmarket in euros."
+            >
+              <PriceStorePicker value={settings.priceStore} onChange={(priceStore) => change({ priceStore })} />
+            </SettingBlock>
             <SettingBlock
               name="Page layout on a phone"
               description="How many pockets across and down each binder page has when the window is narrow (under 600 wide): a phone held upright, or the website in a narrow window. Like 3 × 3 for 9-pocket pages. Changing it keeps your cards in the same order, flowing onto more or fewer pages; change it back and every card returns to where it was."

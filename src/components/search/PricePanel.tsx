@@ -13,6 +13,7 @@
    (Where the prices come from: see lib/prices.ts.)
    ===================================================================== */
 
+import { Fragment } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
@@ -23,6 +24,7 @@ import {
 } from '@/lib/prices';
 import { openLink } from '@/lib/links';
 import { useColors } from '@/hooks/useTheme';
+import { useSettings } from '@/hooks/useSettings';
 import { RADIUS } from '@/theme/colors';
 
 type Props = {
@@ -44,6 +46,8 @@ const STORE_ICONS = {
 
 export default function PricePanel({ print, foil, layout }: Props) {
   const colors = useColors();
+  // The store chosen in Settings is listed first
+  const { priceStore } = useSettings();
 
   // Card Kingdom's price list: downloaded once (the first time a card is
   // shown) and kept for the whole visit ("gcTime: Infinity")
@@ -136,12 +140,16 @@ export default function PricePanel({ print, foil, layout }: Props) {
         </View>
       </View>
 
-      {/* One row per store */}
-      {row('TCGplayer', STORE_ICONS.tcgplayer, 'USD', tcgplayerPrices(print), null, true)}
-      {row('Card Kingdom', STORE_ICONS.cardkingdom, 'USD',
-        cardKingdom.data ? cardKingdomPrices(print, cardKingdom.data) : null, ckMessage)}
-      {/* Cardmarket: prices only, not a link (its site blocks many visitors) */}
-      {row('Cardmarket', STORE_ICONS.cardmarket, 'EUR', cardmarketPrices(print), null, false, false)}
+      {/* One row per store, the chosen store first. (Cardmarket: prices
+          only, not a link, since its site blocks many visitors.) */}
+      {([priceStore, ...(['tcgplayer', 'cardkingdom', 'cardmarket'] as const).filter((store) => store !== priceStore)]).map((store, index) => (
+        <Fragment key={store}>
+          {store === 'tcgplayer' && row('TCGplayer', STORE_ICONS.tcgplayer, 'USD', tcgplayerPrices(print), null, index === 0)}
+          {store === 'cardkingdom' && row('Card Kingdom', STORE_ICONS.cardkingdom, 'USD',
+            cardKingdom.data ? cardKingdomPrices(print, cardKingdom.data) : null, ckMessage, index === 0)}
+          {store === 'cardmarket' && row('Cardmarket', STORE_ICONS.cardmarket, 'EUR', cardmarketPrices(print), null, index === 0, false)}
+        </Fragment>
+      ))}
     </View>
   );
 }

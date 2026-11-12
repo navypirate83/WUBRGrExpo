@@ -61,6 +61,8 @@ const userSchema = new mongoose.Schema(
     settings: {
       theme: { type: String, enum: ['system', 'light', 'dark'] },
       hiddenFormats: { type: [String], default: undefined },
+      // Which store's prices the binders show
+      priceStore: { type: String, enum: ['tcgplayer', 'cardkingdom', 'cardmarket'] },
       // The layout the account's cards are stored in (see routes/settings.js)
       pageLayout: {
         across: { type: Number, min: 1, max: 6 },

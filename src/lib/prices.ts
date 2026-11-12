@@ -8,11 +8,32 @@
      covers every card at once (about 8 MB to download), listed by
      Scryfall's ID for each printing, so it's downloaded once, only when
      prices are first needed, and just the prices are kept.
+   Which store's prices to show everywhere a single price appears (the
+   binders' lists and totals) is the "price store" in Settings.
    Plain TypeScript with no React in it.
    ===================================================================== */
 
 import { fetchOrExplain, RequestError } from './http';
 import type { ScryfallCard } from './scryfall';
+
+// The three stores, as they're named in Settings. Each has its currency.
+export type PriceStore = 'tcgplayer' | 'cardkingdom' | 'cardmarket';
+export const PRICE_STORES: { value: PriceStore; name: string; currency: 'USD' | 'EUR' }[] = [
+  { value: 'tcgplayer', name: 'TCGplayer', currency: 'USD' },
+  { value: 'cardkingdom', name: 'Card Kingdom', currency: 'USD' },
+  { value: 'cardmarket', name: 'Cardmarket', currency: 'EUR' },
+];
+export const DEFAULT_PRICE_STORE: PriceStore = 'tcgplayer';
+
+// Keep only a real store name (anything else becomes the default)
+export function cleanPriceStore(value: unknown): PriceStore {
+  return PRICE_STORES.some((store) => store.value === value) ? (value as PriceStore) : DEFAULT_PRICE_STORE;
+}
+
+// A store's currency
+export function currencyOf(store: PriceStore): 'USD' | 'EUR' {
+  return PRICE_STORES.find((s) => s.value === store)?.currency ?? 'USD';
+}
 
 // One store's prices for a printing: regular and foil (null = none
 // known), whether the foil is "etched" foil, and a link to the card there
@@ -117,4 +138,16 @@ export function cardKingdomPrices(print: ScryfallCard, list: CardKingdomPrices):
     etched: false,
     url: found?.url ?? found?.foilUrl ?? searchLink('cardkingdom', print.name),
   };
+}
+
+// The price of ONE copy of a printing at the chosen store, as the copy is
+// (foil or not): the foil price for a foil copy, the regular price
+// otherwise. null when the store has no price for it. "list" is Card
+// Kingdom's downloaded list (only needed for Card Kingdom).
+export function copyPrice(store: PriceStore, print: ScryfallCard, foil: boolean, list?: CardKingdomPrices): number | null {
+  const prices = store === 'tcgplayer' ? tcgplayerPrices(print)
+    : store === 'cardmarket' ? cardmarketPrices(print)
+      : list ? cardKingdomPrices(print, list) : null;
+  if (!prices) return null;
+  return foil ? prices.foil : prices.regular;
 }

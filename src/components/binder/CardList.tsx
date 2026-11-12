@@ -3,7 +3,10 @@
    The List and Grid views of an opened binder (the Binder view, with its
    pockets, is drawn by the binder screen itself).
    - LIST: one line per card: a small picture, its name, its set and
-     number, and how many copies you have.
+     number, how many copies you have, and what they're worth at the
+     store chosen in Settings (a dash when it has no price).
+   Above both, one quiet line: how many cards, how many different, and the
+   total value.
    - GRID: card pictures side by side, with a small orange "×3" tag on a
      card you have more than one copy of.
    Tapping a card calls "onPick" (the binder screen opens that card's
@@ -18,6 +21,8 @@ import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { pictureSource } from '@/lib/http';
 import { cardCount, type BinderCard } from '@/lib/binderStorage';
+import { formatPrice } from '@/lib/prices';
+import type { BinderPrices } from '@/hooks/useBinderPrices';
 import { RADIUS, SPACE } from '@/theme/colors';
 
 // A card and the pocket it sits in
@@ -28,6 +33,7 @@ type Props = {
   mode: 'list' | 'grid';
   width: number;                       // the room beside the side menu, in points
   onPick: (key: string) => void;
+  prices: BinderPrices;                // what the cards are worth
   empty: ReactElement;                 // what to show when there are no cards
 };
 
@@ -37,7 +43,7 @@ const CARD_RATIO = 88 / 63;
 const GRID_MIN_WIDTH = 100;
 const GRID_GAP = 10;
 
-export default function CardList({ entries, mode, width, onPick, empty }: Props) {
+export default function CardList({ entries, mode, width, onPick, prices, empty }: Props) {
   const colors = useColors();
   // The grid's columns, and how wide each picture is
   const room = width - 2 * SPACE.l;
@@ -55,9 +61,10 @@ export default function CardList({ entries, mode, width, onPick, empty }: Props)
       columnWrapperStyle={columns > 1 ? { gap: GRID_GAP } : undefined}
       contentContainerStyle={[styles.content, mode === 'grid' && { gap: GRID_GAP }]}
       ListEmptyComponent={empty}
+      ListHeaderComponent={entries.length > 0 ? <Summary entries={entries} prices={prices} /> : undefined}
       renderItem={({ item }) => (
         mode === 'list'
-          ? <ListRow entry={item} onPick={onPick} border={colors.border} />
+          ? <ListRow entry={item} onPick={onPick} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency} />
           : <GridTile entry={item} onPick={onPick} size={tile} />
       )}
     />
@@ -65,9 +72,25 @@ export default function CardList({ entries, mode, width, onPick, empty }: Props)
 }
 
 /* ---------------------------------------------------------------------
+   THE SUMMARY LINE above the cards: "42 cards · 31 different · $118.40"
+   --------------------------------------------------------------------- */
+function Summary({ entries, prices }: { entries: CardEntry[]; prices: BinderPrices }) {
+  const colors = useColors();
+  const cards = entries.reduce((sum, { card }) => sum + cardCount(card), 0);
+  const worth = prices.total !== null ? formatPrice(prices.total, prices.currency)
+    : prices.failed ? 'prices unavailable' : prices.loading ? 'loading prices…' : '';
+  const parts = [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth].filter(Boolean);
+  return <Text style={[styles.summary, { color: colors.muted }]} accessibilityLiveRegion="polite">{parts.join(' · ')}</Text>;
+}
+
+/* ---------------------------------------------------------------------
    ONE LINE OF THE LIST. "memo" redraws it only when its card changes.
    --------------------------------------------------------------------- */
-const ListRow = memo(function ListRow({ entry, onPick, border }: { entry: CardEntry; onPick: (key: string) => void; border: string }) {
+const ListRow = memo(function ListRow({ entry, onPick, border, price, currency }: {
+  entry: CardEntry; onPick: (key: string) => void; border: string;
+  price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
+  currency: 'USD' | 'EUR';
+}) {
   const colors = useColors();
   const { card, key } = entry;
   const count = cardCount(card);
@@ -76,7 +99,7 @@ const ListRow = memo(function ListRow({ entry, onPick, border }: { entry: CardEn
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${card.name}, ${about}, ${count} ${count === 1 ? 'copy' : 'copies'}. Opens its menu.`}
+      accessibilityLabel={`${card.name}, ${about}, ${count} ${count === 1 ? 'copy' : 'copies'}${typeof price === 'number' ? `, worth ${formatPrice(price, currency)}` : ''}. Opens its menu.`}
       onPress={() => onPick(key)}
       style={({ pressed }) => [styles.row, { borderBottomColor: border }, pressed && { backgroundColor: colors.surfaceHover }]}
     >
@@ -89,6 +112,8 @@ const ListRow = memo(function ListRow({ entry, onPick, border }: { entry: CardEn
       <View style={[styles.count, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.countText, { color: colors.text }]}>×{count}</Text>
       </View>
+      {/* What the copies are worth (a dash if the store has no price) */}
+      <Text style={[styles.price, { color: colors.muted }]}>{price === undefined ? '' : formatPrice(price, currency)}</Text>
     </Pressable>
   );
 });
@@ -127,6 +152,8 @@ const styles = StyleSheet.create({
   about: { fontSize: 12, marginTop: 1 },
   count: { borderWidth: 1, borderRadius: RADIUS, paddingHorizontal: 10, paddingVertical: 3 },
   countText: { fontSize: 13, fontWeight: '700' },
+  price: { width: 62, textAlign: 'right', fontSize: 13, fontVariant: ['tabular-nums'] },
+  summary: { fontSize: 13, paddingBottom: SPACE.s, paddingTop: 2 },
   pressed: { opacity: 0.6 },
   tag: { position: 'absolute', right: 4, bottom: 4, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
   tagText: { fontSize: 11, fontWeight: '800' },

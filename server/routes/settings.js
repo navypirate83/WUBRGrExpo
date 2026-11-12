@@ -5,7 +5,9 @@
    the person is never taken from the request, so nobody can read or
    change anyone else's.
    - GET /settings   the saved settings (or null if none were ever saved)
-   - PUT /settings   save the settings (replaces what was saved)
+   - PUT /settings   save the settings (replaces what was saved; a save
+                     from an older app with no price store keeps the one
+                     already saved)
 
    THE THREE PAGE LAYOUTS (pockets across and down a binder page):
    - phoneLayout and wideLayout: what the app shows on a narrow window
@@ -28,6 +30,9 @@ import { handleDbError } from '../middleware/errorHandler.js';
 const router = Router();
 
 const THEMES = ['system', 'light', 'dark'];
+// The stores whose prices the app can show in the binders
+const PRICE_STORES = ['tcgplayer', 'cardkingdom', 'cardmarket'];
+const DEFAULT_PRICE_STORE = 'tcgplayer';
 
 // A page layout count must be a whole number from 1 to 6
 const isCount = (n) => Number.isInteger(n) && n >= 1 && n <= 6;
@@ -40,11 +45,15 @@ const pick = (l) => ({ across: l.across, down: l.down });
 // (extras are ignored), or { error } saying what is wrong. "twoLayouts" is
 // true when it came from an app that has the phone and wide layouts.
 function checkSettings(body) {
-  const { theme, hiddenFormats, pageLayout, phoneLayout, wideLayout } = body ?? {};
+  const { theme, hiddenFormats, priceStore, pageLayout, phoneLayout, wideLayout } = body ?? {};
   if (!THEMES.includes(theme)) return { error: 'Theme must be system, light or dark' };
   if (!Array.isArray(hiddenFormats) || hiddenFormats.length > 100
     || !hiddenFormats.every((f) => typeof f === 'string' && f.length > 0 && f.length < 40)) {
     return { error: 'Hidden formats must be a list of short names' };
+  }
+  // The price store is optional (an older app doesn't send one)
+  if (priceStore !== undefined && !PRICE_STORES.includes(priceStore)) {
+    return { error: 'Price store must be tcgplayer, cardkingdom or cardmarket' };
   }
   if (!isLayout(pageLayout)) {
     return { error: 'Page layout must be whole numbers from 1 to 6 across and down' };
@@ -57,6 +66,7 @@ function checkSettings(body) {
     return { error: 'The phone and wide layouts must be whole numbers from 1 to 6 across and down' };
   }
   const settings = { theme, hiddenFormats, pageLayout: pick(pageLayout) };
+  if (priceStore !== undefined) settings.priceStore = priceStore;
   if (phoneLayout !== undefined) {
     settings.phoneLayout = pick(phoneLayout);
     settings.wideLayout = pick(wideLayout);
@@ -73,6 +83,7 @@ function answer(user) {
     settings: {
       theme: saved.theme,
       hiddenFormats: saved.hiddenFormats ?? [],
+      priceStore: saved.priceStore ?? DEFAULT_PRICE_STORE,
       pageLayout: stored,
       // Settings saved before there were two layouts: both are the one layout
       phoneLayout: saved.phoneLayout?.across ? pick(saved.phoneLayout) : stored,
@@ -97,10 +108,14 @@ router.put('/', async (req, res) => {
   try {
     // A newer app never changes the layout the cards are stored in once
     // the account has one (see the top of this file): keep the saved one
-    if (checked.twoLayouts) {
+    // An older app sends no price store: keep the one already saved
+    if (checked.twoLayouts || checked.settings.priceStore === undefined) {
       const before = await User.findById(req.user.id).select('settings settingsSavedAt').lean();
       const keep = before?.settingsSavedAt && before.settings?.pageLayout?.across && before.settings?.pageLayout?.down;
-      if (keep) checked.settings.pageLayout = pick(before.settings.pageLayout);
+      if (checked.twoLayouts && keep) checked.settings.pageLayout = pick(before.settings.pageLayout);
+      if (checked.settings.priceStore === undefined && before?.settings?.priceStore) {
+        checked.settings.priceStore = before.settings.priceStore;
+      }
     }
     const user = await User.findByIdAndUpdate(
       req.user.id,

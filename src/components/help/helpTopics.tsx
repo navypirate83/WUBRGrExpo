@@ -805,7 +805,8 @@ export const helpTopics: HelpTopic[] = [
               The <Strong>Prices</Strong> box shows what the printing on show costs at three
               stores: <Strong>TCGplayer</Strong>, <Strong>Card Kingdom</Strong> and <Strong>Cardmarket</Strong> (in
               euros). Each has a regular and a foil price; the one that matches
-              the <Strong>Foil</Strong> button is highlighted.
+              the <Strong>Foil</Strong> button is highlighted. The store you chose
+              under <Strong>Price store</Strong> in <HelpLink to="settings-prices">Settings</HelpLink> is listed first.
             </P>
             <P>
               Tap <Strong>TCGplayer</Strong> or <Strong>Card Kingdom</Strong> (the icon or the name) to
@@ -964,6 +965,28 @@ export const helpTopics: HelpTopic[] = [
             <P>
               Tap (or click) a choice.<OnComputer> On a computer, you can also press <Key>Tab</Key> to reach
               them and <Key>Enter</Key> to pick one.</OnComputer>
+            </P>
+          </>
+        ),
+      },
+      {
+        id: 'settings-prices',
+        title: 'Price store',
+        body: (
+          <>
+            <P>
+              Under <Strong>Binders</Strong>, <Strong>Price store</Strong> picks whose prices the app
+              shows for your cards: <Strong>TCGplayer</Strong> or <Strong>Card Kingdom</Strong> (US
+              dollars) or <Strong>Cardmarket</Strong> (euros). Inside a binder, each card in the
+              list shows what its copies are worth there (the foil price for a foil copy, times how many copies;
+              a dash when the store has no price), and the line above the cards adds it all up: how many
+              cards, how many different, and the total value. On the Card Finder, your store's prices are listed first.
+            </P>
+            <P>
+              The first time you pick <Strong>Card Kingdom</Strong>, the app downloads its price list
+              (a few megabytes), so its prices can take a moment to appear. The choice is saved with
+              your other settings, so it follows you to other phones and computers. Prices change often,
+              so check the store before buying.
             </P>
           </>
         ),

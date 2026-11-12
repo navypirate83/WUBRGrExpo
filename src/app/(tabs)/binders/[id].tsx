@@ -51,6 +51,7 @@ import BinderSearch from '@/components/binders/BinderSearch';
 import Pocket from '@/components/binder/Pocket';
 import CardList, { type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch from '@/components/binder/ViewSwitch';
+import { useBinderPrices } from '@/hooks/useBinderPrices';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import {
   MAX_COPIES, binderDirtyStamp, binderName, binderPages, cardCount, findBinder, isLocalMode, loadBinder,
@@ -256,6 +257,8 @@ function BinderView({ binderId }: { binderId: string }) {
     }
     return list;
   }, [cards, sort]);
+  // What the cards are worth at the store chosen in Settings
+  const prices = useBinderPrices(entries);
 
   /* ----- The binder's size (worked out from the space on the screen) ----- */
 
@@ -1121,6 +1124,7 @@ function BinderView({ binderId }: { binderId: string }) {
           mode={mode}
           width={contentWidth}
           onPick={(key) => setMenuKey(key)}
+          prices={prices}
           empty={(
             <View style={styles.emptyList}>
               <Text style={[styles.dialogText, { color: colors.muted }]}>No cards in this binder yet.</Text>
