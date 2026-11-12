@@ -55,7 +55,7 @@ export const helpTopics: HelpTopic[] = [
         Shelf</Strong> (the row of books) at the bottom of the screen to get to it.
         The three picture buttons at the top switch between your <Strong>Binders</Strong> (the open
         binder), your <Strong>Lists</Strong> (the spiral notebook) and your <Strong>Decks</Strong> (the
-        stack of cards, which isn't built yet); the faded one is the page you're on.
+        Commander deck box, which isn't built yet); the faded one is the page you're on.
         (See <HelpLink to="my-binders-lists">Lists</HelpLink>.)
       </>
     ),

@@ -9,8 +9,8 @@
    A button above Help collapses the full menu to the slim one (and
    expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
-   same ones as the bottom tabs, and the binder and notebook drawings
-   from the shelf's Binders / Lists switch).
+   same ones as the bottom tabs, and the binder, notebook and deck box
+   drawings from the shelf's Binders / Lists / Decks switch).
    The account block at the bottom shows who is logged in; tapping it
    opens a small menu with Account settings, Sync now and Log out (which
    asks "Are you sure?" first). Logged out, it shows Log in and Create
@@ -33,9 +33,10 @@ import { signOut as serverSignOut } from '@/lib/session';
 import { FULL_MENU_WIDTH, SLIM_MENU_WIDTH } from '@/lib/layoutSize';
 import { RADIUS, SPACE } from '@/theme/colors';
 
-// The app's two drawn icons (binder and notebook)
+// The app's three drawn icons (binder, notebook and Commander deck box)
 const BINDER_PICTURE = require('../../assets/images/binder-outline.svg') as number;
 const NOTEBOOK_PICTURE = require('../../assets/images/notebook-outline.svg') as number;
+const DECK_BOX_PICTURE = require('../../assets/images/deckbox-outline.svg') as number;
 
 // An Ionicons icon's name, written the way the icon set spells it
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -106,7 +107,7 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       <View style={[styles.subItems, !slim && { borderLeftColor: colors.border }, slim && styles.subItemsSlim]}>
         <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate('/binders')} />
         <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => router.navigate('/binders/lists')} />
-        <MenuItem slim={slim} sub label="Decks" icon="albums-outline" activeIcon="albums" active={onDecks} onPress={() => router.navigate('/binders/decks')} />
+        <MenuItem slim={slim} sub label="Decks" picture={DECK_BOX_PICTURE} active={onDecks} onPress={() => router.navigate('/binders/decks')} />
       </View>
 
       <MenuItem slim={slim} label="Card Finder" icon="search-outline" activeIcon="search" active={onSearch} onPress={() => router.navigate('/search')} />
