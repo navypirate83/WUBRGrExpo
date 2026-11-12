@@ -387,8 +387,8 @@ export const helpTopics: HelpTopic[] = [
             <P>
               <Strong>On a tablet, an opened foldable phone, or the website in a wide window</Strong>, the
               tabs move from the bottom to a <Strong>menu down the left side</Strong>. It has Home, a{' '}
-              <Strong>The Shelf</Strong> heading (tap it to go back to where you were in the shelf) with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
-              it (each opens the last place you were in that part), Card Finder, Settings and Help. At the bottom is your account: tap it for Account
+              <Strong>The Shelf</Strong> heading (tap it to go back to where you were in the shelf, or, if you're inside a binder or list, up to its main page) with <Strong>Binders</Strong>, <Strong>Lists</Strong> and <Strong>Decks</Strong> under
+              it (each opens the last place you were in that part; the one for the part you're inside goes up to its main page), Card Finder, Settings and Help. At the bottom is your account: tap it for Account
               settings, Sync now and <Strong>Log out</Strong> (which asks "Are you sure?" first). Logged
               out, it has Log in and Create account buttons. On a narrower window, or a phone held
               sideways, the menu is just the icons on its own. On a wide window, the small round arrow button at the top of the menu collapses

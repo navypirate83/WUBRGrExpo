@@ -8,7 +8,9 @@
      - "slim": the same, but icons only, in a narrow strip
    The Binders, Lists and Decks lines go to the last place in that section
    (the binder you had open, say), and "The Shelf" is a button that goes
-   back to the last place in the shelf (see lib/shelfMemory.ts).
+   back to the last place in the shelf (see lib/shelfMemory.ts). The
+   exception: while you're INSIDE a binder, list or deck, the line for that
+   same part (and "The Shelf") goes up to that part's main page instead.
    A button above Help collapses the full menu to the slim one (and
    expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
@@ -32,7 +34,7 @@ import { useColors } from '@/hooks/useTheme';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { changedSinceSync, syncQuietly } from '@/lib/serverSync';
 import { setMenuCollapsed } from '@/lib/menuPreference';
-import { sectionHref, shelfHref } from '@/lib/shelfMemory';
+import { sectionHref, shelfHref, shelfRootHref, type ShelfSection } from '@/lib/shelfMemory';
 import { signOut as serverSignOut } from '@/lib/session';
 import { FULL_MENU_WIDTH, SLIM_MENU_WIDTH } from '@/lib/layoutSize';
 import { RADIUS, SPACE } from '@/theme/colors';
@@ -66,6 +68,14 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   const onBinders = path.startsWith('/binders') && !onLists && !onDecks;
   const onSearch = path === '/search';
   const onSettings = path === '/settings';
+  // The main page of the part of the shelf you're in (the shelf of binders,
+  // the lists page or the decks page), or null when you're not in the shelf
+  const mainHere = shelfRootHref(path);
+  // Where a Binders / Lists / Decks line goes: if you're inside that part
+  // already, up to its main page; otherwise the last place you were in it
+  const goTo = (section: ShelfSection, inside: boolean) => {
+    router.navigate((inside && mainHere ? mainHere : sectionHref(section)) as never);
+  };
 
   return (
     // The whole menu. It sits above the page (zIndex) so the account menu
@@ -108,17 +118,17 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="The Shelf"
-        accessibilityHint="Goes back to where you were in the shelf"
-        onPress={() => router.navigate(shelfHref() as never)}
+        accessibilityHint="Goes back to where you were in the shelf, or up to the main page if you're inside a binder, list or deck"
+        onPress={() => router.navigate((mainHere ?? shelfHref()) as never)}
         style={({ pressed }) => [styles.groupHeading, slim && styles.centered, pressed && { opacity: 0.6 }]}
       >
         <Ionicons name={onBinders || onLists || onDecks ? 'library' : 'library-outline'} size={22} color={colors.text} />
         {!slim && <Text style={[styles.groupText, { color: colors.text }]}>The Shelf</Text>}
       </Pressable>
       <View style={[styles.subItems, !slim && { borderLeftColor: colors.border }, slim && styles.subItemsSlim]}>
-        <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => router.navigate(sectionHref('binders') as never)} />
-        <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => router.navigate(sectionHref('lists') as never)} />
-        <MenuItem slim={slim} sub label="Decks" picture={DECK_BOX_PICTURE} active={onDecks} onPress={() => router.navigate(sectionHref('decks') as never)} />
+        <MenuItem slim={slim} sub label="Binders" picture={BINDER_PICTURE} active={onBinders} onPress={() => goTo('binders', onBinders)} />
+        <MenuItem slim={slim} sub label="Lists" picture={NOTEBOOK_PICTURE} active={onLists} onPress={() => goTo('lists', onLists)} />
+        <MenuItem slim={slim} sub label="Decks" picture={DECK_BOX_PICTURE} active={onDecks} onPress={() => goTo('decks', onDecks)} />
       </View>
 
       <MenuItem slim={slim} label="Card Finder" icon="search-outline" activeIcon="search" active={onSearch} onPress={() => router.navigate('/search')} />

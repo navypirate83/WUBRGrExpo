@@ -10,9 +10,10 @@
    - the Shelf button (the tab along the bottom, or "The Shelf" in the side
      menu) goes to the last place in the shelf at all, whichever section,
      so after a trip to Settings or the Card Finder you're back at it. The
-     exception is the bottom tab on a phone while you're ALREADY inside a
-     binder, list or deck: then it goes to that section's main page
-     (shelfRootHref below)
+     exception is when you're ALREADY inside a binder, list or deck: then
+     the Shelf button, and the button for that same section, go to that
+     section's main page (shelfRootHref below). This holds for the bottom
+     tab on a phone, the header buttons, and the side menu
    - an opened binder also remembers which page it was on
    A binder or list that has been deleted since is forgotten: its button
    goes to the section's first page instead.
