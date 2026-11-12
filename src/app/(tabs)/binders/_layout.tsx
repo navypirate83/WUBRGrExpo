@@ -44,10 +44,10 @@ export default function BindersLayout() {
     >
       {/* The shelf */}
       <Stack.Screen name="index" options={{ title: 'The Shelf' }} />
-      {/* Your lists: no sliding in, and no back arrow (the switch goes back) */}
-      <Stack.Screen name="lists" options={{ title: 'Lists', animation: 'none', headerBackVisible: false, headerLeft: () => null }} />
+      {/* Your lists: no sliding in (it swaps in for the shelf) */}
+      <Stack.Screen name="lists" options={{ title: 'Lists', animation: 'none' }} />
       {/* Your decks (not built yet): the same as the lists page */}
-      <Stack.Screen name="decks" options={{ title: 'Decks', animation: 'none', headerBackVisible: false, headerLeft: () => null }} />
+      <Stack.Screen name="decks" options={{ title: 'Decks', animation: 'none' }} />
       {/* One list: it slides in over the lists, with a back arrow. Its
           title is set by the list screen itself (the list's name). */}
       <Stack.Screen name="list/[id]" options={{ title: 'List' }} />

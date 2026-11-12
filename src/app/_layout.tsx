@@ -6,6 +6,8 @@
      (see lib/storage.ts), so no screen ever starts out empty
    - watches the window's size, so the right page layout (the phone's or the
      wide screen's) is in use as it changes
+   - writes down every page you visit, for the header's back arrow (see
+     lib/navHistory.ts)
    - sets up the things every screen shares: gestures (swipes and long
      presses), TanStack Query (which fetches and remembers Scryfall's
      card data), and the light/dark colors for the navigation bars
@@ -15,7 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { Stack, ThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
+import { Stack, ThemeProvider, DarkTheme, DefaultTheme, useGlobalSearchParams, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,6 +25,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { loadStorage } from '@/lib/storage';
 import { loadSession } from '@/lib/session';
 import { followScreenSize } from '@/lib/settings';
+import { hrefFor, recordVisit } from '@/lib/navHistory';
 import { loadPictureCache } from '@/lib/pictureCache';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { RequestError } from '@/lib/http';
@@ -85,6 +88,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) followScreenSize(width);
   }, [ready, width]);
+
+  // Write down each page as it's arrived at (its address, with the "?"
+  // parts), so the back arrow can go back through them
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const href = hrefFor(pathname, params);
+  useEffect(() => {
+    recordVisit(href);
+  }, [href]);
 
   // Until then, draw nothing (the splash screen is still covering it)
   if (!ready) return null;

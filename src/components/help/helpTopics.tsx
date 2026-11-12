@@ -138,7 +138,7 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <Bullet><Strong>Open a binder</Strong>: tap (or click) it. The back arrow at the top left
-              (or a swipe in from the left edge on an iPhone) brings you back to the shelf.</Bullet>
+              brings you back to the shelf (or a swipe in from the left edge on an iPhone).</Bullet>
             <Bullet>
               <Strong>Its options</Strong>: on a phone or tablet, rest your finger on a binder until it
               lifts (with a small buzz). Three boxes appear along the bottom: <Strong>Edit</Strong>,{' '}
@@ -376,10 +376,14 @@ export const helpTopics: HelpTopic[] = [
               at the part for the screen you were on.
             </P>
             <P>
-              Screens that slide in on top (an open binder, Help, Lists and Decks) have
-              a <Strong>back arrow</Strong> at the top left that takes you back to where you were.
-              On Android, the phone's own Back button or gesture does the same; on an iPhone, you
-              can also swipe in from the left edge of the screen.
+              Every screen has a <Strong>back arrow</Strong> at the top left. It works like a
+              browser's Back button: it takes you to the page you were just on, and tap it again to
+              go back further, one page at a time, all the way to the page you first opened the app
+              on. It goes back through every kind of move: the tabs, the side menu, the Binders,
+              Lists and Decks buttons, an open binder, Help and signing in. On that first page there
+              is nowhere to go back to, so the arrow is grayed out and does nothing. On Android, the
+              phone's own Back button or gesture also goes back; on an iPhone, you can also swipe
+              in from the left edge of the screen.
             </P>
             <OnComputer>
               <P>

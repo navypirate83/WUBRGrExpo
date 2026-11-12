@@ -19,14 +19,13 @@
    keyboard never covers the search box or its list of suggestions.
    ===================================================================== */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
-  BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, type TextInput,
+  BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, type TextInput,
 } from 'react-native';
-import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   cardByNamePath, cardBySetPath, loadCard, loadCardNames, loadSetIcons,
 } from '@/lib/scryfall';
@@ -249,28 +248,11 @@ export default function CardFinderScreen() {
       : null;
   const backTo = back?.to ?? null;
 
-  // The back arrow at the top left, beside the title "Card Finder". It
-  // only shows when there's somewhere to go back to, and takes you there
-  // (the touch version of the B key on a computer, in CardPanel).
-  // "useLayoutEffect" sets it before the screen is drawn.
-  const navigation = useNavigation();
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: back
-        ? () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Back to ${back.name}`}
-              hitSlop={6}
-              onPress={() => router.navigate(back.to as never)}
-              style={({ pressed }) => [styles.backArrow, pressed && styles.pressed]}
-            >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
-            </Pressable>
-          )
-        : undefined,
-    });
-  }, [navigation, back?.to, back?.name, colors.text]);
+  // The back arrow at the top left is the same as on every other page (see
+  // AppHeader.tsx): it goes to the page you were just on, which is the list
+  // or binder this screen was opened from. The B key on a computer (in
+  // CardPanel) and Android's own Back below go straight to that list or
+  // binder.
 
   // Android's own Back (the swipe in from the screen's edge, or the Back
   // button) does the same as the arrow while this screen is showing:
@@ -390,6 +372,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 4, paddingBottom: 48,
   },
   // The back arrow beside the title, with room around it to tap
-  backArrow: { paddingHorizontal: 12, paddingVertical: 6 },
-  pressed: { opacity: 0.6 },
 });
