@@ -673,7 +673,7 @@ export const helpTopics: HelpTopic[] = [
             </Bullet>
             <Bullet>Let go anywhere else to put it back.</Bullet>
             <P>
-              <Strong>Tapping a card</Strong> (or holding it still for half a second) opens its menu: a big
+              <Strong>Tapping a card</Strong> opens its menu: a big
               picture of the card, its copies (<Strong>−</Strong> and <Strong>+</Strong>), and <Strong>Open in Card
               Finder</Strong>, <Strong>Move to another binder</Strong> and <Strong>Remove from this binder</Strong>.
             </P>
@@ -687,7 +687,7 @@ export const helpTopics: HelpTopic[] = [
           <>
             <P>There are two ways to take a card out of a binder:</P>
             <Bullet>
-              Hold the card still for half a second to open its menu, then tap <Strong>Remove from
+              Tap the card to open its menu, then tap <Strong>Remove from
               this binder</Strong> (it asks first).
             </Bullet>
             <Bullet>
@@ -703,7 +703,7 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <Step n={1}>
-              Hold the card still for half a second to open its menu, then
+              Tap the card to open its menu, then
               tap <Strong>Move to another binder</Strong>.
               A list of your other binders pops up from the bottom of the screen, with each
               one's card count.

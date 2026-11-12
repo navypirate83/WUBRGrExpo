@@ -24,9 +24,8 @@
    - REST a finger on a card, then drag it (with a mouse: press and
      drag) onto another pocket, swapping with any card there. Holding it
      at the binder's left or right edge turns the page.
-   - HOLD a card still for half a second: its menu opens too (the menu:
-     copies, open it in the Card Finder, move it to another binder, or
-     remove it).
+   - the menu a tap opens: copies, open it in the Card Finder, move it to
+     another binder, or remove it
    On a computer, the arrow and Page Up / Down keys turn pages, and card
    pictures dragged in from Scryfall or EDHREC fill empty pockets.
    Every change is saved on this device straight away, then to Google
@@ -97,10 +96,6 @@ const SWIPE_SPEED = 500;
 // (milliseconds), then move, and the card follows your finger. A finger
 // that moves sooner than this is a swipe (it turns the page) instead.
 const REST_MS = 150;
-
-// Hold a card still this long (milliseconds) and let go without moving,
-// and its menu opens (a shorter press opens the card, like a tap)
-const MENU_HOLD_MS = 500;
 
 // How far (points) a resting finger must move to pick its card up (less
 // than this is just a finger wobbling)
@@ -401,7 +396,7 @@ function BinderView({ binderId }: { binderId: string }) {
   // came down, how far it has moved sideways, and (once picked up) the
   // pocket the card would drop into
   const dragRef = useRef<{
-    from: string | null; hasCard: boolean; lifted: boolean; startedAt: number; dx: number;
+    from: string | null; hasCard: boolean; lifted: boolean; dx: number;
     target: string | null;
   } | null>(null);
 
@@ -746,7 +741,7 @@ function BinderView({ binderId }: { binderId: string }) {
        up if it goes up or down first)
      - the drag: a finger that rests still for REST_MS first. Then, on a
        card, moving picks the card up; letting go without moving opens
-       the card (or, held for MENU_HOLD_MS, its menu). Not on a card, it
+       the card's menu (the same as a quick tap). Not on a card, it
        works like a slow swipe.
      Where the finger is, is worked out from the binder's measurements
      (which page, which row and column), so no pocket needs its own.
@@ -846,7 +841,7 @@ function BinderView({ binderId }: { binderId: string }) {
     const from = pocketAt(x, y);
     dragRef.current = {
       from, hasCard: Boolean(from && cardsRef.current[from]), lifted: false,
-      startedAt: Date.now() - REST_MS, dx: 0, target: null,
+      dx: 0, target: null,
     };
     startPoint.current = { x, y };
     setHolding(true);
@@ -855,12 +850,6 @@ function BinderView({ binderId }: { binderId: string }) {
 
   // Mouse or finger? (They drag differently: see the gestures below.)
   const withMouse = usePointerKind() === 'mouse';
-
-  // With a mouse, holding the button down on a card without moving opens
-  // its menu (a finger gets the same from the drag code below)
-  const onHoldPocket = useCallback((key: string) => {
-    if (cardsRef.current[key]) setMenuKey(key);
-  }, []);
 
   // The resting finger moved. x and y are its place on the page; absX
   // and absY its place on the screen.
@@ -926,17 +915,17 @@ function BinderView({ binderId }: { binderId: string }) {
       return;
     }
 
-    // On a card that never moved: a long hold opens its menu, a shorter
-    // one opens the card (like a tap)
+    // On a card that never moved (however long the finger rested): open its
+    // menu, the same as a quick tap
     if (!drag.lifted) {
-      if (Date.now() - drag.startedAt >= MENU_HOLD_MS) setMenuKey(from);
-      else openPocket(from);
+      setHighlightKey(null);
+      setMenuKey(from);
       return;
     }
 
     // A picked-up card: move it to the pocket it's over, or (anywhere
     // else) it goes back where it was. (Removing it, or moving it to
-    // another binder, is in its menu: hold it still.)
+    // another binder, is in its menu: tap it.)
     if (drag.target && drag.target !== from) moveCard(from, drag.target);
   }
 
@@ -1361,7 +1350,6 @@ function BinderView({ binderId }: { binderId: string }) {
                               highlighted={isHighlighted}
                               accent={colors.accent}
                               onOpen={onOpen}
-                              onHold={withMouse ? onHoldPocket : undefined}
                               onCopies={onCopies}
                             />
                           );
@@ -1420,7 +1408,7 @@ function BinderView({ binderId }: { binderId: string }) {
       </View>
       )}
 
-      {/* THE CARD'S MENU (hold a card and let go without dragging): its
+      {/* THE CARD'S MENU (tap a card): its
           picture, how many copies, and what can be done with it */}
       {menuCard && menuKey && (
         <PopupWindow title={menuCard.name} onClose={() => setMenuKey(null)}

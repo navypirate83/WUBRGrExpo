@@ -36,12 +36,11 @@ type Props = {
   highlighted: boolean;        // found with the search bar
   accent: string;              // the theme's accent color (for outlines)
   onOpen: (key: string) => void;
-  onHold?: (key: string) => void;   // held down without moving (mouse only)
   onCopies: (key: string, step: number) => void;
 };
 
 function Pocket(props: Props) {
-  const { pocketKey: key, page, slot, card, width, height, loaded, faded, outlined, loading, highlighted, accent, onOpen, onHold, onCopies } = props;
+  const { pocketKey: key, page, slot, card, width, height, loaded, faded, outlined, loading, highlighted, accent, onOpen, onCopies } = props;
   const count = cardCount(card);
   // The theme's colors (the pockets are dark plastic in the dark theme,
   // pale in the light one)
@@ -76,7 +75,6 @@ function Pocket(props: Props) {
             accessibilityLabel={`${card.name}${card.foil ? ', foil' : ''}${count > 1 ? `, ${count} copies` : ''}, page ${page}, pocket ${slot}`}
             accessibilityHint="Opens the card's menu. Rest your finger on it, then move, to pick it up."
             onPress={() => onOpen(key)}
-            onLongPress={onHold ? () => onHold(key) : undefined}
             style={[styles.cardHolder, card.foil && styles.foilInset, faded && styles.faded]}
           >
             {/* The picture ignores the pointer ("pointerEvents none"), so
