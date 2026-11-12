@@ -12,7 +12,7 @@
    exception: while you're INSIDE a binder, list or deck, the line for that
    same part (and "The Shelf") goes up to that part's main page instead.
    When the window is short (a phone held sideways) and not every line fits,
-   the lines scroll up and down; the account block stays pinned at the bottom.
+   the whole menu scrolls up and down, down to the account block at its end.
    A button above Help collapses the full menu to the slim one (and
    expands it again): it's remembered on this device.
    The page you're on is highlighted. The icons are the app's own (the
@@ -61,6 +61,11 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   // Room for the full menu? Then there's a Collapse / Expand button
   // (a slim menu on a small window has nothing to expand into)
   const canResize = useFullMenuFits();
+  // The account block's little menu: open or not, and the words shown in the
+  // block while it syncs or logs out. They live here because the little
+  // menu is drawn over the page, outside the scrolling area.
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   // Which page we're on, from the address ("/", "/binders", "/search"...)
   const path = usePathname();
 
@@ -149,9 +154,10 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       <View style={styles.grow} />
 
       <MenuItem slim={slim} label="Help" icon="help-circle-outline" activeIcon="help-circle" active={false} onPress={() => router.navigate('/help')} />
+      <AccountBlock slim={slim} open={accountOpen} setOpen={setAccountOpen} busy={busy} />
       </ScrollView>
-      {/* Stays at the bottom, outside the scrolling area (its little menu opens upward over the page) */}
-      <AccountBlock slim={slim} />
+      {/* The account's little menu: drawn here, over the bottom of the menu and the page, not inside the scrolling area (which would cut it off) */}
+      <AccountPopup open={accountOpen} setOpen={setAccountOpen} setBusy={setBusy} bottom={Math.max(insets.bottom, SPACE.s) + 8} />
     </View>
   );
 }
@@ -201,13 +207,9 @@ function MenuItem({ slim, label, icon, activeIcon, picture, active, sub, onPress
    your name and whether your changes are synced). Tapping it opens a
    small menu above it. Logged out: Log in and Create account.
    --------------------------------------------------------------------- */
-function AccountBlock({ slim }: { slim: boolean }) {
+function AccountBlock({ slim, open, setOpen, busy }: { slim: boolean; open: boolean; setOpen: (open: boolean | ((now: boolean) => boolean)) => void; busy: string | null }) {
   const colors = useColors();
   const { serverSignedIn, serverUser, signedIn } = useAccount();
-  // Is the little account menu open?
-  const [open, setOpen] = useState(false);
-  // While logging out or syncing: the words shown instead of the name
-  const [busy, setBusy] = useState<string | null>(null);
 
   // NOT LOGGED IN: Log in and Create account (just a log-in icon when slim)
   if (!serverSignedIn) {
@@ -240,6 +242,46 @@ function AccountBlock({ slim }: { slim: boolean }) {
   // LOGGED IN: who, and whether everything is synced
   const name = serverUser?.name || serverUser?.username || 'Account';
   const initial = name.trim().charAt(0).toUpperCase() || '?';
+  const waiting = changedSinceSync();
+
+  return (
+    <View style={[styles.account, { borderTopColor: colors.border }]}>
+      {/* The block: badge, and name + status when there's room */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Account: ${name}`}
+        accessibilityState={{ expanded: open }}
+        disabled={busy !== null}
+        onPress={() => setOpen((now) => !now)}
+        style={({ pressed }) => [styles.me, slim && styles.centered, (open || pressed) && { backgroundColor: colors.surfaceHover }]}
+      >
+        <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+          <Text style={[styles.badgeText, { color: colors.accentText }]}>{initial}</Text>
+        </View>
+        {!slim && (
+          <View style={styles.meText}>
+            <Text style={[styles.meName, { color: colors.text }]} numberOfLines={1}>{busy ?? name}</Text>
+            <Text style={[styles.meStatus, { color: colors.muted }]} numberOfLines={1}>
+              {waiting ? 'Changes waiting to sync' : 'Synced'}{signedIn ? ' · Drive backup on' : ''}
+            </Text>
+          </View>
+        )}
+        {!slim && <Ionicons name={open ? 'chevron-down' : 'chevron-up'} size={14} color={colors.muted} />}
+      </Pressable>
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   THE ACCOUNT'S LITTLE MENU: your email, whether things are synced, and
+   Account settings, Sync now and Log out. Opened by tapping the account
+   block; drawn over the bottom of the menu.
+   --------------------------------------------------------------------- */
+function AccountPopup({ open, setOpen, setBusy, bottom }: { open: boolean; setOpen: (open: boolean) => void; setBusy: (words: string | null) => void; bottom: number }) {
+  const colors = useColors();
+  const { serverSignedIn, serverUser, signedIn } = useAccount();
+  if (!open || !serverSignedIn) return null;
+  const name = serverUser?.name || serverUser?.username || 'Account';
   const waiting = changedSinceSync();
 
   // "Sync now": send changes to the account and bring new ones back
@@ -278,10 +320,7 @@ function AccountBlock({ slim }: { slim: boolean }) {
   }
 
   return (
-    <View style={[styles.account, { borderTopColor: colors.border }]}>
-      {/* The little menu above the block */}
-      {open && (
-        <View style={[styles.popup, { backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
+    <View style={[styles.popup, { bottom, backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
           <Text style={[styles.popupEmail, { color: colors.muted, borderBottomColor: colors.border }]} numberOfLines={1}>
             {serverUser?.email ?? name}
           </Text>
@@ -293,30 +332,6 @@ function AccountBlock({ slim }: { slim: boolean }) {
           <PopupItem label="Sync now" onPress={syncNow} />
           <PopupItem label="Log out" danger onPress={logOut} />
         </View>
-      )}
-      {/* The block: badge, and name + status when there's room */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Account: ${name}`}
-        accessibilityState={{ expanded: open }}
-        disabled={busy !== null}
-        onPress={() => setOpen((now) => !now)}
-        style={({ pressed }) => [styles.me, slim && styles.centered, (open || pressed) && { backgroundColor: colors.surfaceHover }]}
-      >
-        <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.badgeText, { color: colors.accentText }]}>{initial}</Text>
-        </View>
-        {!slim && (
-          <View style={styles.meText}>
-            <Text style={[styles.meName, { color: colors.text }]} numberOfLines={1}>{busy ?? name}</Text>
-            <Text style={[styles.meStatus, { color: colors.muted }]} numberOfLines={1}>
-              {waiting ? 'Changes waiting to sync' : 'Synced'}{signedIn ? ' · Drive backup on' : ''}
-            </Text>
-          </View>
-        )}
-        {!slim && <Ionicons name={open ? 'chevron-down' : 'chevron-up'} size={14} color={colors.muted} />}
-      </Pressable>
-    </View>
   );
 }
 
@@ -383,7 +398,7 @@ const styles = StyleSheet.create({
   loginButton: { alignItems: 'center', paddingVertical: 10, borderRadius: RADIUS },
   loginButtonText: { fontSize: 14, fontWeight: '700' },
   // The little menu that opens above the account block (it can be wider than a slim menu)
-  popup: { position: 'absolute', left: 0, bottom: '100%', width: 224, marginBottom: SPACE.xs, borderWidth: 1, borderRadius: RADIUS + 2, padding: SPACE.xs, zIndex: 20 },
+  popup: { position: 'absolute', left: 0, width: 224, borderWidth: 1, borderRadius: RADIUS + 2, padding: SPACE.xs, zIndex: 20 },
   popupEmail: { fontSize: 12, paddingHorizontal: SPACE.m, paddingTop: SPACE.s, paddingBottom: SPACE.m, borderBottomWidth: 1, marginBottom: SPACE.xs },
   statusBox: { marginHorizontal: SPACE.xs, marginBottom: SPACE.xs, padding: SPACE.m, borderRadius: RADIUS - 2, gap: 6 },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', gap: SPACE.s },
