@@ -84,7 +84,7 @@ export default function HomeScreen() {
 
         {/* THE BOX: heading, explanation, buttons and messages */}
         <View style={styles.box}>
-          <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Your Magic card binders</Text>
+          <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Your Magic: the Gathering collection in one place!</Text>
           <Text style={[styles.text, { color: colors.muted }]}>{explanation}</Text>
 
           {/* Already signed in, or using the app locally: a button to the shelf */}
