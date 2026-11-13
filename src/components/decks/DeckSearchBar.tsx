@@ -19,9 +19,9 @@
      cards you own in your binders (a card on a list doesn't count: lists are
      wishes, not cards you own), and the copy added is the printing you own.
      Off, it covers every card. While the first switch is on Search this
-     one is grayed out (it stays put, it just can't be used). A line under
-     the bar says which card was added last, in a spot kept free for it so
-     nothing jumps.
+     one is grayed out (it stays put, it just can't be used). The bar is the
+     same size in Search and in Add (nothing is added under it); the line
+     about which card was added last is the first line inside the drop-down.
    The deck screen does the adding (and the warning for too many copies);
    this bar just says which card name was chosen.
    ===================================================================== */
@@ -134,15 +134,11 @@ export default function DeckSearchBar({ mode, onMode, filter, onFilter, open, on
         </View>
       </View>
 
-      {/* Add only: the line about the last card added (its spot is always
-          kept, so it never moves anything) */}
-      {adding && (
-        <Text style={[styles.note, { color: colors.muted }]} accessibilityLiveRegion="polite">{note ?? ' '}</Text>
-      )}
-
       {/* The matches, dropping down over whatever is below, each with a "+" */}
       {showing && (
         <View style={[styles.results, { backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
+          {/* The card added last, as the first line of the drop-down */}
+          {note ? <Text style={[styles.note, { color: colors.muted, borderBottomColor: colors.border }]} accessibilityLiveRegion="polite">{note}</Text> : null}
           <FlatList
             data={results}
             keyExtractor={(name) => name}
@@ -182,7 +178,7 @@ export default function DeckSearchBar({ mode, onMode, filter, onFilter, open, on
 // The look: the box and switch side by side, the list under it as a
 // bordered card floating over the page ("top: 100%" puts it just under the bar)
 const styles = StyleSheet.create({
-  wrap: { gap: 6, zIndex: 10 },
+  wrap: { zIndex: 10 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   field: { flex: 1, justifyContent: 'center' },
   input: { paddingRight: 44 },
@@ -191,7 +187,7 @@ const styles = StyleSheet.create({
   // A switch that can't be used right now: faded, but still there
   grayedOut: { opacity: 0.4 },
   modeLabel: { fontSize: 13, fontWeight: '700' },
-  note: { fontSize: 14, paddingHorizontal: 4, minHeight: 18 },
+  note: { fontSize: 14, paddingHorizontal: 14, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   results: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, maxHeight: 340, borderWidth: 1, borderRadius: RADIUS, overflow: 'hidden' },
   noResults: { padding: 14, fontSize: 15 },
   result: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, paddingRight: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48 },
