@@ -80,6 +80,7 @@ import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { REMINDERS_AVAILABLE, scheduleReminder } from '@/lib/reminders';
+import SymbolText from '@/components/SymbolText';
 
 /* ---------------------------------------------------------------------
    SETTINGS
@@ -1211,7 +1212,7 @@ function BinderView({ binderId }: { binderId: string }) {
       // The name, then the check mark
       headerTitle: () => (
         <View style={styles.headerTitle}>
-          <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{binder.name}</Text>
+          <SymbolText style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{binder.name}</SymbolText>
           <Pressable accessibilityRole="button" hitSlop={8} onPress={explainStatus}
                      accessibilityLabel={saved ? 'Saved' : `Not saved yet. ${status.text}`}
                      style={({ pressed }) => pressed && styles.pressed}>

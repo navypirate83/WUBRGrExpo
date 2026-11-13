@@ -31,6 +31,7 @@ import { useColors } from '@/hooks/useTheme';
 import { PickerSheet, ROW_HEIGHT } from '@/components/search/PickerSheet';
 import CoverSwatch from '@/components/binders/CoverSwatch';
 import NewBinderDialog from '@/components/binders/NewBinderDialog';
+import SymbolText from '@/components/SymbolText';
 
 type Props = {
   binderId: string;
@@ -170,7 +171,7 @@ export default function MoveCardDialog({ binderId, card, onMoved, onCancel }: Pr
           <>
             {/* A little dot in the binder's cover color */}
             <CoverSwatch shades={coverLook(binder.cover).shades} style={styles.dot} />
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{binder.name}</Text>
+            <SymbolText style={[styles.name, { color: colors.text }]} numberOfLines={1}>{binder.name}</SymbolText>
             <Text style={[styles.count, { color: colors.muted }]}>
               {isFull(binder) ? 'Full' : `${count} ${count === 1 ? 'card' : 'cards'}`}
             </Text>

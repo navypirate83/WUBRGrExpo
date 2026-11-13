@@ -38,6 +38,7 @@ import { cardCountText } from '@/lib/binderStorage';
 import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
 import { RADIUS } from '@/theme/colors';
+import SymbolText from '@/components/SymbolText';
 
 // The page is never wider than the shelf of binders (points), with the
 // same space around its edge
@@ -199,7 +200,7 @@ export default function ListsScreen() {
             style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceHover : colors.surface, borderColor: colors.border }]}
           >
             <View style={styles.rowText}>
-              <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+              <SymbolText style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.name}</SymbolText>
               <Text style={[styles.rowCount, { color: colors.muted }]}>{cardCountText(item.cards.length)}</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color={colors.muted} />

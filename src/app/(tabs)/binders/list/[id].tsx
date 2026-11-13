@@ -61,6 +61,7 @@ import { downloadListCsv } from '@/lib/binderDownload';
 import { RequestError, pictureSource } from '@/lib/http';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 import { RADIUS } from '@/theme/colors';
+import SymbolText from '@/components/SymbolText';
 
 // Saving to Drive: wait this long after a change (so quick changes go
 // together in one save), and this long before trying a failed save again
@@ -179,7 +180,7 @@ export default function ListScreen() {
       // The name, then the check mark (green: saved; red: not yet)
       headerTitle: () => (
         <View style={styles.headerTitle}>
-          <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{list?.name ?? 'List'}</Text>
+          <SymbolText style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>{list?.name ?? 'List'}</SymbolText>
           <Pressable accessibilityRole="button" hitSlop={8} onPress={explainStatus}
                      accessibilityLabel={saved ? 'Saved' : `Not saved yet. ${status.text}`}
                      style={({ pressed }) => pressed && styles.pressed}>

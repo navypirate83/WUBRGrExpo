@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColors } from '@/hooks/useTheme';
 import { canGoBackInApp, goBackInApp, onHistoryChange } from '@/lib/navHistory';
+import SymbolText from '@/components/SymbolText';
 
 // How tall the bar is (points), not counting the status bar's room
 export const HEADER_HEIGHT = 42;
@@ -78,9 +79,9 @@ export default function AppHeader({ options, route, back }: HeaderProps) {
   const titlePiece = typeof options.headerTitle === 'function'
     ? options.headerTitle({ children: title, tintColor: colors.text })
     : (
-      <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} accessibilityRole="header">
+      <SymbolText style={[styles.title, { color: colors.text }]} numberOfLines={1} accessibilityRole="header">
         {typeof options.headerTitle === 'string' ? options.headerTitle : title}
-      </Text>
+      </SymbolText>
     );
 
   return (

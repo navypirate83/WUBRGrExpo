@@ -19,6 +19,7 @@ import { manaColor, setSymbolCode } from '@/lib/binderStorage';
 import { loadSetIcons } from '@/lib/scryfall';
 import { coverLook } from '@/lib/covers';
 import { useColors } from '@/hooks/useTheme';
+import SymbolText from '@/components/SymbolText';
 
 type Props = {
   width: number;               // how wide the cover is, in points
@@ -78,14 +79,14 @@ export default function ClosedBinder({ width, name, colorCode, cover, lifted }: 
       {name ? (
         <View style={[styles.label, { top: height * 0.09, left: width * 0.22, right: width * 0.07,
                                        borderColor: labelLine, backgroundColor: labelFill, paddingVertical: width * 0.05 }]}>
-          <Text
+          <SymbolText
             style={[styles.labelText, { color: labelText, fontSize: Math.max(9, width * 0.1) }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.6}
           >
             {name}
-          </Text>
+          </SymbolText>
         </View>
       ) : null}
 

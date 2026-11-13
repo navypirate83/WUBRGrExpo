@@ -60,6 +60,7 @@ import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
 import { useColors } from '@/hooks/useTheme';
 import { PickerSheet, ROW_HEIGHT, type Anchor } from './PickerSheet';
+import SymbolText from '@/components/SymbolText';
 
 // What the card area can ask this button to do (the A key on a computer)
 export type AddToBinderHandle = { activate: () => void };
@@ -389,7 +390,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, toDeck, from
           isDisabled={(list) => busy || hasCard(list)}
           renderRow={(list) => (
             <>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{list.name}</Text>
+              <SymbolText style={[styles.name, { color: colors.text }]} numberOfLines={1}>{list.name}</SymbolText>
               <Text style={[styles.count, { color: colors.muted }]}>
                 {hasCard(list) ? 'Already in it' : cardCountText(list.cards.length)}
               </Text>
@@ -431,7 +432,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, toDeck, from
           isDisabled={() => busy}
           renderRow={(deck: Deck) => (
             <>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{deck.name}</Text>
+              <SymbolText style={[styles.name, { color: colors.text }]} numberOfLines={1}>{deck.name}</SymbolText>
               <Text style={[styles.count, { color: colors.muted }]}>
                 {deckFormat(deck.format).name} · {cardCountText(deck.cards.length)}
               </Text>
@@ -480,7 +481,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, toDeck, from
               <>
                 {/* A little dot in the binder's cover color */}
                 <CoverSwatch shades={coverLook(binder.cover).shades} style={styles.dot} />
-                <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{binder.name}</Text>
+                <SymbolText style={[styles.name, { color: colors.text }]} numberOfLines={1}>{binder.name}</SymbolText>
                 <Text style={[styles.count, { color: colors.muted }]}>
                   {isFull(binder) ? 'Full' : `${count} ${count === 1 ? 'card' : 'cards'}`}
                 </Text>

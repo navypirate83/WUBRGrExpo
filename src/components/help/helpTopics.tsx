@@ -104,7 +104,11 @@ export const helpTopics: HelpTopic[] = [
             <Step n={1}>Tap <Strong>Add binder</Strong> at the top of The Shelf (or <Strong>Make your first binder</Strong> on an empty shelf). The <Strong>New binder</Strong> window opens.</Step>
             <Step n={2}>
               Type a <Strong>name</Strong>, up to 12 characters so it fits on the cover's
-              label. A name like "Binder 3" is filled in for you.
+              label. A name like "Binder 3" is filled in for you. You can put Magic symbols in
+              any name (a binder, a list or a deck) by typing Scryfall's code in curly brackets:
+              {'{R}'} shows the red mana symbol, {'{2}{U}'} a cost, {'{W/U}'} a hybrid symbol. The name is
+              drawn with the symbols wherever it shows, on every device (the brackets only count toward the
+              length).
             </Step>
             <Step n={3}>
               Pick a <Strong>cover symbol</Strong> from one of two lists. Tap <Strong>Mana Symbols</Strong> for
