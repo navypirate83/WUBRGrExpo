@@ -145,12 +145,15 @@ export default function DeckSearchBar({ mode, onMode, filter, onFilter, open, on
               </Text>
             }
             renderItem={({ item }) => {
-              // The name with the part you typed in bold
+              // The name with the part you typed highlighted (bold and
+              // orange), exactly as the Card Finder's suggestions do
               const parts = matchParts(item, text);
               return (
                 <View style={[styles.result, { borderBottomColor: colors.border }]}>
                   <Text style={[styles.resultName, { color: colors.text }]} numberOfLines={1}>
-                    {parts.before}<Text style={styles.bold}>{parts.match}</Text>{parts.after}
+                    {parts.before}
+                    <Text style={[styles.match, { color: colors.accent }]}>{parts.match}</Text>
+                    {parts.after}
                   </Text>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Add ${item} to the deck`} hitSlop={6}
                              onPress={() => onAdd(item, ownedOnly)}
@@ -184,6 +187,6 @@ const styles = StyleSheet.create({
   noResults: { padding: 14, fontSize: 15 },
   result: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, paddingRight: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48 },
   resultName: { flex: 1, fontSize: 16 },
-  bold: { fontWeight: '800' },
+  match: { fontWeight: '700' },
   plus: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });
