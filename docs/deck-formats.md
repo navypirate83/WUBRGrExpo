@@ -78,5 +78,8 @@ Told by the user on 2026-11-13. No decks exist yet.
   the card in the deck.
 - **Duplicate rule:** past the format's copy limit (1 in singleton formats, 4
   in formats that allow 4) show a pop-up warning with a way to add it anyway,
-  since some cards allow any number. Basic lands never trigger it.
-- Open question: do snow-covered basics and Wastes also skip the warning?
+  since some cards allow any number. Basic lands, snow-covered basic lands and
+  Wastes never trigger it.
+- **Owned-only switch:** the add-card search inside a deck gets a switch to
+  search only cards in the user's binders. Lists do not count (they are
+  wishlists, not owned). Off searches all cards.
