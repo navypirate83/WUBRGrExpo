@@ -73,7 +73,7 @@ import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
-import { sortEntries } from '@/lib/binderSort';
+import { headerFor, sortEntries } from '@/lib/binderSort';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { fillDetails, finishParam } from '@/lib/cardDetails';
 import { rememberBinderPage, rememberedBinderPage } from '@/lib/shelfMemory';
@@ -278,6 +278,14 @@ function BinderView({ binderId }: { binderId: string }) {
   const entries = useMemo<CardEntry[]>(
     () => sortEntries(matchingEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
     [matchingEntries, sort, reversed, prices.printings, prices.byKey],
+  );
+  // Which group each card falls under for the sort in use, so the List and
+  // Grid views can put a header bar between the groups. (The Binder view's
+  // pockets are left alone: they have no bars. Neither does a search shown
+  // in the Binder view.)
+  const headerOf = useCallback(
+    (entry: CardEntry) => (mode === 'binder' ? null : headerFor(entry, sort, { printings: prices.printings })),
+    [mode, sort, prices.printings],
   );
   // Once the lookup arrives, save the missing details with the cards (once:
   // after that they have them, so there's nothing left to fill in)
@@ -1288,6 +1296,7 @@ function BinderView({ binderId }: { binderId: string }) {
             onCopies={onCopies}
             minTile={GRID_ZOOM_WIDTHS[gridZoom]}
             prices={prices}
+            headerOf={headerOf}
             searchOf={searching ? baseEntries.length : undefined}
             hint={searching && mode === 'binder' ? 'tap one to jump to it' : undefined}
             empty={(

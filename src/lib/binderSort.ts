@@ -7,8 +7,9 @@
    - price:  most valuable first          (tap again: cheapest first)
              (what the copies are worth at the store chosen in Settings;
              cards with no price always go last)
-   - color:  White, Blue, Black, Red, Green (one color each), then Gold
-             (every card of two or more colors, together), then colorless
+   - color:  White, Blue, Black, Red, Green (one color each), then every
+             two-color pairing, then three colors and more (each exact
+             set of colors is its own group), then colorless, then Lands
    - set:    in the order the sets came out, oldest first (tap again:
              newest first)
    - type:   Creatures, Enchantments, Artifacts, Sorceries, Instants,
@@ -84,12 +85,16 @@ export type SortContext = {
    THE ORDERS (each gives a number to compare: lower comes first)
    --------------------------------------------------------------------- */
 
-// Color: 0–4 for White, Blue, Black, Red, Green alone; 5 for "Gold" (two
-// or more colors, all in one group); 6 for colorless.
-function colorGroup(colors: string[]): number {
-  if (colors.length === 0) return 6;
-  if (colors.length > 1) return 5;
-  return 'WUBRG'.indexOf(colors[0]);
+// Color: one color alone first (White, Blue, Black, Red, Green), then two
+// colors, then three, and so on. Every exact set of colors is its own group
+// (the number is 100 for each color in it, plus a small number that tells
+// the groups of that size apart). Colorless comes after all of those, then
+// Lands.
+function colorGroup(colors: string[], isLand: boolean): number {
+  if (isLand) return 60000;
+  if (colors.length === 0) return 50000;
+  const small = colors.reduce((sum, letter) => sum + 2 ** 'WUBRG'.indexOf(letter), 0);
+  return colors.length * 100 + small;
 }
 
 // Type: Creatures 0, Enchantments 1, Artifacts 2, Sorceries 3, Instants 4,
@@ -98,6 +103,11 @@ function colorGroup(colors: string[]): number {
 // Land, which is always a Land. Only the types before the dash are
 // looked at ("Creature", not the "Island" in "Land — Island").
 const TYPE_ORDER = ['creature', 'enchantment', 'artifact', 'sorcery', 'instant', 'battle', 'planeswalker', 'land'];
+// Is this type line a Land? (Only the types before the dash are looked at;
+// a card with no type saved yet isn't counted as one.)
+function isLandType(typeLine: string | undefined): boolean {
+  return typeLine !== undefined && /\bland\b/.test(typeLine.toLowerCase().split('//')[0].split('—')[0]);
+}
 function typeRank(typeLine: string): number {
   const types = typeLine.toLowerCase().split('//')[0].split('—')[0];
   const has = (type: string) => new RegExp(`\\b${type}\\b`).test(types);
@@ -167,7 +177,7 @@ export function sortEntries(entries: SortEntry[], sort: BinderSort, reversed = f
       by((item) => context.prices?.get(item.entry.key) ?? undefined, -1);
       break;
     case 'color':
-      by((item) => (item.details.colors ? colorGroup(item.details.colors) : undefined));
+      by((item) => (item.details.colors ? colorGroup(item.details.colors, isLandType(item.details.type)) : undefined));
       break;
     case 'set':
       // Oldest set first; sets from the same day by set code, then collector number
@@ -186,4 +196,75 @@ export function sortEntries(entries: SortEntry[], sort: BinderSort, reversed = f
       list.sort((a, b) => byName(a.entry, b.entry) * direction);
   }
   return list.map((item) => item.entry);
+}
+
+/* ---------------------------------------------------------------------
+   THE HEADERS BETWEEN GROUPS
+   Under some sorts the list and grid put a small header bar above each
+   group of cards. Each card works out which group it is in (its header),
+   and a new bar goes in wherever the next card's group is a different one.
+   - name:  the first letter (A, B, C ... and # for names that don't
+            start with a letter)
+   - color: the group's mana symbols ({W}, {W}{U}, ...), {C} for
+            colorless, and a little mountain picture for Lands
+   - type:  the name of the type (Creature, Instant, ...)
+   - set:   the set's symbol, its code and its name
+   - value: the mana value as a number symbol ({0}, {1}, ...)
+   - added, price and rarity: no headers
+   A card whose details haven't arrived yet goes under "Unknown".
+   --------------------------------------------------------------------- */
+
+// "id" tells groups apart (two cards with the same id are in one group);
+// the other parts say how to draw the bar
+export type SortHeader =
+  | { id: string; kind: 'text'; text: string }
+  | { id: string; kind: 'mana'; cost: string }          // Scryfall's symbols, like "{W}{U}"
+  | { id: string; kind: 'land' }                        // the little mountain picture
+  | { id: string; kind: 'set'; code: string; name: string };
+
+const UNKNOWN_HEADER: SortHeader = { id: 'unknown', kind: 'text', text: 'Unknown' };
+const TYPE_NAMES = ['Creature', 'Enchantment', 'Artifact', 'Sorcery', 'Instant', 'Battle', 'Planeswalker', 'Land', 'Other'];
+
+// Does this sort have headers?
+export function hasHeaders(sort: BinderSort): boolean {
+  return sort === 'name' || sort === 'color' || sort === 'type' || sort === 'set' || sort === 'value';
+}
+
+// The header a card falls under for this sort (null: this sort has none)
+export function headerFor(entry: SortEntry, sort: BinderSort, context: SortContext = {}): SortHeader | null {
+  if (!hasHeaders(sort)) return null;
+  const details = detailsFor(entry, context);
+  switch (sort) {
+    case 'color': {
+      if (!details.colors) return UNKNOWN_HEADER;
+      if (isLandType(details.type)) return { id: 'land', kind: 'land' };
+      if (details.colors.length === 0) return { id: 'C', kind: 'mana', cost: '{C}' };
+      return { id: details.colors.join(''), kind: 'mana', cost: details.colors.map((letter) => `{${letter}}`).join('') };
+    }
+    case 'type': {
+      if (details.type === undefined) return UNKNOWN_HEADER;
+      const name = TYPE_NAMES[typeRank(details.type)];
+      return { id: name, kind: 'text', text: name };
+    }
+    case 'set': {
+      const code = entry.card.set.toLowerCase();
+      const print = context.printings?.get(`${entry.card.set}/${entry.card.number}`.toLowerCase());
+      const name = entry.card.extra?.['Set name'] ?? print?.set_name ?? '';
+      return { id: code, kind: 'set', code: code.toUpperCase(), name };
+    }
+    case 'value': {
+      if (details.cmc === undefined) return UNKNOWN_HEADER;
+      // Half-point costs (some joke cards) go with the whole number below them
+      const whole = Math.floor(details.cmc);
+      return whole <= 20
+        ? { id: String(whole), kind: 'mana', cost: `{${whole}}` }
+        : { id: String(whole), kind: 'text', text: String(whole) };
+    }
+    default: {
+      // Name: the first letter (without accents), or "#" for anything else
+      const letter = entry.card.name.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').charAt(0).toUpperCase();
+      const text = /[A-Z]/.test(letter) ? letter : '#';
+      return { id: text, kind: 'text', text };
+    }
+  }
 }

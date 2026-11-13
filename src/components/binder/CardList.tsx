@@ -22,13 +22,18 @@
      be and the zoom level (1 to 7) in the middle of the screen; when the fingers lift, the grid snaps to the nearest zoom size,
      keeping the card that was under the fingers in view (see
      usePinchZoom.ts).
+   HEADER BARS: when "headerOf" is given, a small bar goes in above each
+   group of cards (A, B, C ... for the name sort; mana symbols for color
+   and mana value; the type's name; the set's symbol, code and name). See
+   SortHeaderBar.tsx. To lay these out, the cards are first split into
+   screen rows (a header bar, or a row of cards), and the list draws those.
    Tapping a card calls "onPick" (the binder screen opens that card's
    menu: copies, open in the Card Finder, move, remove).
    The cards come in already sorted. Rows are drawn only as they scroll
    into view, so a binder with thousands of cards stays quick.
    ===================================================================== */
 
-import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -44,6 +49,8 @@ import { loadSetIcons } from '@/lib/scryfall';
 import ManaCost from '@/components/lists/ManaCost';
 import FoilFrame from './FoilFrame';
 import CopiesBar from './CopiesBar';
+import SortHeaderBar, { HEADER_HEIGHT } from './SortHeaderBar';
+import type { SortHeader } from '@/lib/binderSort';
 import type { BinderPrices } from '@/hooks/useBinderPrices';
 import { SPACE } from '@/theme/colors';
 
@@ -67,23 +74,68 @@ type Props = {
   // scrolled to and highlighted for a moment, and a short note for the line above
   flashKey?: string | null;
   note?: string | null;
+  // Which group a card falls under for the sort in use (see "headerFor" in
+  // lib/binderSort.ts). A header bar goes in wherever the group changes.
+  // Leave it out (or give back null) for no header bars.
+  headerOf?: (entry: CardEntry) => SortHeader | null;
 };
+
+// What the FlatList draws, one item per screen row: a header bar, or a
+// row of cards (one card in the List view, as many as fit across in the
+// Grid view). "first" is the place in the sorted cards of the row's first card.
+type Row =
+  | { kind: 'header'; id: string; header: SortHeader }
+  | { kind: 'cards'; id: string; entries: CardEntry[]; first: number };
 
 // A card's picture is 63 by 88 millimeters
 const CARD_RATIO = 88 / 63;
 // The space between grid pictures
 const GRID_GAP = 10;
 
-export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint, flashKey, note }: Props) {
+export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint, flashKey, note, headerOf }: Props) {
   const colors = useColors();
-  const listRef = useRef<FlatList<CardEntry>>(null);
+  const listRef = useRef<FlatList<Row>>(null);
   // Each set's symbol picture (downloaded once, shared with the Card Finder),
-  // for the List view
-  const setIcons = useQuery({ queryKey: ['set-icons'], queryFn: loadSetIcons, enabled: mode === 'list' });
+  // for the List view and for set header bars
+  const setIcons = useQuery({ queryKey: ['set-icons'], queryFn: loadSetIcons, enabled: mode === 'list' || !!headerOf });
   // The grid's columns, and how wide each picture is
   const room = width - 2 * SPACE.l;
   const columns = mode === 'grid' ? Math.max(1, Math.floor((room + GRID_GAP) / (minTile + GRID_GAP))) : 1;
   const tile = Math.floor((room - (columns - 1) * GRID_GAP) / columns);
+  const cardHeight = Math.round(tile * CARD_RATIO);
+
+  // The cards split into screen rows, with a header bar before each new
+  // group. (Without header bars it is just the cards, "columns" to a row.)
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    let group: string | undefined;
+    let current: Extract<Row, { kind: 'cards' }> | null = null;
+    entries.forEach((entry, index) => {
+      const header = headerOf ? headerOf(entry) : null;
+      if (header && header.id !== group) {
+        group = header.id;
+        out.push({ kind: 'header', id: `header-${index}-${header.id}`, header });
+        current = null;
+      }
+      if (!current || current.entries.length >= columns) {
+        current = { kind: 'cards', id: `row-${entry.key}`, entries: [], first: index };
+        out.push(current);
+      }
+      current.entries.push(entry);
+    });
+    return out;
+  }, [entries, headerOf, columns]);
+  // Where each row starts (counted from the first row) and how tall it is,
+  // for the Grid view, where every row's height is known exactly
+  const layout = useMemo(() => {
+    const lengths = rows.map((row) => (row.kind === 'header' ? HEADER_HEIGHT : cardHeight));
+    const starts: number[] = [];
+    let at = 0;
+    lengths.forEach((length) => { starts.push(at); at += length + GRID_GAP; });
+    return { lengths, starts };
+  }, [rows, cardHeight]);
+  // The row a card (by its place in the sorted cards) is in
+  const rowOf = (index: number) => rows.findIndex((row) => row.kind === 'cards' && index >= row.first && index < row.first + row.entries.length);
 
   /* ----- Pinching the grid (see the top of this file) ----- */
   // How much the grid is stretched right now, and the point it stretches from
@@ -109,9 +161,17 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
   // The card under a point of the screen (the one the fingers cover most)
   function cardAt(x: number, y: number): number {
     const top = summary.current.y + summary.current.height + GRID_GAP;
-    const row = Math.max(0, Math.floor((scrollY.current + y - top) / (Math.round(tile * CARD_RATIO) + GRID_GAP)));
-    const column = Math.min(columns - 1, Math.max(0, Math.floor((x - SPACE.l) / (tile + GRID_GAP))));
-    return Math.min(entries.length - 1, row * columns + column);
+    const down = scrollY.current + y - top;
+    // The row under that height (the last one starting above it)...
+    let row = 0;
+    layout.starts.forEach((start, i) => { if (start <= down) row = i; });
+    // ...and if that's a header bar, the first row of cards after it (or before it, at the end)
+    while (rows[row] && rows[row].kind === 'header' && row < rows.length - 1) row++;
+    while (rows[row] && rows[row].kind === 'header' && row > 0) row--;
+    const found = rows[row];
+    if (!found || found.kind !== 'cards') return 0;
+    const column = Math.min(found.entries.length - 1, Math.max(0, Math.floor((x - SPACE.l) / (tile + GRID_GAP))));
+    return found.first + column;
   }
   // The zoom step that stretching by this much would land on
   const stepFor = (by: number) => zoomStepForWidth(GRID_ZOOM_WIDTHS[startStep.current] * by);
@@ -150,8 +210,8 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
     if (!target || mode !== 'grid') return;
     anchor.current = null;
     const top = summary.current.y + summary.current.height + GRID_GAP;
-    const cardHeight = Math.round(tile * CARD_RATIO);
-    const offset = Math.max(0, top + Math.floor(target.index / columns) * (cardHeight + GRID_GAP) + cardHeight / 2 - target.y);
+    const row = Math.max(0, rowOf(target.index));
+    const offset = Math.max(0, top + (layout.starts[row] ?? 0) + cardHeight / 2 - target.y);
     // The list is rebuilt for the new columns, so try again once it has laid out
     const timers = [60, 350].map((wait) => setTimeout(() => listRef.current?.scrollToOffset({ offset, animated: false }), wait));
     return () => timers.forEach(clearTimeout);
@@ -171,11 +231,13 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
     if (!flashKey) return;
     const index = entries.findIndex((entry) => entry.key === flashKey);
     if (index < 0) return;
+    const row = rowOf(index);
+    if (row < 0) return;
     const timer = setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: Math.floor(index / columns), animated: true, viewPosition: 0.3 });
+      listRef.current?.scrollToIndex({ index: row, animated: true, viewPosition: 0.3 });
     }, 250);
     return () => clearTimeout(timer);
-  }, [flashKey, entries, columns]);
+  }, [flashKey, entries, rows]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View {...pinch} style={[styles.fill, pinch.style]}>
@@ -187,10 +249,11 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       // of on a guess for rows that haven't been drawn yet. (Each "item" here
       // is a row of cards; the cards start below the summary line.)
       getItemLayout={mode === 'grid' && summary.current.height > 0
-        ? (_rows, row) => {
-            const cardHeight = Math.round(tile * CARD_RATIO);
-            return { length: cardHeight, offset: summary.current.y + summary.current.height + GRID_GAP + row * (cardHeight + GRID_GAP), index: row };
-          }
+        ? (_rows, row) => ({
+            length: layout.lengths[row] ?? cardHeight,
+            offset: summary.current.y + summary.current.height + GRID_GAP + (layout.starts[row] ?? 0),
+            index: row,
+          })
         : undefined}
       scrollEnabled={!pinching}
       scrollEventThrottle={16}
@@ -203,10 +266,8 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
       // A new key when the columns change, because a list can't change its
       // number of columns on the fly
       key={`${mode}-${columns}`}
-      data={entries}
-      keyExtractor={(entry) => entry.key}
-      numColumns={columns}
-      columnWrapperStyle={columns > 1 ? { gap: GRID_GAP } : undefined}
+      data={rows}
+      keyExtractor={(row) => row.id}
       contentContainerStyle={[styles.content, mode === 'grid' && { gap: GRID_GAP }]}
       ListEmptyComponent={empty}
       ListHeaderComponent={entries.length > 0
@@ -214,12 +275,26 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
             <Summary entries={entries} prices={prices} searchOf={searchOf} hint={hint} note={note ?? undefined} />
           </View>
         : undefined}
-      renderItem={({ item }) => (
-        mode === 'list'
-          ? <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
-                     setIcon={setIcons.data?.get(item.card.set.toLowerCase())} highlighted={item.key === flashKey} />
-          : <GridTile entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} />
-      )}
+      renderItem={({ item: row }) => {
+        // A header bar between groups
+        if (row.kind === 'header') {
+          return <SortHeaderBar header={row.header} setIcon={row.header.kind === 'set' ? setIcons.data?.get(row.header.code.toLowerCase()) : undefined} />;
+        }
+        // The List view: one card to a row
+        if (mode === 'list') {
+          const item = row.entries[0];
+          return <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
+                          setIcon={setIcons.data?.get(item.card.set.toLowerCase())} highlighted={item.key === flashKey} />;
+        }
+        // The Grid view: a row of pictures side by side
+        return (
+          <View style={styles.gridRow}>
+            {row.entries.map((item) => (
+              <GridTile key={item.key} entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} />
+            ))}
+          </View>
+        );
+      }}
     />
     </Animated.View>
     {/* While pinching: the zoom level, in the middle of the screen (1 is the smallest cards, 7 the biggest) */}
@@ -363,6 +438,8 @@ const styles = StyleSheet.create({
   // The dashed outline shown while pinching
   outline: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   outlineText: { fontSize: 12, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  // A row of grid pictures, side by side
+  gridRow: { flexDirection: 'row', gap: GRID_GAP },
   content: { paddingHorizontal: SPACE.l, paddingTop: SPACE.s, paddingBottom: 90, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.m, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   // The part of a line you tap for the menu: the picture and the name

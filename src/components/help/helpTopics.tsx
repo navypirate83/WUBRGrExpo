@@ -528,14 +528,20 @@ export const helpTopics: HelpTopic[] = [
         saves it with your account so it follows you to your other devices.
         In the list and grid, the button at the right (it shows the sort in use, like <Strong>A–Z</Strong>) drops
         down a menu: <Strong>Name</Strong> (A to Z), <Strong>Newest added</Strong>, <Strong>Price</Strong> (the
-        most valuable first), <Strong>Color</Strong> (White, Blue, Black, Red, Green, then <Strong>Gold</Strong> for
-        every card of two or more colors, then colorless), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
+        most valuable first), <Strong>Color</Strong> (White, Blue, Black, Red, Green, then each
+        two-color pair, then three colors and more, each exact set of colors in its own group, then colorless,
+        then Lands), <Strong>Set</Strong> (the oldest set first), <Strong>Type</Strong> (Creatures, Enchantments,
         Artifacts, Sorceries, Instants, Battles, Planeswalkers, Lands, then anything else; anything that is a
         Land counts as a Land, even an Artifact Land), <Strong>Rarity</Strong> (Mythic,
         Rare, Uncommon, Common, Special) and <Strong>Mana value</Strong> (the cheapest first). Tap the sort already
         in use again to <Strong>reverse it</Strong>: Z to A, oldest added first, cheapest first, newest set first, most
         common first, or highest mana value first (<Strong>Color</Strong> and <Strong>Type</Strong> have no reverse). Cards that tie
         are in name order, and a card with nothing to go by (like no price) is always last.
+        In the list and grid (not the pockets of the Binder view), a small <Strong>header bar</Strong> goes
+        in above each group: the letter (A, B, C...) for Name; the mana symbols for Color (the colorless
+        diamond for colorless, a little mountain for Lands); the type's name for Type; the set's symbol,
+        code and name for Set; and the number in a mana symbol for Mana value. Price, Newest added and
+        Rarity have no header bars.
         Every card is saved with the details sorting needs (its colors, type, rarity, mana value and
         set's release date), in the binder's .CSV and .JSON files too, so the sorts don't wait on the
         internet; cards made before that get them filled in the first time you open their binder. Sorting only changes how the list and grid are shown: it never

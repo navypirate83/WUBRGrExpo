@@ -47,7 +47,7 @@ import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
-import { sortEntries } from '@/lib/binderSort';
+import { headerFor, sortEntries } from '@/lib/binderSort';
 import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
 import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
 import { costAndType, isDoubleSided } from '@/lib/cards';
@@ -231,6 +231,13 @@ export default function ListScreen() {
     () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
     [baseEntries, sort, reversed, prices.printings, prices.byKey],
   );
+  // Which group each card falls under for the sort in use (A, B, C ...; a
+  // color; a type; a set; a mana value), so the list can put a header bar
+  // between the groups
+  const headerOf = useCallback(
+    (entry: CardEntry) => headerFor(entry, sort, { printings: prices.printings }),
+    [sort, prices.printings],
+  );
   // Once the lookup arrives, save the missing details with the cards (once:
   // after that they have them, so there's nothing left to fill in)
   useEffect(() => {
@@ -383,6 +390,7 @@ export default function ListScreen() {
           onCopies={onCopies}
           minTile={GRID_ZOOM_WIDTHS[gridZoom]}
           prices={prices}
+          headerOf={headerOf}
           searchOf={searching ? allEntries.length : undefined}
           // No cards (or none matching the search): say so, not a blank page
           empty={(
