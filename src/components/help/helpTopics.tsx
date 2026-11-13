@@ -248,6 +248,9 @@ export const helpTopics: HelpTopic[] = [
               comes up. Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
               binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are listed below
               with a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy asks whether to remove it).
+              Tap a card for its window, the same as in a binder or list: a big picture (tap it to open the card in
+              the Card Finder), what the card does, how many copies, <Strong>Move to a binder</Strong> (the card goes
+              into that binder's first empty pocket and leaves the deck) and <Strong>Delete from deck</Strong> (it asks first).
             </P>
             <P>
               If the deck already has as many copies of a card as its format allows (one in Commander-style

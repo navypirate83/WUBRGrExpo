@@ -7,6 +7,11 @@
    quiet line (the format and how many cards), then the deck's cards, one
    row each: picture, name, casting cost, type line, and the "− 3 +"
    copies bar (− on the last copy asks about removing the card).
+   Tapping a card opens its window, the same one the binders' and lists'
+   cards have: a big picture (tap it to open the card in the Card Finder),
+   what it does, how many copies (− and +), Move to a binder (the card
+   leaves the deck and goes into the binder's first empty pocket) and
+   Delete from deck (it asks first).
    Too many copies: adding a card the deck already has as many of as its
    format allows (1 in Commander-style formats, 4 in the others) shows a
    window about it, with "Add anyway" because some cards break the limit.
@@ -18,8 +23,8 @@
    ===================================================================== */
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import { Redirect, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { useAccount } from '@/hooks/useAccount';
@@ -29,10 +34,14 @@ import DeckAddSearch from '@/components/decks/DeckAddSearch';
 import ManaCost from '@/components/lists/ManaCost';
 import FoilFrame from '@/components/binder/FoilFrame';
 import CopiesBar from '@/components/binder/CopiesBar';
+import CardRules from '@/components/binder/CardRules';
+import MoveCardDialog from '@/components/binder/MoveCardDialog';
+import PopupWindow from '@/components/PopupWindow';
+import Button from '@/components/Button';
 import { addCardToDeck, copiesOf, findDeck, setDeckCardCount, type Deck, type DeckCard } from '@/lib/deckStorage';
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
 import { CARD_BACK, costAndType, imageFor } from '@/lib/cards';
-import { detailsOf, costAndTypeOf } from '@/lib/cardDetails';
+import { detailsOf, costAndTypeOf, finishParam } from '@/lib/cardDetails';
 import { cardCount, cardCountText, loadBinder, loadBinderList, MAX_COPIES } from '@/lib/binderStorage';
 import { cardByNamePath, loadOneCard } from '@/lib/scryfall';
 import { pictureSource } from '@/lib/http';
@@ -41,6 +50,19 @@ import { askYesNo, showMessage } from '@/lib/dialogs';
 // The page is never wider than this (points), with this space around it
 const PAGE_MAX_WIDTH = 900;
 const PAGE_PADDING = 16;
+
+// The Card Finder's address for a card in this deck: that exact printing
+// (side, language, foil)
+function finderLinkFor(card: DeckCard): string {
+  const params = new URLSearchParams();
+  params.set('set', card.set);
+  params.set('number', card.number);
+  if (card.face === 1) params.set('face', 'back');
+  if (card.lang) params.set('lang', card.lang);
+  const finish = finishParam(card);
+  if (finish) params.set('foil', finish);
+  return `/search?${params}`;
+}
 
 export default function DeckScreen() {
   const colors = useColors();
@@ -52,6 +74,10 @@ export default function DeckScreen() {
   const [note, setNote] = useState('');
   // A card is being looked up: don't start a second add until it's done
   const busy = useRef(false);
+  // The held card's window (its spot in the deck), and the card being moved
+  // to a binder (the pop-up list of binders)
+  const [menuIndex, setMenuIndex] = useState<number | null>(null);
+  const [movingIndex, setMovingIndex] = useState<number | null>(null);
 
   // Every time this page comes into view: read the deck again
   useFocusEffect(useCallback(() => { setDeck(findDeck(id)); }, [id]));
@@ -136,6 +162,32 @@ export default function DeckScreen() {
     setDeck(findDeck(id));
   }
 
+  // "Delete from deck": ask, then take the card out
+  async function confirmDelete(index: number) {
+    const card = deck!.cards[index];
+    setMenuIndex(null);
+    const yes = await askYesNo(`Delete ${card.name}?`, `Take it out of ${deck!.name}.`, 'Yes, delete', 'No');
+    if (!yes) return;
+    setDeckCardCount(id, index, 0);
+    setDeck(findDeck(id));
+  }
+
+  // "Move to a binder": close this window, then open the list of binders.
+  // (iPhones can't open one pop-up while another is still fading away,
+  // so there it waits a moment.)
+  function moveToBinder(index: number) {
+    setMenuIndex(null);
+    setTimeout(() => setMovingIndex(index), Platform.OS === 'ios' ? 350 : 0);
+  }
+
+  // The card is safely in the binder: take it out of the deck
+  function movedToBinder(moveNote: string) {
+    if (movingIndex !== null) setDeckCardCount(id, movingIndex, 0);
+    setMovingIndex(null);
+    setNote(moveNote.replace('✓ ', ''));
+    setDeck(findDeck(id));
+  }
+
   if (!usingBinders) return <Redirect href="/binders" />;
   // No such deck (deleted, or a wrong address)
   if (!deck) {
@@ -147,6 +199,8 @@ export default function DeckScreen() {
   }
 
   const total = deck.cards.reduce((sum, card) => sum + cardCount(card), 0);
+  const menuCard = menuIndex !== null ? deck.cards[menuIndex] : undefined;
+  const movingCard = movingIndex !== null ? deck.cards[movingIndex] : undefined;
 
   return (
     // The keyboard pushes everything up instead of covering the search bar
@@ -176,19 +230,61 @@ export default function DeckScreen() {
         renderItem={({ item, index }) => (
           // One card: picture, name, cost and type, and the copies bar
           <View style={[styles.row, { borderBottomColor: colors.border }]}>
-            <FoilFrame foil={item.foil === true} width={34} height={48} radius={4}>
-              <Image source={pictureSource(item.image)} style={styles.thumb} contentFit="cover" />
-            </FoilFrame>
-            <View style={styles.rowText}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-              {item.manaCost ? <ManaCost cost={item.manaCost} size={13} /> : null}
-              {item.typeLine ? <Text style={[styles.type, { color: colors.muted }]} numberOfLines={1}>{item.typeLine}</Text> : null}
-            </View>
+            {/* The picture and name: tap them for the card's window */}
+            <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}. Opens its menu.`}
+                       onPress={() => setMenuIndex(index)}
+                       style={({ pressed }) => [styles.rowMain, pressed && { backgroundColor: colors.surfaceHover }]}>
+              <FoilFrame foil={item.foil === true} width={34} height={48} radius={4}>
+                <Image source={pictureSource(item.image)} style={styles.thumb} contentFit="cover" />
+              </FoilFrame>
+              <View style={styles.rowText}>
+                <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                {item.manaCost ? <ManaCost cost={item.manaCost} size={13} /> : null}
+                {item.typeLine ? <Text style={[styles.type, { color: colors.muted }]} numberOfLines={1}>{item.typeLine}</Text> : null}
+              </View>
+            </Pressable>
             <CopiesBar name={item.name} count={cardCount(item)} style={styles.bar}
                        onFewer={() => changeCopies(index, -1)} onMore={() => changeCopies(index, 1)} />
           </View>
         )}
       />
+
+      {/* THE CARD'S WINDOW: its picture (tap it to open the card in the Card
+          Finder), what it does, how many copies, then Move to a binder and
+          Delete from deck */}
+      {menuCard && menuIndex !== null && (
+        <PopupWindow title={menuCard.name} onClose={() => setMenuIndex(null)}
+                     buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
+          <CardRules card={menuCard}
+                     onOpen={() => { const card = menuCard; setMenuIndex(null); router.push(finderLinkFor(card) as never); }} />
+          {/* How many copies: − and + */}
+          <View style={styles.menuCopies}>
+            <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from deck'}
+                    onPress={() => { if (cardCount(menuCard) > 1) changeCopies(menuIndex, -1); else confirmDelete(menuIndex); }} />
+            <Text style={[styles.menuCount, { color: colors.text }]}>
+              {cardCount(menuCard)} {cardCount(menuCard) === 1 ? 'copy' : 'copies'}
+            </Text>
+            <Button label="+" kind="secondary" accessibilityLabel="One more copy" disabled={cardCount(menuCard) >= MAX_COPIES}
+                    onPress={() => changeCopies(menuIndex, 1)} />
+          </View>
+          <View style={styles.menu}>
+            <Button label="Move to a binder" icon="albums-outline" kind="secondary" onPress={() => moveToBinder(menuIndex)} />
+            <Button label="Delete from deck" icon="trash-outline" kind="danger" onPress={() => confirmDelete(menuIndex)} />
+          </View>
+        </PopupWindow>
+      )}
+
+      {/* "Move to a binder": the pop-up list of binders (the same one a
+          binder's and a list's cards use). The deck's own extra details
+          (cost and type) aren't part of a binder card. */}
+      {movingCard && (
+        <MoveCardDialog
+          binderId=""
+          card={(({ manaCost: _cost, typeLine: _type, ...binderCard }) => binderCard)(movingCard)}
+          onMoved={(moveNote) => movedToBinder(moveNote)}
+          onCancel={() => setMovingIndex(null)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -203,10 +299,16 @@ const styles = StyleSheet.create({
   empty: { fontSize: 15, textAlign: 'center', marginTop: 24 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   thumb: { width: '100%', height: '100%' },
+  // The part of a row you tap for the card's window: the picture and the name
+  rowMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowText: { flex: 1, minWidth: 0, gap: 1 },
   name: { fontSize: 15, fontWeight: '600' },
   type: { fontSize: 12 },
   bar: { width: 84 },
+  // The card's window: the copies, then the buttons
+  menuCopies: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  menuCount: { fontSize: 16, fontWeight: '600', minWidth: 90, textAlign: 'center' },
+  menu: { gap: 8 },
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   missingText: { fontSize: 16, textAlign: 'center' },
 });
