@@ -80,6 +80,7 @@ app.post('/auth/login', makeAuthLimiter(config.authRateLimitMax));
 app.post('/auth/google', makeAuthLimiter(config.authRateLimitMax));
 app.post('/auth/forgot', makeAuthLimiter(config.authRateLimitMax));
 app.post('/auth/reset', makeAuthLimiter(config.authRateLimitMax));
+app.delete('/auth/account', makeAuthLimiter(config.authRateLimitMax));
 // The app refreshes more often, so it gets twice the tries
 app.post('/auth/refresh', makeAuthLimiter(config.authRateLimitMax * 2));
 

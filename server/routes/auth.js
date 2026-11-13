@@ -8,6 +8,7 @@
    - POST /auth/logout-all   end every login of this account (needs sign-in)
    - POST /auth/forgot       email a 6-digit code (and the username) to an account
    - POST /auth/reset        set a new password using that code
+   - DELETE /auth/account    delete the account and everything in it (needs sign-in + password)
    Every sign-in ends by calling issueSession (see utils/tokens.js).
    The strict rate limits on these routes are attached in app.js.
    ===================================================================== */
@@ -17,6 +18,10 @@ import { randomInt } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import User, { USERNAME_PATTERN } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
+import Binder from '../models/Binder.js';
+import Card from '../models/Card.js';
+import List from '../models/List.js';
+import ListCard from '../models/ListCard.js';
 import PasswordReset from '../models/PasswordReset.js';
 import { mailIsConfigured, sendMail, sendWelcomeEmail } from '../utils/mail.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -301,6 +306,45 @@ router.post('/logout', async (req, res) => {
 router.post('/logout-all', requireAuth, async (req, res) => {
   try {
     await RefreshToken.deleteMany({ user: req.user.sub });
+    return res.status(204).end();
+  } catch (err) {
+    return handleDbError(err, res);
+  }
+});
+
+/* ---------- delete the account ---------- */
+
+// Deletes the signed-in person's account and everything that belongs to
+// it: binders, cards, lists, logins and any waiting password-reset code.
+// It cannot be undone, so it asks for the password again (so a stolen
+// phone that is still logged in can't wipe the account). An account that
+// only signs in with Google has no password, so it sends { confirm: true }.
+router.delete('/account', requireAuth, async (req, res) => {
+  try {
+    const { password, confirm } = req.body ?? {};
+    const user = await User.findById(req.user.sub).select('+password');
+    if (!user) return res.status(404).json({ error: 'Account not found' });
+    if (user.password) {
+      if (typeof password !== 'string' || password === '') {
+        return res.status(400).json({ error: 'Your password is required to delete the account' });
+      }
+      if (!(await bcrypt.compare(password, user.password))) {
+        // 403, not 401: the login is fine, only the password typed here is wrong
+        return res.status(403).json({ error: 'That password is not right' });
+      }
+    } else if (confirm !== true) {
+      return res.status(400).json({ error: 'Please confirm that you want to delete the account' });
+    }
+    const owner = user._id;
+    await Promise.all([
+      Card.deleteMany({ owner }),
+      ListCard.deleteMany({ owner }),
+      Binder.deleteMany({ owner }),
+      List.deleteMany({ owner }),
+      RefreshToken.deleteMany({ user: owner }),
+      PasswordReset.deleteMany({ user: owner }),
+    ]);
+    await User.deleteOne({ _id: owner });
     return res.status(204).end();
   } catch (err) {
     return handleDbError(err, res);

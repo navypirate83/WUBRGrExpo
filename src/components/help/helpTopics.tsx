@@ -1191,6 +1191,14 @@ export const helpTopics: HelpTopic[] = [
               applies your answer to the other binders or lists with the same problem.
             </Bullet>
             <Bullet>
+              <Strong>Delete account</Strong> (the red button, when logged in) removes your WUBRG'r account for good.
+              A warning box asks first; if you continue, you type your password once more
+              and tap <Strong>Delete my account forever</Strong>. Your account, with every binder, list and
+              setting saved in it, is deleted from the server and can't be brought back. The binders and
+              lists already on this device stay here, but they are no longer backed up or synced. A Google
+              Drive backup, if you made one, is not touched. It needs an internet connection.
+            </Bullet>
+            <Bullet>
               <Strong>Google Drive backup</Strong> is optional: sign in with Google to also keep a copy
               of your binders in your own Google Drive, so you can reach your files outside the app.
               The Google items below are about this backup.

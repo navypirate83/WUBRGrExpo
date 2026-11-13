@@ -9,6 +9,8 @@ import jwt from 'jsonwebtoken';
 import app from '../../app.js';
 import User from '../../models/User.js';
 import RefreshToken from '../../models/RefreshToken.js';
+import Binder from '../../models/Binder.js';
+import List from '../../models/List.js';
 import { connectTestDb, clearTestDb, disconnectTestDb } from '../helpers/db.js';
 import { makeUser, bearer, TEST_PASSWORD } from '../helpers/users.js';
 import { hashToken } from '../../utils/tokens.js';
@@ -199,5 +201,38 @@ describe('logout-all needs sign-in', () => {
     expect((await request(app).post('/auth/logout-all')).status).toBe(401);
     const user = await makeUser();
     expect((await request(app).post('/auth/logout-all').set('Authorization', bearer(user))).status).toBe(204);
+  });
+});
+
+// Deleting an account (DELETE /auth/account)
+describe('delete account', () => {
+  test('401 without sign-in', async () => {
+    expect((await request(app).delete('/auth/account').send({ password: TEST_PASSWORD })).status).toBe(401);
+  });
+
+  test('needs the right password, and keeps everything when it is wrong or missing', async () => {
+    const user = await makeUser();
+    expect((await request(app).delete('/auth/account').set('Authorization', bearer(user)).send({})).status).toBe(400);
+    expect((await request(app).delete('/auth/account').set('Authorization', bearer(user)).send({ password: 'wrong-pass-1' })).status).toBe(403);
+    expect(await User.countDocuments()).toBe(1);
+  });
+
+  test('deletes the account, its binders, lists and logins, and nobody else', async () => {
+    const mine = await makeUser();
+    const other = await makeUser();
+    const auth = { Authorization: bearer(mine) };
+    await Binder.create({ name: 'Mine', owner: mine._id });
+    await List.create({ name: 'My list', owner: mine._id });
+    await Binder.create({ name: 'Theirs', owner: other._id });
+    await RefreshToken.create({ user: mine._id, tokenHash: 'a', family: 'f', expiresAt: new Date(Date.now() + 1e6) });
+
+    const res = await request(app).delete('/auth/account').set(auth).send({ password: TEST_PASSWORD });
+    expect(res.status).toBe(204);
+    expect(await User.countDocuments({ _id: mine._id })).toBe(0);
+    expect(await RefreshToken.countDocuments({ user: mine._id })).toBe(0);
+    expect(await Binder.countDocuments({ owner: mine._id })).toBe(0);
+    expect(await List.countDocuments({ owner: mine._id })).toBe(0);
+    expect(await Binder.countDocuments({ owner: other._id })).toBe(1);
+    expect(await User.countDocuments({ _id: other._id })).toBe(1);
   });
 });

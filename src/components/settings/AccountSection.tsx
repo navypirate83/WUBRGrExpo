@@ -2,7 +2,8 @@
    SETTINGS → ACCOUNT
    How you're using the app, and the buttons to log in or out:
    - logged in to your WUBRG'r account: who you are, "Log out" and "Log
-     out everywhere". Not logged in: "Log in" and "Create account".
+     out everywhere" and a red "Delete account" (a warning box, then the
+     password again). Not logged in: "Log in" and "Create account".
    - Google is now an optional BACKUP to your Drive (below):
    - signed in with Google: your Google name and email, and "Sign out"
    - using the app locally: "Sign in with Google", which compares this
@@ -22,14 +23,15 @@ import {
   getDriveUser, initGoogleSignIn, signInWithGoogle, signOutKeepingCollection,
 } from '@/lib/googleDrive';
 import { reconcileWithDrive } from '@/lib/driveSync';
-import { signOut as serverSignOut, signOutEverywhere } from '@/lib/session';
-import { syncQuietly } from '@/lib/serverSync';
+import { deleteAccount, signOut as serverSignOut, signOutEverywhere } from '@/lib/session';
+import { forgetServerLinks, syncQuietly } from '@/lib/serverSync';
 import { askYesNo } from '@/lib/dialogs';
 import { syncSettings } from '@/lib/settings';
 import { showMessage } from '@/lib/dialogs';
 import { GOOGLE_SIGN_IN_WORKS, explainPhoneSignIn } from '@/lib/googleSignInNote';
 import { SPACE } from '@/theme/colors';
 import Button from '@/components/Button';
+import TextField from '@/components/TextField';
 import { SettingRow, SettingsSection } from './SettingsParts';
 
 export default function AccountSection() {
@@ -131,6 +133,35 @@ export default function AccountSection() {
     }
   }
 
+  // "Delete account": first a warning box. If they go on, a password box
+  // shows (the server wants the password again before it deletes anything).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  async function startDelete() {
+    const yes = await askYesNo(
+      'Delete your account?',
+      'This permanently deletes your WUBRG\'r account and every binder, list and setting saved in it, on the server and on all your devices. It cannot be undone. The binders and lists already on this device stay here, but they will no longer be backed up or synced.',
+      'Continue', 'Keep my account',
+    );
+    if (yes) setConfirmingDelete(true);
+  }
+  // Really delete it: send the password, then go to Home
+  async function finishDelete() {
+    setBusyText('Deleting account…');
+    try {
+      await deleteAccount(deletePassword);
+      // This device's binders are no longer linked to any account
+      forgetServerLinks();
+      setConfirmingDelete(false);
+      setDeletePassword('');
+      setBusyText(null);
+      router.navigate({ pathname: '/', params: { message: 'Your account was deleted. Your binders and lists are still on this device.' } });
+    } catch (err) {
+      setBusyText(null);
+      showMessage('Couldn\'t delete the account', (err as Error).message);
+    }
+  }
+
   // Is a sign-in or sign-out under way? (The buttons wait till it's done.)
   const busy = busyText !== null;
 
@@ -147,6 +178,25 @@ export default function AccountSection() {
         <View style={styles.buttons}>
           <Button label={busyText ?? 'Log out'} kind="secondary" icon="log-out-outline" disabled={busy} onPress={serverLogOut} />
           <Button label="Log out everywhere" kind="plain" disabled={busy} onPress={logOutEverywhere} />
+        </View>
+      )}
+
+      {/* DELETE ACCOUNT: a red button; after the warning box, a password box
+          and the final "Delete my account forever" button */}
+      {serverSignedIn && !confirmingDelete && (
+        <View style={styles.buttons}>
+          <Button label="Delete account" kind="danger" icon="trash-outline" disabled={busy} onPress={startDelete} />
+        </View>
+      )}
+      {serverSignedIn && confirmingDelete && (
+        <View style={styles.deleteBox}>
+          <TextField label="Type your password to delete your account" value={deletePassword} onChangeText={setDeletePassword}
+            secureTextEntry autoCapitalize="none" autoCorrect={false} />
+          <View style={styles.deleteButtons}>
+            <Button label={busyText ?? 'Delete my account forever'} kind="danger" icon="trash-outline" disabled={busy || !deletePassword}
+              onPress={finishDelete} />
+            <Button label="Cancel" kind="plain" disabled={busy} onPress={() => { setConfirmingDelete(false); setDeletePassword(''); }} />
+          </View>
         </View>
       )}
 
@@ -227,4 +277,7 @@ export default function AccountSection() {
 // The buttons: side by side (wrapping if there isn't room), with room around them
 const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.m, padding: SPACE.m },
+  // The password box and buttons shown after the delete warning
+  deleteBox: { gap: SPACE.m, padding: SPACE.m },
+  deleteButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.m },
 });

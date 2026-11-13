@@ -127,6 +127,17 @@ export async function signOutEverywhere(): Promise<void> {
   await endSession();
 }
 
+// Delete this account for good: the server removes the account and all its
+// binders, lists and logins, then this device forgets the login. It needs
+// the password again (an account made with Google only has no password,
+// so it just confirms). It needs the server: if it can't be reached this
+// says so instead of pretending it worked. The binders and lists on this
+// device are NOT touched.
+export async function deleteAccount(password: string): Promise<void> {
+  await apiRequest('/auth/account', { method: 'DELETE', body: password ? { password } : { confirm: true } });
+  await endSession();
+}
+
 /* ---------- staying signed in ---------- */
 
 // Swap the saved refresh token for a fresh pair. Returns true on success.
