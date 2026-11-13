@@ -24,8 +24,8 @@
    account instead.
    ===================================================================== */
 
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +65,25 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   // block while it syncs or logs out. They live here because the little
   // menu is drawn over the page, outside the scrolling area.
   const [accountOpen, setAccountOpen] = useState(false);
+  // On the website: while the account menu is open, a click or tap anywhere
+  // outside it (the menu's own block and little menu are marked with
+  // "data-account-menu") closes it, and so does the Escape key. The click still
+  // goes through to whatever was clicked.
+  useEffect(() => {
+    if (!accountOpen || Platform.OS !== 'web') return undefined;
+    const closeOutside = (event: Event) => {
+      const target = event.target as { closest?: (selector: string) => unknown } | null;
+      if (target?.closest?.('[data-account-menu]')) return;
+      setAccountOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('pointerdown', closeOutside, true);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside, true);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [accountOpen]);
   const [busy, setBusy] = useState<string | null>(null);
   // Which page we're on, from the address ("/", "/binders", "/search"...)
   const path = usePathname();
@@ -156,6 +175,10 @@ export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
       <MenuItem slim={slim} label="Help" icon="help-circle-outline" activeIcon="help-circle" active={false} onPress={() => router.navigate('/help')} />
       <AccountBlock slim={slim} open={accountOpen} setOpen={setAccountOpen} busy={busy} />
       </ScrollView>
+      {/* Phones and tablets: while the little menu is open, an invisible cover over the rest of the menu closes it when tapped */}
+      {accountOpen && Platform.OS !== 'web' && (
+        <Pressable accessibilityLabel="Close the account menu" style={styles.cover} onPress={() => setAccountOpen(false)} />
+      )}
       {/* The account's little menu: drawn here, over the bottom of the menu and the page, not inside the scrolling area (which would cut it off) */}
       <AccountPopup open={accountOpen} setOpen={setAccountOpen} setBusy={setBusy} bottom={Math.max(insets.bottom, SPACE.s) + 8} />
     </View>
@@ -248,6 +271,7 @@ function AccountBlock({ slim, open, setOpen, busy }: { slim: boolean; open: bool
     <View style={[styles.account, { borderTopColor: colors.border }]}>
       {/* The block: badge, and name + status when there's room */}
       <Pressable
+        {...({ dataSet: { accountMenu: '1' } } as object)}
         accessibilityRole="button"
         accessibilityLabel={`Account: ${name}`}
         accessibilityState={{ expanded: open }}
@@ -320,7 +344,7 @@ function AccountPopup({ open, setOpen, setBusy, bottom }: { open: boolean; setOp
   }
 
   return (
-    <View style={[styles.popup, { bottom, backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
+    <View {...({ dataSet: { accountMenu: '1' } } as object)} style={[styles.popup, { bottom, backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
           <Text style={[styles.popupEmail, { color: colors.muted, borderBottomColor: colors.border }]} numberOfLines={1}>
             {serverUser?.email ?? name}
           </Text>
@@ -397,6 +421,8 @@ const styles = StyleSheet.create({
   loginNote: { fontSize: 12.5, lineHeight: 17, paddingHorizontal: SPACE.xs },
   loginButton: { alignItems: 'center', paddingVertical: 10, borderRadius: RADIUS },
   loginButtonText: { fontSize: 14, fontWeight: '700' },
+  // The invisible cover that closes the little menu (below it, above the rest of the menu)
+  cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
   // The little menu that opens above the account block (it can be wider than a slim menu)
   popup: { position: 'absolute', left: 0, width: 224, borderWidth: 1, borderRadius: RADIUS + 2, padding: SPACE.xs, zIndex: 20 },
   popupEmail: { fontSize: 12, paddingHorizontal: SPACE.m, paddingTop: SPACE.s, paddingBottom: SPACE.m, borderBottomWidth: 1, marginBottom: SPACE.xs },
