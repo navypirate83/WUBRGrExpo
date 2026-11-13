@@ -220,6 +220,45 @@ export const helpTopics: HelpTopic[] = [
         ),
       },
       {
+        id: 'my-binders-decks',
+        title: 'Decks',
+        body: (
+          <>
+            <P>
+              Decks are where you build decks to play. Tap the <Strong>deck box</Strong> button in the header of
+              The Shelf to see them. Each deck shows its name, its format and how many cards it has.
+              This is the first step: you can make decks, find cards and add them. The commander slot, the sideboard
+              and the format's other rules are coming.
+            </P>
+            <Bullet>
+              <Strong>Make a deck</Strong>: tap <Strong>Add deck</Strong>, type its name, pick its format
+              (Commander, Oathbreaker, Modern and more; only paper formats are offered), then tap <Strong>Create</Strong>.
+            </Bullet>
+            <Bullet><Strong>Open it</Strong>: tap it.</Bullet>
+            <Bullet>
+              <Strong>Rename or delete it</Strong>: hold it for a moment, then tap <Strong>Rename</Strong> or <Strong>Delete</Strong> (it asks first).
+            </Bullet>
+            <Bullet>
+              <Strong>Search</Strong>: the search bar on the Decks page looks through your decks' names <Strong>and</Strong> the
+              cards inside them (small typos are fine). Tap a match to open that deck.
+            </Bullet>
+            <P>
+              Inside a deck, type a card's name in the search bar and the matching cards are listed under it. Tap
+              the <Strong>+</Strong> on the one you want and it's added to the deck, using the first printing that
+              comes up. Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
+              binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are listed below
+              with a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy asks whether to remove it).
+            </P>
+            <P>
+              If the deck already has as many copies of a card as its format allows (one in Commander-style
+              formats, four in the others), a window says so and lets you <Strong>Add anyway</Strong>, since a few
+              cards break the limit. Basic lands, snow-covered basic lands and Wastes never ask.
+              Decks are kept on this device only for now.
+            </P>
+          </>
+        ),
+      },
+      {
         id: 'my-binders-edit',
         title: 'Changing a binder',
         body: (
@@ -372,7 +411,7 @@ export const helpTopics: HelpTopic[] = [
               <Strong>Home</Strong> (the house): the welcome screen. When you're signed in (or using the app
               locally), it has no sign-in buttons, just a <Strong>Go to your binders</Strong> button.
               It also has buttons for <Strong>Lists</Strong> (your card lists)
-              and <Strong>Decks</Strong> (your decklists, still being built).
+              and <Strong>Decks</Strong> (your decks).
             </Bullet>
             <Bullet>
               <Strong>The Shelf</Strong> (the row of books): your binders, lists and decks. It takes you back to

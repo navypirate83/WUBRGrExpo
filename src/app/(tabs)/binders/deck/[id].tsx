@@ -1,0 +1,209 @@
+/* =====================================================================
+   ONE DECK (/binders/deck/<id>)
+   An opened deck. From top to bottom: the search bar for adding cards
+   (see components/decks/DeckAddSearch.tsx: type a name, tap the "+" on
+   the card you want; the first printing that comes up is added, and the
+   switch under the bar limits the search to cards in your binders), one
+   quiet line (the format and how many cards), then the deck's cards, one
+   row each: picture, name, casting cost, type line, and the "− 3 +"
+   copies bar (− on the last copy asks about removing the card).
+   Too many copies: adding a card the deck already has as many of as its
+   format allows (1 in Commander-style formats, 4 in the others) shows a
+   window about it, with "Add anyway" because some cards break the limit.
+   Basic lands, snow-covered basic lands and Wastes never ask.
+   This is the first step of the deck screen: the commander slot, the
+   sideboard, picking a different printing and the format's other rules
+   come later. Decks are kept on this device only for now (see
+   lib/deckStorage.ts).
+   ===================================================================== */
+
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Redirect, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { Image } from 'expo-image';
+import { useColors } from '@/hooks/useTheme';
+import { useAccount } from '@/hooks/useAccount';
+import HelpButton from '@/components/HelpButton';
+import ShelfSwitch from '@/components/binders/ShelfSwitch';
+import DeckAddSearch from '@/components/decks/DeckAddSearch';
+import ManaCost from '@/components/lists/ManaCost';
+import FoilFrame from '@/components/binder/FoilFrame';
+import CopiesBar from '@/components/binder/CopiesBar';
+import { addCardToDeck, copiesOf, findDeck, setDeckCardCount, type Deck, type DeckCard } from '@/lib/deckStorage';
+import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
+import { CARD_BACK, costAndType, imageFor } from '@/lib/cards';
+import { detailsOf, costAndTypeOf } from '@/lib/cardDetails';
+import { cardCount, cardCountText, loadBinder, loadBinderList, MAX_COPIES } from '@/lib/binderStorage';
+import { cardByNamePath, loadOneCard } from '@/lib/scryfall';
+import { pictureSource } from '@/lib/http';
+import { askYesNo, showMessage } from '@/lib/dialogs';
+
+// The page is never wider than this (points), with this space around it
+const PAGE_MAX_WIDTH = 900;
+const PAGE_PADDING = 16;
+
+export default function DeckScreen() {
+  const colors = useColors();
+  const navigation = useNavigation();
+  const { usingBinders } = useAccount();
+  const { id = '' } = useLocalSearchParams<{ id: string }>();
+  // The deck (this device's copy), and the note under the search bar
+  const [deck, setDeck] = useState<Deck | undefined>(() => findDeck(id));
+  const [note, setNote] = useState('');
+  // A card is being looked up: don't start a second add until it's done
+  const busy = useRef(false);
+
+  // Every time this page comes into view: read the deck again
+  useFocusEffect(useCallback(() => { setDeck(findDeck(id)); }, [id]));
+
+  // The header: the deck's name, then the Binders / Lists / Decks switch and Help
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: deck?.name ?? 'Deck',
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ShelfSwitch current="decks" />
+          <HelpButton topic="my-binders-decks" />
+        </View>
+      ),
+    });
+  }, [navigation, deck?.name]);
+
+  // The card to add, as the deck saves it. With "only my binders" on, it's
+  // the printing you own (the first one found in your binders); otherwise
+  // the first printing Scryfall gives for the name.
+  async function cardToAdd(name: string, ownedOnly: boolean): Promise<DeckCard> {
+    if (ownedOnly) {
+      for (const binder of loadBinderList()) {
+        const owned = Object.values(loadBinder(binder.id)).find((card) => card.name === name);
+        if (owned) {
+          const { count: _count, ...rest } = owned;
+          return { ...rest, added: new Date().toISOString(), ...costAndTypeOf(owned) };
+        }
+      }
+    }
+    const print = await loadOneCard(cardByNamePath(name, true));
+    return {
+      name: print.name,
+      set: print.set,
+      number: print.collector_number,
+      face: 0,
+      image: imageFor(print, 0, ['normal', 'large']) ?? CARD_BACK,
+      added: new Date().toISOString(),
+      extra: detailsOf(print),
+      ...costAndType(print, 0),
+    };
+  }
+
+  // A "+" in the search: warn if the deck has as many as its format allows
+  // (unless it's a basic land or Wastes), then add one copy
+  async function add(name: string, ownedOnly: boolean) {
+    if (!deck || busy.current) return;
+    busy.current = true;
+    try {
+      const format = deckFormat(deck.format);
+      const have = copiesOf(findDeck(id), name);
+      if (have >= format.copyLimit && !skipsCopyWarning(name)) {
+        const why = format.copyLimit === 1
+          ? `${format.name} decks are singleton: one copy of each card. (A few cards allow more.)`
+          : `${format.name} decks allow up to ${format.copyLimit} copies of a card. (A few cards allow more.)`;
+        const yes = await askYesNo(`${name} is already in this deck`, `The deck has ${have} ${have === 1 ? 'copy' : 'copies'}. ${why}`, 'Add anyway', 'Cancel');
+        if (!yes) return;
+      }
+      const card = await cardToAdd(name, ownedOnly);
+      addCardToDeck(id, card);
+      setDeck(findDeck(id));
+      setNote(`Added ${card.name}.`);
+    } catch (err) {
+      showMessage('Couldn\'t add the card', (err as Error).message);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  // The − and + on a row: one fewer or one more copy (− on the last copy asks first)
+  async function changeCopies(index: number, step: number) {
+    if (!deck) return;
+    const card = deck.cards[index];
+    const next = cardCount(card) + step;
+    if (next < 1) {
+      const yes = await askYesNo(`Remove ${card.name}?`, 'It will be taken out of this deck.', 'Yes, remove', 'No');
+      if (!yes) return;
+      setDeckCardCount(id, index, 0);
+    } else if (next <= MAX_COPIES) {
+      setDeckCardCount(id, index, next);
+    }
+    setDeck(findDeck(id));
+  }
+
+  if (!usingBinders) return <Redirect href="/binders" />;
+  // No such deck (deleted, or a wrong address)
+  if (!deck) {
+    return (
+      <View style={styles.missing}>
+        <Text style={[styles.missingText, { color: colors.muted }]}>This deck isn't here (it may have been deleted).</Text>
+      </View>
+    );
+  }
+
+  const total = deck.cards.reduce((sum, card) => sum + cardCount(card), 0);
+
+  return (
+    // The keyboard pushes everything up instead of covering the search bar
+    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
+      <FlatList
+        showsVerticalScrollIndicator={false}
+        data={deck.cards}
+        keyExtractor={(card, index) => `${card.set}-${card.number}-${card.face}-${card.foil ? 'f' : 'n'}-${index}`}
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+        // At the top: the search bar, then the quiet line about the deck
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <DeckAddSearch onAdd={add} note={note} />
+            <Text style={[styles.summary, { color: colors.muted }]}>
+              {deckFormat(deck.format).name} · {cardCountText(total)} · {deck.cards.length} different
+            </Text>
+          </View>
+        }
+        // No cards yet
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: colors.muted }]}>No cards yet. Search above and tap the + on a card to add it.</Text>
+        }
+        renderItem={({ item, index }) => (
+          // One card: picture, name, cost and type, and the copies bar
+          <View style={[styles.row, { borderBottomColor: colors.border }]}>
+            <FoilFrame foil={item.foil === true} width={34} height={48} radius={4}>
+              <Image source={pictureSource(item.image)} style={styles.thumb} contentFit="cover" />
+            </FoilFrame>
+            <View style={styles.rowText}>
+              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+              {item.manaCost ? <ManaCost cost={item.manaCost} size={13} /> : null}
+              {item.typeLine ? <Text style={[styles.type, { color: colors.muted }]} numberOfLines={1}>{item.typeLine}</Text> : null}
+            </View>
+            <CopiesBar name={item.name} count={cardCount(item)} style={styles.bar}
+                       onFewer={() => changeCopies(index, -1)} onMore={() => changeCopies(index, 1)} />
+          </View>
+        )}
+      />
+    </KeyboardAvoidingView>
+  );
+}
+
+// The screen's look
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  page: { padding: PAGE_PADDING, width: '100%', maxWidth: PAGE_MAX_WIDTH, alignSelf: 'center', flexGrow: 1, paddingBottom: 60 },
+  header: { gap: 10, marginBottom: 8 },
+  summary: { fontSize: 13 },
+  empty: { fontSize: 15, textAlign: 'center', marginTop: 24 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  thumb: { width: '100%', height: '100%' },
+  rowText: { flex: 1, minWidth: 0, gap: 1 },
+  name: { fontSize: 15, fontWeight: '600' },
+  type: { fontSize: 12 },
+  bar: { width: 84 },
+  missing: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  missingText: { fontSize: 16, textAlign: 'center' },
+});
