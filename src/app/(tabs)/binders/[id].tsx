@@ -1264,7 +1264,7 @@ function BinderView({ binderId }: { binderId: string }) {
       </View>
 
       {/* The Binder view's own summary line, above the pockets: how many
-          cards, how many different, and what they're worth (the List and
+          cards, how many different, how many share a name, and what they're worth (the List and
           Grid views show it as part of their list) */}
       {mode === 'binder' && !searching && baseEntries.length > 0 && (
         <View style={styles.summaryRow}>

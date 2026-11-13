@@ -36,7 +36,7 @@ import { useColors } from '@/hooks/useTheme';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, setBinderGridZoom, zoomStepForWidth } from '@/lib/binderView';
 import { pictureSource } from '@/lib/http';
-import { cardCount, type BinderCard } from '@/lib/binderStorage';
+import { cardCount, sameNameCount, type BinderCard } from '@/lib/binderStorage';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/prices';
 import { costAndTypeOf, finishOf } from '@/lib/cardDetails';
@@ -244,8 +244,15 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
 }
 
 /* ---------------------------------------------------------------------
-   THE SUMMARY LINE above the cards: "42 cards · 31 different · $118.40"
-   (also shown above the pockets in the Binder view: the binder screen uses it)
+   THE SUMMARY LINE above the cards: "42 cards · 31 different · 9 same
+   name · $118.40"
+   - cards: every card, counting each copy
+   - different: how many separate cards are in the list (a stack of
+     copies is one)
+   - same name: how many cards share their name with another card, so
+     copies and different printings of the same card all count
+   (also shown above the pockets in the Binder view: the binder screen uses it,
+   and the lists use it too)
    --------------------------------------------------------------------- */
 export function Summary({ entries, prices, searchOf, hint, note }: { entries: CardEntry[]; prices: BinderPrices; searchOf?: number; hint?: string; note?: string }) {
   const colors = useColors();
@@ -258,7 +265,7 @@ export function Summary({ entries, prices, searchOf, hint, note }: { entries: Ca
     : prices.failed ? 'prices unavailable' : prices.loading ? 'loading prices…' : '';
   const parts = searchOf !== undefined
     ? [`${entries.length} of ${searchOf} ${searchOf === 1 ? 'card' : 'cards'} match`, worth, hint, note].filter(Boolean)
-    : [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, worth, note].filter(Boolean);
+    : [`${cards} ${cards === 1 ? 'card' : 'cards'}`, `${entries.length} different`, `${sameNameCount(entries.map((entry) => entry.card)).toLocaleString()} same name`, worth, note].filter(Boolean);
   return <Text style={[styles.summary, { color: colors.muted }]} accessibilityLiveRegion="polite">{parts.join(' · ')}</Text>;
 }
 

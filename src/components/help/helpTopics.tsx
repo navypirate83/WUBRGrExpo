@@ -558,7 +558,9 @@ export const helpTopics: HelpTopic[] = [
         moves every card forward to fill the empty pockets, keeping their order. It's faded when there are
         no empty pockets in the way.
         In every view, a line under the buttons shows how many cards the binder holds, how many different
-        ones, and what they're all worth at the store chosen under <Strong>Price store</Strong> in Settings.
+        ones, how many have the <Strong>same name</Strong> as another card (copies, and the same card
+        from different sets, all count), and what they're all worth at the store chosen
+        under <Strong>Price store</Strong> in Settings. A list shows the same line.
         The <Strong>Binder</Strong> view shows its pages, like a real binder lying open: two pages side by
         side on a tablet or computer, one page at a time on a phone. Each page has 16
         pockets, four across and four down, unless you've chosen another page layout
@@ -1077,7 +1079,7 @@ export const helpTopics: HelpTopic[] = [
               dollars) or <Strong>Cardmarket</Strong> (euros). Inside a binder, each card in the
               list shows what its copies are worth there (the foil price for a foil copy, times how many copies;
               a dash when the store has no price), and the line above the cards adds it all up: how many
-              cards, how many different, and the total value. On the Card Finder, your store's prices are listed first.
+              cards, how many different, how many have the same name as another card, and the total value. On the Card Finder, your store's prices are listed first.
             </P>
             <P>
               The first time you pick <Strong>Card Kingdom</Strong>, the app downloads its price list

@@ -521,6 +521,23 @@ export function cardCount(card: BinderCard | undefined): number {
     : 1;
 }
 
+// How many cards share their name with at least one other card. Copies
+// count (3 copies of Sol Ring are 3), and so do different printings of
+// one card (a Sol Ring from each of two sets are 2). A card with a name
+// of its own isn't counted. Capital letters and spaces at the ends don't
+// matter. For the "same name" figure in the line above a binder's or a
+// list's cards.
+export function sameNameCount(cards: { name: string; count?: number }[]): number {
+  const perName = new Map<string, number>();
+  for (const card of cards) {
+    const name = card.name.trim().toLowerCase();
+    perName.set(name, (perName.get(name) ?? 0) + cardCount(card as BinderCard));
+  }
+  let total = 0;
+  for (const copies of perName.values()) if (copies > 1) total += copies;
+  return total;
+}
+
 // A copy of a card with a new number of copies. A count of 1 is left out
 // of the card (it's the normal amount), which keeps saved files tidy.
 export function withCount(card: BinderCard, count: number): BinderCard {
