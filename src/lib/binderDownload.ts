@@ -19,6 +19,8 @@ import { binderDetails, loadBinder } from './binderStorage';
 import { binderToCsv } from './binderCsv';
 import { findList } from './listStorage';
 import { listToCsv } from './listCsv';
+import { findDeck } from './deckStorage';
+import { deckToCsv } from './deckCsv';
 
 // The file name: the binder's name (characters not allowed in file
 // names removed) and today's date, like "Binder 1 2026-10-16.csv"
@@ -51,4 +53,10 @@ export async function downloadBinderCsv(id: string): Promise<void> {
 export async function downloadListCsv(id: string): Promise<void> {
   const list = findList(id);
   if (list) await shareCsv(list.name, listToCsv(list));
+}
+
+// The same for a deck
+export async function downloadDeckCsv(id: string): Promise<void> {
+  const deck = findDeck(id);
+  if (deck) await shareCsv(deck.name, deckToCsv(deck));
 }

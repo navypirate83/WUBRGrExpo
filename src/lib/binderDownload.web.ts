@@ -15,6 +15,8 @@ import { binderDetails, loadBinder } from './binderStorage';
 import { binderToCsv } from './binderCsv';
 import { findList } from './listStorage';
 import { listToCsv } from './listCsv';
+import { findDeck } from './deckStorage';
+import { deckToCsv } from './deckCsv';
 
 // Save the binder as it is in this browser (its newest copy: every change
 // is saved here first). The file is named like "Binder 1 2026-10-16.csv".
@@ -27,6 +29,12 @@ export async function downloadBinderCsv(id: string): Promise<void> {
 export async function downloadListCsv(id: string): Promise<void> {
   const list = findList(id);
   if (list) saveCsv(list.name, listToCsv(list));
+}
+
+// The same for a deck
+export async function downloadDeckCsv(id: string): Promise<void> {
+  const deck = findDeck(id);
+  if (deck) saveCsv(deck.name, deckToCsv(deck));
 }
 
 // Have the browser save a .csv file with this name (before the date) and text

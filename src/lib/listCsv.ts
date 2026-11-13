@@ -26,13 +26,13 @@ const LIST_COLUMNS = [
 // or a line break in it goes inside quote marks (and any quote mark
 // inside is doubled), which is how .csv files tell those apart from the
 // commas between columns
-function csvValue(value: string): string {
+export function csvValue(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 // The card's Scryfall ID, read from its picture's address (the long code
 // at the end of cards.scryfall.io/normal/front/a/b/<ID>.jpg)
-function scryfallIdFrom(image: string): string {
+export function scryfallIdFrom(image: string): string {
   return /\/(?:front|back)\/[0-9a-f]\/[0-9a-f]\/([0-9a-f-]{36})\./i.exec(image)?.[1] ?? '';
 }
 

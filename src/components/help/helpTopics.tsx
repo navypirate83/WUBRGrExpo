@@ -246,8 +246,13 @@ export const helpTopics: HelpTopic[] = [
               Inside a deck, type a card's name in the search bar and the matching cards are listed under it. Tap
               the <Strong>+</Strong> on the one you want and it's added to the deck, using the first printing that
               comes up. Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
-              binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are listed below
-              with a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy asks whether to remove it).
+              binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are shown
+              the way a list's are: as a <Strong>List</Strong> or a <Strong>Grid</Strong> of card pictures (the buttons under
+              the search bar; the grid zooms like a list's), with the same <Strong>sort</Strong> menu, header bars between
+              groups, foil borders, and a line above the cards with how many cards, how many different, what they're worth and
+              the format. Each card has a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy
+              asks whether to delete it). The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
+              (it has the deck's name and format on every line).
               Tap a card for its window, the same as in a binder or list: a big picture (tap it to open the card in
               the Card Finder), what the card does, how many copies, <Strong>Move to a binder</Strong> (the card goes
               into that binder's first empty pocket and leaves the deck) and <Strong>Delete from deck</Strong> (it asks first).

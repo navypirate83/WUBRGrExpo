@@ -14,6 +14,8 @@
 
 import { storageGet, storageRemove, storageSet } from './storage';
 import { samePrinting } from './binderStorage';
+import { needsDetails, withDetails } from './cardDetails';
+import type { ScryfallCard } from './scryfall';
 import { cleanDeckFormat, DEFAULT_DECK_FORMAT } from './deckFormats';
 import type { ListCard } from './listStorage';
 
@@ -141,4 +143,21 @@ export function setDeckCardCount(id: string, index: number, count: number): bool
       .map((card, i) => (i === index ? (count > 1 ? { ...card, count } : count === 1 ? oneCopyIsNoCount(card) : null) : card))
       .filter((card): card is DeckCard => card !== null),
   }));
+}
+
+// Save the details sorting needs (colors, type, rarity, mana value, release
+// date: see cardDetails.ts) with the cards of a deck that don't have them
+// yet, from their printings (by "set/number" in lowercase). Returns true if
+// anything was filled in.
+export function fillDeckDetails(id: string, printings: Map<string, ScryfallCard>): boolean {
+  const deck = findDeck(id);
+  if (!deck) return false;
+  let changed = false;
+  const cards = deck.cards.map((card) => {
+    const print = needsDetails(card) ? printings.get(`${card.set}/${card.number}`.toLowerCase()) : undefined;
+    if (!print) return card;
+    changed = true;
+    return withDetails(card, print) as DeckCard;
+  });
+  return changed && changeDeck(id, (d) => ({ ...d, cards }));
 }
