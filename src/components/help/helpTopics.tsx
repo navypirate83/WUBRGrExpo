@@ -541,7 +541,8 @@ export const helpTopics: HelpTopic[] = [
         in above each group: the letter (A, B, C...) for Name; the mana symbols for Color (the colorless
         diamond for colorless, a little mountain for Lands); the type's name for Type; the set's symbol,
         code and name for Set; and the number in a mana symbol for Mana value. Price, Newest added and
-        Rarity have no header bars.
+        Rarity have no header bars. To turn the header bars off, use <Strong>Group headers</Strong> under
+        <Strong> Collection</Strong> in Settings (it follows your account to your other devices).
         Every card is saved with the details sorting needs (its colors, type, rarity, mana value and
         set's release date), in the binder's .CSV and .JSON files too, so the sorts don't wait on the
         internet; cards made before that get them filled in the first time you open their binder. Sorting only changes how the list and grid are shown: it never

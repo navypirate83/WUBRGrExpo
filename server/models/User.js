@@ -73,6 +73,8 @@ const userSchema = new mongoose.Schema(
       binderSort: { type: String, enum: ['name', 'added', 'price', 'color', 'set', 'type', 'rarity', 'value'] },
       // Whether the sort is the other way round (cheapest first, oldest first...)
       binderSortReversed: { type: Boolean },
+      // Whether header bars show between groups in the list and grid
+      sortHeaders: { type: Boolean },
       // The layout the account's cards are stored in (see routes/settings.js)
       pageLayout: {
         across: { type: Number, min: 1, max: 6 },

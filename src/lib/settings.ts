@@ -72,6 +72,7 @@ export type Settings = {
   wideListView: ListViewMode;
   binderSort: BinderSort;
   binderSortReversed: boolean;
+  sortHeaders: boolean;            // header bars between groups in the list and grid
   phoneLayout: PageLayout;
   wideLayout: PageLayout;
   accountLayout: PageLayout;
@@ -86,6 +87,7 @@ const DEFAULT_SETTINGS: Settings = {
   wideListView: DEFAULT_LIST_VIEW,
   binderSort: DEFAULT_BINDER_SORT,
   binderSortReversed: false,
+  sortHeaders: true,
   phoneLayout: DEFAULT_LAYOUT,
   wideLayout: DEFAULT_LAYOUT,
   accountLayout: DEFAULT_LAYOUT,
@@ -109,6 +111,9 @@ const PHONE_LIST_VIEW_KEY = 'phoneListView';
 const WIDE_LIST_VIEW_KEY = 'wideListView';
 const BINDER_SORT_KEY = 'binderSort';
 const SORT_REVERSED_KEY = 'binderSortReversed';
+// Header bars between groups: kept as "0" when turned off (anything else, or
+// nothing saved yet, means on)
+const SORT_HEADERS_KEY = 'sortHeaders';
 
 /* ---------------------------------------------------------------------
    TELLING PAGES ABOUT CHANGES
@@ -154,6 +159,7 @@ export function currentSettings(): Settings {
     wideListView: cleanListView(storageGet(WIDE_LIST_VIEW_KEY)),
     binderSort: cleanBinderSort(storageGet(BINDER_SORT_KEY)),
     binderSortReversed: storageGet(SORT_REVERSED_KEY) === '1',
+    sortHeaders: storageGet(SORT_HEADERS_KEY) !== '0',
     phoneLayout: layouts.phone,
     wideLayout: layouts.wide,
     accountLayout: layouts.account,
@@ -175,6 +181,11 @@ export function savedBinderSort(): BinderSort {
 export function savedBinderSortReversed(): boolean {
   return storageGet(SORT_REVERSED_KEY) === '1';
 }
+// Are the header bars between groups turned on? (They are, unless turned
+// off in Settings.)
+export function savedSortHeaders(): boolean {
+  return storageGet(SORT_HEADERS_KEY) !== '0';
+}
 
 // Put settings into effect on this device, remember them here, and tell
 // the pages that use them. If the layout in use (the phone's or the wide
@@ -192,6 +203,7 @@ function applySettings(settings: Settings): void {
   storageSet(WIDE_LIST_VIEW_KEY, settings.wideListView);
   storageSet(BINDER_SORT_KEY, settings.binderSort);
   storageSet(SORT_REVERSED_KEY, settings.binderSortReversed ? '1' : '0');
+  storageSet(SORT_HEADERS_KEY, settings.sortHeaders ? '1' : '0');
   const nowShowing = currentSizeClass() === 'phone' ? settings.phoneLayout : settings.wideLayout;
   if (!sameLayout(nowShowing, pageLayout())) {
     relayoutAllBinders(pocketsPerPage(), pocketsPerPage(nowShowing));
@@ -239,6 +251,8 @@ function fromFile(data: Record<string, unknown>, from: 'server' | 'drive'): Sett
   if (data.wideListView !== undefined) settings.wideListView = cleanListView(data.wideListView);
   if (data.binderSort !== undefined) settings.binderSort = cleanBinderSort(data.binderSort);
   if (typeof data.binderSortReversed === 'boolean') settings.binderSortReversed = data.binderSortReversed;
+  // An older save has no header-bars choice: keep the one chosen here
+  if (typeof data.sortHeaders === 'boolean') settings.sortHeaders = data.sortHeaders;
   const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
   if (isObject(data.pageLayout)) {
     const single = cleanLayout(data.pageLayout);
@@ -281,15 +295,15 @@ function saveToDrive(): Promise<void> {
 
 // What the server sends back: the saved settings (null if none yet)
 type ServerSettings = {
-  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; phoneListView?: unknown; wideListView?: unknown; binderSort?: unknown; binderSortReversed?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
+  settings: { theme?: unknown; hiddenFormats?: unknown; priceStore?: unknown; phoneView?: unknown; wideView?: unknown; phoneListView?: unknown; wideListView?: unknown; binderSort?: unknown; binderSortReversed?: unknown; sortHeaders?: unknown; pageLayout?: unknown; phoneLayout?: unknown; wideLayout?: unknown } | null;
 };
 
 // Send the settings as they are now to the account on the server
 async function saveToServer(): Promise<void> {
-  const { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
+  const { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, sortHeaders, phoneLayout, wideLayout, accountLayout: stored } = currentSettings();
   await apiRequest('/settings', {
     method: 'PUT',
-    body: { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, pageLayout: stored, phoneLayout, wideLayout },
+    body: { theme, hiddenFormats, priceStore, phoneView, wideView, phoneListView, wideListView, binderSort, binderSortReversed, sortHeaders, pageLayout: stored, phoneLayout, wideLayout },
   });
   storageRemove(SERVER_DIRTY_KEY);
 }

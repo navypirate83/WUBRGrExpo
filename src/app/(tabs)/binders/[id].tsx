@@ -72,7 +72,7 @@ import { loadOneCard } from '@/lib/scryfall';
 import { hapticTap } from '@/lib/haptics';
 import { downloadBinderCsv } from '@/lib/binderDownload';
 import { layoutKey, onLayoutChange, pageLayout } from '@/lib/pageLayout';
-import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange } from '@/lib/binderView';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, binderViewMode, onBinderViewChange, onGridZoomChange, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { fillDetails, finishParam } from '@/lib/cardDetails';
@@ -283,9 +283,11 @@ function BinderView({ binderId }: { binderId: string }) {
   // Grid views can put a header bar between the groups. (The Binder view's
   // pockets are left alone: they have no bars. Neither does a search shown
   // in the Binder view.)
+  // (None at all if they're turned off in Settings.)
+  const headersOn = useSyncExternalStore(onBinderViewChange, sortHeadersOn, sortHeadersOn);
   const headerOf = useCallback(
-    (entry: CardEntry) => (mode === 'binder' ? null : headerFor(entry, sort, { printings: prices.printings })),
-    [mode, sort, prices.printings],
+    (entry: CardEntry) => (mode === 'binder' || !headersOn ? null : headerFor(entry, sort, { printings: prices.printings })),
+    [mode, headersOn, sort, prices.printings],
   );
   // Once the lookup arrives, save the missing details with the cards (once:
   // after that they have them, so there's nothing left to fill in)

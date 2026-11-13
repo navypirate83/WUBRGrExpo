@@ -48,7 +48,7 @@ const OPTIONAL = {
   priceStore: PRICE_STORES, phoneView: VIEWS, wideView: VIEWS, phoneListView: LIST_VIEWS, wideListView: LIST_VIEWS, binderSort: SORTS,
 };
 // Optional like the above, but yes or no instead of one of a list
-const OPTIONAL_FLAGS = ['binderSortReversed'];
+const OPTIONAL_FLAGS = ['binderSortReversed', 'sortHeaders'];
 
 // A page layout count must be a whole number from 1 to 6
 const isCount = (n) => Number.isInteger(n) && n >= 1 && n <= 6;
@@ -117,6 +117,7 @@ function answer(user) {
       wideListView: saved.wideListView ?? DEFAULT_LIST_VIEW,
       binderSort: saved.binderSort ?? DEFAULT_SORT,
       binderSortReversed: saved.binderSortReversed ?? false,
+      sortHeaders: saved.sortHeaders ?? true,
       pageLayout: stored,
       // Settings saved before there were two layouts: both are the one layout
       phoneLayout: saved.phoneLayout?.across ? pick(saved.phoneLayout) : stored,

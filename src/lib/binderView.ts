@@ -14,7 +14,7 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
-import { changeSettings, onSettingsChange, savedBinderSort, savedBinderSortReversed, savedBinderView, savedListView } from './settings';
+import { changeSettings, onSettingsChange, savedBinderSort, savedBinderSortReversed, savedBinderView, savedListView, savedSortHeaders } from './settings';
 import { storageGet, storageSet } from './storage';
 import { currentSizeClass } from './pageLayout';
 import type { BinderViewMode, ListViewMode } from './binderViewTypes';
@@ -41,6 +41,10 @@ export function binderSort(): BinderSort {
 }
 export function binderSortReversed(): boolean {
   return savedBinderSortReversed();
+}
+// Are the header bars between groups turned on? (Switched in Settings.)
+export function sortHeadersOn(): boolean {
+  return savedSortHeaders();
 }
 
 // Choose a view for this window's size, or a sort. It takes effect at once;

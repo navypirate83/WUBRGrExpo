@@ -28,7 +28,7 @@ import { useColors } from '@/hooks/useTheme';
 import { currentThemeChoice, onThemeChange, setThemeChoice, type ThemeChoice } from '@/lib/theme';
 import { changeSettings, type Settings } from '@/lib/settings';
 import { MAX_CONTENT_WIDTH, SPACE } from '@/theme/colors';
-import { SettingBlock, SettingsSection } from '@/components/settings/SettingsParts';
+import { SettingBlock, SettingsSection, SwitchRow } from '@/components/settings/SettingsParts';
 import ThemeChoicePicker from '@/components/settings/ThemeChoicePicker';
 import LayoutPicker from '@/components/settings/LayoutPicker';
 import PriceStorePicker from '@/components/settings/PriceStorePicker';
@@ -133,6 +133,14 @@ export default function SettingsScreen() {
             >
               <PriceStorePicker value={settings.priceStore} onChange={(priceStore) => change({ priceStore })} />
             </SettingBlock>
+            {/* The little bars between groups in the list and grid (A, B, C ...;
+                colors; types; sets; mana values) */}
+            <SwitchRow
+              name="Group headers"
+              description="Show a small header bar between the groups of cards in a binder's or list's List and Grid views, like the letters A, B, C when sorted by name, or the mana symbols when sorted by color. Turn off for one unbroken run of cards."
+              value={settings.sortHeaders}
+              onChange={(sortHeaders) => change({ sortHeaders })}
+            />
             <SettingBlock
               name="Binder slot layout on a phone"
               description="How many pockets across and down each binder page has when the window is narrow (under 600 wide): a phone held upright, or the website in a narrow window. Like 3 × 3 for 9-pocket pages. Changing it keeps your cards in the same order, flowing onto more or fewer pages; change it back and every card returns to where it was."

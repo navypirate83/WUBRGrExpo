@@ -46,7 +46,7 @@ import CardRules from '@/components/binder/CardRules';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
-import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode } from '@/lib/binderView';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
 import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
 import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
@@ -234,9 +234,11 @@ export default function ListScreen() {
   // Which group each card falls under for the sort in use (A, B, C ...; a
   // color; a type; a set; a mana value), so the list can put a header bar
   // between the groups
+  // (None at all if they're turned off in Settings.)
+  const headersOn = useSyncExternalStore(onBinderViewChange, sortHeadersOn, sortHeadersOn);
   const headerOf = useCallback(
-    (entry: CardEntry) => headerFor(entry, sort, { printings: prices.printings }),
-    [sort, prices.printings],
+    (entry: CardEntry) => (headersOn ? headerFor(entry, sort, { printings: prices.printings }) : null),
+    [headersOn, sort, prices.printings],
   );
   // Once the lookup arrives, save the missing details with the cards (once:
   // after that they have them, so there's nothing left to fill in)
