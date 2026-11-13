@@ -260,7 +260,28 @@ export const helpTopics: HelpTopic[] = [
               asks whether to delete it). On a computer, you can also <Strong>drag a card picture</Strong> from Scryfall or
               EDHREC and drop it anywhere over the cards to add it (the same warning about too many copies applies).
               The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
-              (it has the deck's name and format on every line).
+              (it has the deck's name, format and where each card is kept: main, sideboard or command).
+            </P>
+            <P>
+              <Strong>Command zone.</Strong> A deck in a Commander-style format has a <Strong>Command zone</Strong> above its
+              cards, with the spots its rules ask for: <Strong>Commander</Strong> (Commander, Duel Commander, PreDH, Pauper
+              Commander and Tiny Leaders), or <Strong>Oathbreaker</Strong> and <Strong>Signature spell</Strong>. Fill a spot
+              two ways: tap it to search the cards allowed there (only those are listed), or open a card in the deck and
+              tap <Strong>Make commander</Strong> (<Strong>Make Oathbreaker</Strong> or <Strong>Make signature spell</Strong>) in its
+              window. A <Strong>second spot</Strong> appears only if the commander's abilities call for one:
+              <Strong> Partner</Strong>, <Strong>Partner with</Strong> a named card, <Strong>Friends forever</Strong>,
+              <Strong> Doctor's companion</Strong> (with a Time Lord Doctor), or <Strong>Choose a Background</Strong> (an
+              Enchantment — Background goes there). A commander with none of those gets no second spot (and Tiny Leaders and
+              Oathbreaker never have one). The signature spell must fit inside the Oathbreaker's colors. A commander can be a legendary
+              creature or any card that says it can be your commander (some planeswalkers do); Pauper Commander takes an uncommon
+              creature; Tiny Leaders takes cards with a mana value of 3 or less. <Strong>Change</Strong> picks another card for a spot,
+              and <Strong>Move to deck</Strong> sends it back to the main deck. If changing your commander means the second card can't
+              stay, the app asks before moving it back.
+            </P>
+            <P>
+              <Strong>Sideboard.</Strong> Formats with a sideboard (the 60-card formats hold up to 15, Tiny Leaders up to 10) show
+              <Strong> Main deck</Strong> and <Strong>Sideboard</Strong> buttons under the search bar. The + and a dragged picture add to
+              the one showing, and a card's window has <Strong>Move to sideboard</Strong> and <Strong>Move to main deck</Strong>.
               Tap a card for its window, the same as in a binder or list: a big picture (tap it to open the card in
               the Card Finder), what the card does, how many copies, <Strong>Move to a binder</Strong> (the card goes
               into that binder's first empty pocket and leaves the deck) and <Strong>Delete from deck</Strong> (it asks first).

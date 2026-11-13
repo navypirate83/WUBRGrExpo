@@ -13,31 +13,44 @@
    Plain TypeScript with no React in it.
    ===================================================================== */
 
+// The cards a deck keeps outside its main deck, as the format's rules ask:
+// - "commander": a commander, and (if its abilities allow) a second spot for
+//   a partner, a Background and the like ("pairs" says whether the format
+//   allows that second spot)
+// - "oathbreaker": an Oathbreaker (a planeswalker) and its signature spell
+// "sideboard" is how many cards the sideboard may hold (0: no sideboard).
+export type CommandZone = { kind: 'commander'; pairs: boolean } | { kind: 'oathbreaker' };
+
 export type DeckFormat = {
   code: string;                 // Scryfall's code for the format, like "commander"
   name: string;                 // what it's called on screen
   kind: 'main' | 'commander';
   copyLimit: number;            // copies of one card before the app warns (basic lands never warn)
+  command?: CommandZone;        // the spots outside the deck (none for a main + sideboard format)
+  sideboard: number;            // the sideboard's size (0: none)
+  maxManaValue?: number;        // the highest mana value any card may have (Tiny Leaders: 3)
 };
 
 // The formats, in the order they're offered
 export const DECK_FORMATS: DeckFormat[] = [
-  { code: 'commander', name: 'Commander', kind: 'commander', copyLimit: 1 },
-  { code: 'oathbreaker', name: 'Oathbreaker', kind: 'commander', copyLimit: 1 },
-  { code: 'duel', name: 'Duel Commander', kind: 'commander', copyLimit: 1 },
-  { code: 'paupercommander', name: 'Pauper Commander', kind: 'commander', copyLimit: 1 },
-  { code: 'predh', name: 'PreDH', kind: 'commander', copyLimit: 1 },
-  { code: 'tlr', name: 'Tiny Leaders: Reborn', kind: 'commander', copyLimit: 1 },
-  { code: 'standard', name: 'Standard', kind: 'main', copyLimit: 4 },
-  { code: 'pioneer', name: 'Pioneer', kind: 'main', copyLimit: 4 },
-  { code: 'modern', name: 'Modern', kind: 'main', copyLimit: 4 },
-  { code: 'legacy', name: 'Legacy', kind: 'main', copyLimit: 4 },
-  { code: 'vintage', name: 'Vintage', kind: 'main', copyLimit: 4 },
-  { code: 'pauper', name: 'Pauper', kind: 'main', copyLimit: 4 },
-  { code: 'penny', name: 'Penny Dreadful', kind: 'main', copyLimit: 4 },
-  { code: 'premodern', name: 'Premodern', kind: 'main', copyLimit: 4 },
-  { code: 'oldschool', name: 'Old School 93/94', kind: 'main', copyLimit: 4 },
-  { code: 'future', name: 'Future Standard', kind: 'main', copyLimit: 4 },
+  { code: 'commander', name: 'Commander', kind: 'commander', copyLimit: 1, command: { kind: 'commander', pairs: true }, sideboard: 0 },
+  { code: 'oathbreaker', name: 'Oathbreaker', kind: 'commander', copyLimit: 1, command: { kind: 'oathbreaker' }, sideboard: 0 },
+  { code: 'duel', name: 'Duel Commander', kind: 'commander', copyLimit: 1, command: { kind: 'commander', pairs: true }, sideboard: 0 },
+  { code: 'paupercommander', name: 'Pauper Commander', kind: 'commander', copyLimit: 1, command: { kind: 'commander', pairs: true }, sideboard: 0 },
+  { code: 'predh', name: 'PreDH', kind: 'commander', copyLimit: 1, command: { kind: 'commander', pairs: true }, sideboard: 0 },
+  // Tiny Leaders: 50 cards with the commander, one copy of each, every card
+  // (the commander too) with a mana value of 3 or less, a sideboard of up to 10
+  { code: 'tlr', name: 'Tiny Leaders: Reborn', kind: 'commander', copyLimit: 1, command: { kind: 'commander', pairs: false }, sideboard: 10, maxManaValue: 3 },
+  { code: 'standard', name: 'Standard', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'pioneer', name: 'Pioneer', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'modern', name: 'Modern', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'legacy', name: 'Legacy', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'vintage', name: 'Vintage', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'pauper', name: 'Pauper', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'penny', name: 'Penny Dreadful', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'premodern', name: 'Premodern', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'oldschool', name: 'Old School 93/94', kind: 'main', copyLimit: 4, sideboard: 15 },
+  { code: 'future', name: 'Future Standard', kind: 'main', copyLimit: 4, sideboard: 15 },
 ];
 
 export const DEFAULT_DECK_FORMAT = 'commander';

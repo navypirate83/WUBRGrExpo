@@ -73,6 +73,11 @@ export type ScryfallCard = {
   // card has it on each side, in card_faces, instead.
   oracle_text?: string;
   type_line?: string;
+  // The card's abilities as keywords (like "Partner" or "Friends forever"),
+  // and its color identity (the colors in its cost AND rules text, like
+  // ["U", "B"]): who a deck's commander lets into the deck
+  keywords?: string[];
+  color_identity?: string[];
   released_at: string;
   artist?: string;
   scryfall_uri: string;
@@ -160,6 +165,20 @@ async function scryfall<T>(pathOrUrl: string): Promise<T> {
   // Errors 500 and up are Scryfall's own trouble, so trying again may help.
   throw new RequestError(`Scryfall had a problem (error ${response.status}). Please try again in a moment.`,
     { retryable: response.status >= 500 });
+}
+
+// Search for cards with one of Scryfall's search queries (like
+// "is:commander name:krenko"): the first page of answers, one per card,
+// A to Z. A search that finds nothing gives an empty list (Scryfall calls
+// that an error, so it's turned back into "nothing found" here).
+export async function searchCards(query: string): Promise<ScryfallCard[]> {
+  try {
+    const reply = await scryfall<ListPage<ScryfallCard>>(`/cards/search?unique=cards&order=name&q=${encodeURIComponent(query)}`);
+    return reply.data;
+  } catch (err) {
+    if (err instanceof Error && /didn.t match any cards|No cards found/i.test(err.message)) return [];
+    throw err;
+  }
 }
 
 // Some Scryfall lists come in pages. Keep asking for the next page

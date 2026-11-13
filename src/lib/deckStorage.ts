@@ -19,8 +19,17 @@ import type { ScryfallCard } from './scryfall';
 import { cleanDeckFormat, DEFAULT_DECK_FORMAT } from './deckFormats';
 import type { ListCard } from './listStorage';
 
-// One card in a deck: the same as a card in a list
-export type DeckCard = ListCard;
+// Where a card is kept: in the main deck (the start), in the sideboard, or in
+// the command zone (a commander, a partner, an Oathbreaker...). A command zone
+// card also has its "slot": 0 is the first spot (the commander or Oathbreaker),
+// 1 the second (the partner, Background or signature spell).
+export type Zone = 'main' | 'side' | 'command';
+
+// One card in a deck: the same as a card in a list, and where it's kept
+export type DeckCard = ListCard & { zone?: 'side' | 'command'; slot?: 0 | 1 };
+
+// A card's zone (a card with none is in the main deck)
+export const zoneOf = (card: DeckCard): Zone => card.zone ?? 'main';
 
 // One deck: its id, name, format code and cards
 export type Deck = { id: string; name: string; format: string; cards: DeckCard[] };
@@ -117,12 +126,14 @@ export function copiesOf(deck: Deck | undefined, name: string): number {
   return (deck?.cards ?? []).reduce((sum, card) => sum + (card.name.trim().toLowerCase() === wanted ? card.count ?? 1 : 0), 0);
 }
 
-// Add one copy of a card. The same printing already in the deck gets one
-// more copy; otherwise the card goes on the end.
-export function addCardToDeck(id: string, card: DeckCard): boolean {
+// Add one copy of a card, to the main deck or (with "zone") the sideboard.
+// The same printing already there gets one more copy; otherwise the card
+// goes on the end.
+export function addCardToDeck(id: string, card: DeckCard, zone: 'main' | 'side' = 'main'): boolean {
+  const wanted = zone === 'side' ? { ...card, zone: 'side' as const } : stripZone(card);
   return changeDeck(id, (d) => {
-    const at = d.cards.findIndex((c) => samePrinting(c, card));
-    if (at < 0) return { ...d, cards: [...d.cards, oneCopyIsNoCount(card)] };
+    const at = d.cards.findIndex((c) => samePrinting(c, wanted) && zoneOf(c) === zone);
+    if (at < 0) return { ...d, cards: [...d.cards, oneCopyIsNoCount(wanted)] };
     return { ...d, cards: d.cards.map((c, i) => (i === at ? { ...c, count: Math.min(MAX_COPIES, (c.count ?? 1) + 1) } : c)) };
   });
 }
@@ -141,7 +152,14 @@ export function replaceDeckCard(id: string, index: number, card: DeckCard): bool
   const before = findDeck(id)?.cards[index];
   if (!before) return false;
   const copies = before.count ?? 1;
-  const next = copies > 1 ? { ...card, count: copies } : oneCopyIsNoCount(card);
+  // It stays in the same list (the sideboard or the command zone spot), and a
+  // command zone card keeps what its abilities allow (when it's the same card)
+  const place: Partial<DeckCard> = before.zone ? { zone: before.zone, slot: before.slot } : {};
+  if (before.zone === 'command' && before.name === card.name) {
+    place.extra = { ...card.extra, Pairing: before.extra?.Pairing ?? '[]', 'Color identity': before.extra?.['Color identity'] ?? 'C' };
+  }
+  const swapped = { ...card, ...place } as DeckCard;
+  const next = copies > 1 ? { ...swapped, count: copies } : oneCopyIsNoCount(swapped);
   return changeDeck(id, (d) => ({ ...d, cards: d.cards.map((c, i) => (i === index ? next : c)) }));
 }
 
@@ -171,4 +189,81 @@ export function fillDeckDetails(id: string, printings: Map<string, ScryfallCard>
     return withDetails(card, print) as DeckCard;
   });
   return changed && changeDeck(id, (d) => ({ ...d, cards }));
+}
+
+/* ---------------------------------------------------------------------
+   ZONES: THE MAIN DECK, THE SIDEBOARD AND THE COMMAND ZONE
+   --------------------------------------------------------------------- */
+
+// A card with no zone and no slot (as it is in the main deck)
+function stripZone(card: DeckCard): DeckCard {
+  const { zone: _zone, slot: _slot, ...rest } = card;
+  return rest as DeckCard;
+}
+
+// The card in a command zone spot (undefined if the spot is empty)
+export function commandCard(deck: Deck | undefined, slot: 0 | 1): DeckCard | undefined {
+  return deck?.cards.find((c) => c.zone === 'command' && c.slot === slot);
+}
+
+// Put the card at this spot in the deck back into the main deck, as one
+// copy (joining the same printing there, if there is one). Returns false
+// if there's no card at that spot.
+export function moveToMain(id: string, index: number): boolean {
+  const deck = findDeck(id);
+  const card = deck?.cards[index];
+  if (!deck || !card) return false;
+  const back = stripZone(card);
+  return changeDeck(id, (d) => {
+    const without = d.cards.filter((_, i) => i !== index);
+    const at = without.findIndex((c) => samePrinting(c, back) && zoneOf(c) === 'main');
+    const copies = card.count ?? 1;
+    if (at < 0) return { ...d, cards: [...without, copies > 1 ? { ...back, count: copies } : oneCopyIsNoCount(back)] };
+    return { ...d, cards: without.map((c, i) => (i === at ? { ...c, count: Math.min(MAX_COPIES, (c.count ?? 1) + copies) } : c)) };
+  });
+}
+
+// Move the card at this spot into the sideboard (all its copies)
+export function moveToSideboard(id: string, index: number): boolean {
+  const deck = findDeck(id);
+  const card = deck?.cards[index];
+  if (!deck || !card) return false;
+  const there = { ...stripZone(card), zone: 'side' as const };
+  return changeDeck(id, (d) => {
+    const without = d.cards.filter((_, i) => i !== index);
+    const at = without.findIndex((c) => samePrinting(c, there) && zoneOf(c) === 'side');
+    const copies = card.count ?? 1;
+    if (at < 0) return { ...d, cards: [...without, copies > 1 ? { ...there, count: copies } : oneCopyIsNoCount(there)] };
+    return { ...d, cards: without.map((c, i) => (i === at ? { ...c, count: Math.min(MAX_COPIES, (c.count ?? 1) + copies) } : c)) };
+  });
+}
+
+// Put a card into a command zone spot. "from" is the spot in the deck of a
+// card already there (one copy of it moves; any others stay), or leave it
+// out to add a new card. A card already in that command zone spot goes back
+// into the main deck. "extra" is saved with the card (what its pairing
+// abilities and colors are: see deckZones.ts).
+export function placeInCommandZone(id: string, slot: 0 | 1, card: DeckCard, from?: number, extra?: Record<string, string>): boolean {
+  const deck = findDeck(id);
+  if (!deck) return false;
+  // The card moving in, remembered by what it is (the spots shift when the old
+  // card in this spot goes back into the main deck)
+  const source = from !== undefined ? deck.cards[from] : undefined;
+  const old = commandCard(deck, slot);
+  if (old) moveToMain(id, deck.cards.indexOf(old));
+  const { count: _count, ...plain } = stripZone(card);
+  const placed = { ...plain, zone: 'command' as const, slot, extra: { ...card.extra, ...extra } } as DeckCard;
+  return changeDeck(id, (d) => {
+    let cards = d.cards;
+    if (source) {
+      const at = cards.findIndex((c) => samePrinting(c, source) && zoneOf(c) === zoneOf(source));
+      if (at >= 0) {
+        const copies = cards[at].count ?? 1;
+        cards = copies > 1
+          ? cards.map((c, i) => (i === at ? (copies - 1 > 1 ? { ...c, count: copies - 1 } : oneCopyIsNoCount(c)) : c))
+          : cards.filter((_, i) => i !== at);
+      }
+    }
+    return { ...d, cards: [...cards, placed] };
+  });
 }

@@ -3,9 +3,11 @@
    A deck is downloaded as a .csv file: one card per line, in the deck's
    order. The columns are a list's (see listCsv.ts: they start with a
    ManaBox collection export's, so card apps can read the file), with the
-   deck's own two at the end instead of "List":
+   deck's own three at the end instead of "List":
      - Deck: the deck's name, repeated on every line
      - Format: the deck's format, like Commander
+     - Zone: where the card is kept: main, sideboard, or command (a commander,
+       partner, Oathbreaker or signature spell)
    Plain TypeScript with no React in it.
    ===================================================================== */
 
@@ -16,7 +18,7 @@ import type { Deck } from './deckStorage';
 // Every column, in order
 const DECK_COLUMNS = [
   'Name', 'Set code', 'Set name', 'Collector number', 'Foil', 'Rarity', 'Quantity',
-  'Scryfall ID', 'Language', 'Added', 'Side', 'Mana cost', 'Type', 'Deck', 'Format',
+  'Scryfall ID', 'Language', 'Added', 'Side', 'Mana cost', 'Type', 'Deck', 'Format', 'Zone',
 ];
 
 // The whole deck as the text of a .csv file: the line of column names,
@@ -42,6 +44,7 @@ export function deckToCsv(deck: Deck): string {
       'Type': card.typeLine,
       'Deck': deck.name,
       'Format': format,
+      'Zone': card.zone === 'side' ? 'sideboard' : card.zone === 'command' ? 'command' : 'main',
     };
     lines.push(DECK_COLUMNS.map((column) => csvValue(values[column])).join(','));
   }

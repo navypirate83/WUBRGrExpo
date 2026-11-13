@@ -26,9 +26,17 @@
    format allows (1 in Commander-style formats, 4 in the others) shows a
    window about it, with "Add anyway" because some cards break the limit.
    Basic lands, snow-covered basic lands and Wastes never ask.
-   More deck features (the commander slot, the sideboard, picking a
-   different printing and the format's other rules) come later. Decks are
-   kept on this device only for now (see lib/deckStorage.ts).
+   COMMAND ZONE (Commander-style formats): above the cards, one or two spots
+   for the cards kept outside the deck: a commander (and a partner or a
+   Background only if its abilities call for one), or an Oathbreaker and its
+   signature spell (see components/decks/CommandZone.tsx and lib/deckZones.ts).
+   A spot is filled two ways: tap it to search the cards allowed there, or open
+   a card in the deck and tap "Make commander" in its window.
+   SIDEBOARD (formats that have one): "Main deck" and "Sideboard" buttons
+   switch between the two lists; a "+" or a dragged picture adds to the one
+   showing; a card's window can move it between them.
+   Picking a different printing and the format's other rules come later.
+   Decks are kept on this device only for now (see lib/deckStorage.ts).
    ===================================================================== */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
@@ -48,7 +56,10 @@ import CardRules from '@/components/binder/CardRules';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import PopupWindow from '@/components/PopupWindow';
 import Button from '@/components/Button';
-import { addCardToDeck, copiesOf, fillDeckDetails, findDeck, setDeckCardCount, type Deck, type DeckCard } from '@/lib/deckStorage';
+import { addCardToDeck, commandCard, copiesOf, fillDeckDetails, findDeck, moveToMain, moveToSideboard, placeInCommandZone, setDeckCardCount, zoneOf, type Deck, type DeckCard } from '@/lib/deckStorage';
+import CommandZone from '@/components/decks/CommandZone';
+import SlotSearchDialog from '@/components/decks/SlotSearchDialog';
+import { allowedInSlot, deckCardFromPrint, secondSpotShows, slotHint, slotName, slotQuery, zoneExtraOf } from '@/lib/deckZones';
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
@@ -58,7 +69,7 @@ import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { detailsOf, costAndTypeOf, finishParam } from '@/lib/cardDetails';
 import { cardCount, loadBinder, loadBinderList, MAX_COPIES, samePrinting } from '@/lib/binderStorage';
-import { cardByNamePath, loadOneCard } from '@/lib/scryfall';
+import { cardByNamePath, cardBySetPath, loadOneCard, type ScryfallCard } from '@/lib/scryfall';
 import { downloadDeckCsv } from '@/lib/binderDownload';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 
@@ -92,6 +103,14 @@ export default function DeckScreen() {
   const [searchMode, setSearchMode] = useState<DeckSearchMode>('search');
   const [filter, setFilter] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  // Which list shows (the main deck or the sideboard), and which command zone
+  // spot's search window is open (null: none)
+  const [tab, setTab] = useState<'main' | 'side'>('main');
+  const [slotSearch, setSlotSearch] = useState<0 | 1 | null>(null);
+  // The format and what it asks for outside the main deck (formats with no
+  // sideboard always show the main deck)
+  const format = deckFormat(deck?.format);
+  const shownZone = format.sideboard > 0 ? tab : 'main';
   // A card is being looked up: don't start a second add until it's done
   const busy = useRef(false);
   // The held card's window (its spot in the deck), and the card being moved
@@ -109,10 +128,13 @@ export default function DeckScreen() {
   const headersOn = useSyncExternalStore(onBinderViewChange, sortHeadersOn, sortHeadersOn);
   const contentWidth = useContentWidth();
 
-  // Every card, each with its "key": its spot in the deck (0 is the first), as text
+  // The cards in the list showing (the main deck or the sideboard; the command
+  // zone cards have their own spots), each with its "key": its spot in the
+  // deck (0 is the first), as text
   const allEntries = useMemo<CardEntry[]>(
-    () => (deck?.cards ?? []).map((card, index) => ({ key: String(index), card })),
-    [deck],
+    () => (deck?.cards ?? []).map((card, index) => ({ key: String(index), card }))
+      .filter((entry) => zoneOf(entry.card as DeckCard) === shownZone),
+    [deck, shownZone],
   );
   // The cards to show: all of them, or, in Search as you type, those whose
   // name matches (a forgiving search, so small typos and spacing don't
@@ -208,9 +230,9 @@ export default function DeckScreen() {
     try {
       if (!(await okToAdd(name))) return;
       const card = await cardToAdd(name, ownedOnly);
-      addCardToDeck(id, card);
+      addCardToDeck(id, card, shownZone);
       setDeck(findDeck(id));
-      setNote(`Added ${card.name}.`);
+      setNote(`Added ${card.name}${shownZone === 'side' ? ' to the sideboard' : ''}.`);
     } catch (err) {
       showMessage('Couldn\'t add the card', (err as Error).message);
     } finally {
@@ -273,8 +295,8 @@ export default function DeckScreen() {
       if (!(await okToAdd(card.name))) return;
       const current = findDeck(id);
       if (!current) return;
-      const index = current.cards.findIndex((existing) => samePrinting(existing, card));
-      addCardToDeck(id, card);
+      const index = current.cards.findIndex((existing) => samePrinting(existing, card) && zoneOf(existing) === shownZone);
+      addCardToDeck(id, card, shownZone);
       setDeck(findDeck(id));
       flash(String(index >= 0 ? index : current.cards.length), `✓ Added ${card.name}${index >= 0 ? ' (one more copy)' : ''}`);
       announce(`Added ${card.name}${index >= 0 ? ', one more copy' : ''}.`);
@@ -283,6 +305,126 @@ export default function DeckScreen() {
     } finally {
       busy.current = false;
     }
+  }
+
+  /* ----- The command zone, and moving cards between the lists ----- */
+
+  // Open the search window for a command zone spot (the signature spell
+  // waits for an Oathbreaker)
+  function openSlot(slot: 0 | 1) {
+    if (!slotQuery(format, slot, commandCard(findDeck(id), 0))) {
+      showMessage('Choose your Oathbreaker first', 'The signature spell has to fit the Oathbreaker\'s colors.');
+      return;
+    }
+    setSlotSearch(slot);
+  }
+
+  // Put a card in a spot. If the spot is the first one and a second card
+  // already sits in the second spot, check that card still fits the new first
+  // card; if not, ask before moving it back into the main deck (and cancel
+  // the change if the answer is no). "from" is where the card is in the deck
+  // already, or leave it out for a new card.
+  async function placeInSlot(slot: 0 | 1, card: DeckCard, print: ScryfallCard, from?: number) {
+    const now = findDeck(id);
+    if (!now) return;
+    const second = commandCard(now, 1);
+    if (slot === 0 && second) {
+      const newFirst: DeckCard = { ...card, extra: { ...card.extra, ...zoneExtraOf(print) } };
+      if (!(await allowedInSlot(format, 1, newFirst, second.name))) {
+        const yes = await askYesNo(`${second.name} doesn't go with ${card.name}`,
+          `${second.name} can't stay in the command zone with ${card.name}. It moves back into the main deck.`, 'Move it back', 'Cancel');
+        if (!yes) return;
+        const again = findDeck(id)!;
+        moveToMain(id, again.cards.indexOf(commandCard(again, 1)!));
+      }
+    }
+    // (Moving a card back may have shifted the card's place in the deck, so find it again)
+    const current = findDeck(id)!;
+    const spot = from === undefined ? undefined : current.cards.findIndex((c) => samePrinting(c, now.cards[from]) && zoneOf(c) === zoneOf(now.cards[from]));
+    placeInCommandZone(id, slot, card, spot === undefined || spot < 0 ? undefined : spot, zoneExtraOf(print));
+    setDeck(findDeck(id));
+  }
+
+  // A card was picked in a spot's search window
+  async function chooseForSlot(slot: 0 | 1, print: ScryfallCard) {
+    setSlotSearch(null);
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const card = deckCardFromPrint(print);
+      await placeInSlot(slot, card, print);
+      setNote(`${card.name} is your ${slotName(format, slot, commandCard(findDeck(id), 0)).toLowerCase()}.`);
+    } catch (err) {
+      showMessage('Couldn\'t choose the card', (err as Error).message);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  // "Make commander" in a card's window (Make Oathbreaker or Make signature
+  // spell in Oathbreaker): the card goes in the spot it fits, if the format
+  // allows it there. A spot that already has a card asks first.
+  async function makeCommander(index: number) {
+    const card = deck!.cards[index];
+    setMenuIndex(null);
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const print = await loadOneCard(cardBySetPath(card.set, card.number));
+      const first = commandCard(findDeck(id), 0);
+      const types = (print.type_line ?? print.card_faces?.[0]?.type_line ?? '').toLowerCase();
+      let slot: 0 | 1;
+      if (format.command?.kind === 'oathbreaker') slot = types.includes('planeswalker') ? 0 : 1;
+      else if (first && secondSpotShows(format, first) && !commandCard(findDeck(id), 1)) slot = 1;
+      else slot = 0;
+      if (slot === 1 && format.command?.kind === 'oathbreaker' && !first) {
+        showMessage('Choose your Oathbreaker first', 'The signature spell has to fit the Oathbreaker\'s colors.');
+        return;
+      }
+      if (!(await allowedInSlot(format, slot, first, card.name))) {
+        showMessage('Not allowed there', `${card.name} can't be your ${slotName(format, slot, first).toLowerCase()}. ${slotHint(format, slot, first)}.`);
+        return;
+      }
+      const old = commandCard(findDeck(id), slot);
+      if (old) {
+        const yes = await askYesNo(`Replace ${old.name}?`,
+          `${card.name} becomes your ${slotName(format, slot, first).toLowerCase()}, and ${old.name} goes back into the main deck.`, 'Replace', 'Cancel');
+        if (!yes) return;
+      }
+      await placeInSlot(slot, card, print, index);
+      setNote(`${card.name} is your ${slotName(format, slot, commandCard(findDeck(id), 0)).toLowerCase()}.`);
+    } catch (err) {
+      showMessage('Couldn\'t move the card', (err as Error).message);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  // "Move to deck" on a spot: the card goes back into the main deck. Taking out
+  // the first card also takes out the second (it needs a commander): ask first.
+  async function moveSlotToDeck(slot: 0 | 1) {
+    const now = findDeck(id);
+    const card = commandCard(now, slot);
+    if (!now || !card) return;
+    const second = slot === 0 ? commandCard(now, 1) : undefined;
+    if (second) {
+      const yes = await askYesNo(`Move ${card.name} back into the deck?`, `${second.name} moves back too, since it needs it.`, 'Move both', 'Cancel');
+      if (!yes) return;
+      moveToMain(id, now.cards.indexOf(second));
+    }
+    const again = findDeck(id)!;
+    moveToMain(id, again.cards.indexOf(commandCard(again, slot)!));
+    setDeck(findDeck(id));
+  }
+
+  // "Move to sideboard" / "Move to main deck" in a card's window
+  function moveCardTo(index: number, where: 'main' | 'side') {
+    const card = deck?.cards[index];
+    setMenuIndex(null);
+    if (!card) return;
+    if (where === 'side') moveToSideboard(id, index); else moveToMain(id, index);
+    setDeck(findDeck(id));
+    announce(`${card.name} is now in the ${where === 'side' ? 'sideboard' : 'main deck'}.`);
   }
 
   // A version that never changes between redraws, for the rows
@@ -351,7 +493,30 @@ export default function DeckScreen() {
                         onPress={() => downloadDeckCsv(id).catch((err) => showMessage('Couldn\'t save the file', (err as Error).message))} />
           )}
         />
+        {/* Formats with a sideboard: switch between the main deck and the sideboard */}
+        {format.sideboard > 0 && (
+          <View style={styles.tabs}>
+            {(['main', 'side'] as const).map((which) => {
+              const count = deck.cards.filter((c) => zoneOf(c) === which).reduce((sum, c) => sum + cardCount(c), 0);
+              const chosen = shownZone === which;
+              return (
+                <Pressable key={which} accessibilityRole="button" accessibilityState={{ selected: chosen }}
+                           onPress={() => setTab(which)}
+                           style={[styles.tab, { borderColor: chosen ? colors.accent : colors.border, backgroundColor: chosen ? colors.accent : 'transparent' }]}>
+                  <Text style={[styles.tabText, { color: chosen ? colors.accentText : colors.text }]}>
+                    {which === 'main' ? `Main deck ${count}` : `Sideboard ${count} of ${format.sideboard}`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
+
+      {/* THE COMMAND ZONE (formats that have one) */}
+      {format.command && (
+        <CommandZone deck={deck} onChoose={openSlot} onOpenCard={setMenuIndex} onMoveToDeck={moveSlotToDeck} />
+      )}
 
       {/* THE CARDS, with a picture dragged over them outlined */}
       <View ref={listAreaRef} style={styles.listArea} collapsable={false}>
@@ -366,14 +531,14 @@ export default function DeckScreen() {
           prices={prices}
           headerOf={headerOf}
           // The format, at the end of the line of totals (and the card just dropped)
-          note={[deckFormat(deck.format).name, addedNote].filter(Boolean).join(' · ')}
+          note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', addedNote].filter(Boolean).join(' · ')}
           searchOf={searching ? allEntries.length : undefined}
           // No cards yet (or none matching the search)
           empty={(
             <View style={[styles.empty, { borderColor: colors.border }]}>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>{deck.cards.length ? 'No cards match' : 'No cards yet'}</Text>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>{searching ? 'No cards match' : shownZone === 'side' ? 'No sideboard cards yet' : 'No cards yet'}</Text>
               <Text style={[styles.emptyText, { color: colors.muted }]}>
-                {deck.cards.length ? `None of the ${deck.cards.length} cards match "${filter.trim()}".` : 'Flip the switch to Add, search for a card and tap the + on it.'}
+                {searching ? `None of the ${allEntries.length} cards match "${filter.trim()}".` : shownZone === 'side' ? 'The sideboard is empty. Flip the switch to Add, search for a card and tap the + on it, or move a card here from its window.' : 'Flip the switch to Add, search for a card and tap the + on it.'}
               </Text>
             </View>
           )}
@@ -395,21 +560,53 @@ export default function DeckScreen() {
                      buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
           <CardRules card={menuCard}
                      onOpen={() => { const card = menuCard; const spot = menuIndex; setMenuIndex(null); router.push(finderLinkFor(id, spot, card) as never); }} />
-          {/* How many copies: − and + */}
-          <View style={styles.menuCopies}>
-            <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from deck'}
-                    onPress={() => changeCopies(menuIndex, -1)} />
-            <Text style={[styles.menuCount, { color: colors.text }]}>
-              {cardCount(menuCard)} {cardCount(menuCard) === 1 ? 'copy' : 'copies'}
-            </Text>
-            <Button label="+" kind="secondary" accessibilityLabel="One more copy" disabled={cardCount(menuCard) >= MAX_COPIES}
-                    onPress={() => changeCopies(menuIndex, 1)} />
-          </View>
+          {/* How many copies: − and + (a command zone card is always one) */}
+          {zoneOf(menuCard) !== 'command' && (
+            <View style={styles.menuCopies}>
+              <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from deck'}
+                      onPress={() => changeCopies(menuIndex, -1)} />
+              <Text style={[styles.menuCount, { color: colors.text }]}>
+                {cardCount(menuCard)} {cardCount(menuCard) === 1 ? 'copy' : 'copies'}
+              </Text>
+              <Button label="+" kind="secondary" accessibilityLabel="One more copy" disabled={cardCount(menuCard) >= MAX_COPIES}
+                      onPress={() => changeCopies(menuIndex, 1)} />
+            </View>
+          )}
           <View style={styles.menu}>
+            {/* The command zone: put this card in its spot (or take it back out) */}
+            {format.command && zoneOf(menuCard) === 'main' && (
+              <Button
+                label={format.command.kind === 'oathbreaker'
+                  ? ((menuCard.typeLine ?? '').includes('Planeswalker') ? 'Make Oathbreaker' : 'Make signature spell')
+                  : 'Make commander'}
+                icon="star-outline" kind="secondary" onPress={() => makeCommander(menuIndex)} />
+            )}
+            {/* The sideboard */}
+            {format.sideboard > 0 && zoneOf(menuCard) === 'main' && (
+              <Button label="Move to sideboard" icon="arrow-down-outline" kind="secondary" onPress={() => moveCardTo(menuIndex, 'side')} />
+            )}
+            {zoneOf(menuCard) === 'side' && (
+              <Button label="Move to main deck" icon="arrow-up-outline" kind="secondary" onPress={() => moveCardTo(menuIndex, 'main')} />
+            )}
+            {zoneOf(menuCard) === 'command' && (
+              <Button label="Move to main deck" icon="arrow-up-outline" kind="secondary"
+                      onPress={() => { const slot = menuCard.slot ?? 0; setMenuIndex(null); moveSlotToDeck(slot); }} />
+            )}
             <Button label="Move to a binder" icon="albums-outline" kind="secondary" onPress={() => moveToBinder(menuIndex)} />
             <Button label="Delete from deck" icon="trash-outline" kind="danger" onPress={() => confirmDelete(menuIndex)} />
           </View>
         </PopupWindow>
+      )}
+
+      {/* A command zone spot's search window: only cards allowed in the spot */}
+      {slotSearch !== null && slotQuery(format, slotSearch, commandCard(deck, 0)) && (
+        <SlotSearchDialog
+          title={`Choose your ${slotName(format, slotSearch, commandCard(deck, 0)).toLowerCase()}`}
+          query={slotQuery(format, slotSearch, commandCard(deck, 0))!}
+          hint={slotHint(format, slotSearch, commandCard(deck, 0))}
+          onChoose={(print) => chooseForSlot(slotSearch, print)}
+          onCancel={() => setSlotSearch(null)}
+        />
       )}
 
       {/* "Move to a binder": the pop-up list of binders (the same one a
@@ -433,6 +630,10 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   top: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, zIndex: 10 },
   listArea: { flex: 1 },
+  // The Main deck / Sideboard buttons
+  tabs: { flexDirection: 'row', gap: 8 },
+  tab: { flex: 1, borderWidth: 1.5, borderRadius: 10, paddingVertical: 7, alignItems: 'center' },
+  tabText: { fontSize: 14, fontWeight: '600' },
   dropOutline: { position: 'absolute', top: 4, left: 8, right: 8, bottom: 4, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, zIndex: 25 },
   // The invisible cover: it sits above the cards but below the search bar (which has zIndex 10)
   cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 },

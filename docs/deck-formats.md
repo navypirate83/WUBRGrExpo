@@ -83,3 +83,18 @@ Told by the user on 2026-11-13. No decks exist yet.
 - **Owned-only switch:** the add-card search inside a deck gets a switch to
   search only cards in the user's binders. Lists do not count (they are
   wishlists, not owned). Off searches all cards.
+
+## Command zone and sideboard (built 2026-11-13)
+
+- Spots outside the main deck by format: Commander / Duel Commander / PreDH /
+  Pauper Commander: Commander (+ a second spot only if the commander has Partner,
+  Partner with, Partner-kind, Friends forever, Doctor's companion / is a Time Lord
+  Doctor, or Choose a Background). Tiny Leaders: Commander only (50 cards with the
+  commander, mana value 3 or less, one copy each, sideboard up to 10, 25 life per
+  the user's rules; commander damage does not apply). Oathbreaker: Oathbreaker
+  (planeswalker) + Signature spell (instant or sorcery inside the planeswalker's
+  color identity). Main + sideboard formats: sideboard up to 15.
+- Cards that say "can be your commander" (some planeswalkers) count as commanders.
+- Each spot's choices are one Scryfall search (see src/lib/deckZones.ts).
+- Changing the first spot so the second no longer fits: ask first, then move the
+  second card back to the main deck.
