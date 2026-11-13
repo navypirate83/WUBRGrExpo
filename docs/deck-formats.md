@@ -65,3 +65,18 @@ Every card must fit inside the top card's color identity. One copy of each card
 mtg.wiki pages (Pauper Commander, Duel Commander, Premodern, Tiny Leaders,
 Old School), magic.wizards.com/en/formats/oathbreaker, oathbreakermtg.org/rules,
 draftsim.com/predh-mtg, Scryfall card `legalities` field.
+
+## Decks section: search and add-card behavior (planned, not built)
+
+Told by the user on 2026-11-13. No decks exist yet.
+
+- **Decks page:** one search bar, fuzzy search over deck names and over the
+  cards inside decks. No + button on this page.
+- **Inside a deck:** a search bar over all cards, shown as a list like the
+  Card Finder's name suggestions. Each row has a + that adds that card (the
+  first printing that comes up). The user changes the printing later by opening
+  the card in the deck.
+- **Duplicate rule:** past the format's copy limit (1 in singleton formats, 4
+  in formats that allow 4) show a pop-up warning with a way to add it anyway,
+  since some cards allow any number. Basic lands never trigger it.
+- Open question: do snow-covered basics and Wastes also skip the warning?
