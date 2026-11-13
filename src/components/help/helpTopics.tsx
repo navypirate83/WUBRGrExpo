@@ -159,12 +159,14 @@ export const helpTopics: HelpTopic[] = [
             <Bullet>
               <Strong>Change the order</Strong>: drag a binder to a new spot. With a finger, rest it
               on the binder until it lifts, then slide (sliding straight away scrolls the shelf). With
-              a mouse, press the button and move. The other binders shift along to make room. When
-              signed in, the order is saved to Google Drive, so it's the same on every device.
+              a mouse, press the button and move. The other binders shift along to make room. The order
+              is kept on this device, and in Google Drive too if you've turned on the Google Drive backup.
             </Bullet>
             <Bullet>
-              <Strong>Load again</Strong>: pull the shelf down and let go. When signed in, your binders
-              are fetched fresh from Google Drive (handy after changing them on another device).
+              <Strong>Load again</Strong>: pull the shelf down and let go. Logged in to your account, changes
+              from your other devices arrive by themselves every couple of minutes; with the Google Drive
+              backup on, pulling down also fetches your binders fresh from Google Drive (handy after changing
+              them on another device).
             </Bullet>
           </>
         ),
@@ -208,9 +210,9 @@ export const helpTopics: HelpTopic[] = [
               list) and <Strong>Delete from list</Strong> (it asks first).
             </P>
             <P>
-              Lists are saved like binders: to Google Drive when you're signed in (as .csv files, in
-              a "Lists" folder inside "MTG Card Binder"), or on this device when you use the app
-              locally. The check mark beside the list's name is green when it's saved and red while
+              Lists are saved like binders: on this device, in your WUBRG'r account when you're logged in,
+              and also in Google Drive if you've turned on the Google Drive backup (as .csv files, in
+              a "Lists" folder inside "MTG Card Binder"). The check mark beside the list's name is green when it's saved and red while
               it isn't (tap it to see why). The <Strong>down arrow</Strong> button, beside the List and
               Grid buttons under the search box, downloads the list as a .CSV file.
             </P>
@@ -252,8 +254,10 @@ export const helpTopics: HelpTopic[] = [
               With no binders left, The Shelf says it's empty and offers to make one.
             </P>
             <P>
-              When signed in, a deleted binder goes to your Google Drive trash, where you can
-              restore it for 30 days. When using the app locally, it's gone for good.
+              A deleted binder is also deleted from your account, and from your other devices the next
+              time they sync. If the Google Drive backup is on, its file goes to your Google Drive
+              trash, where you can restore it for 30 days. Otherwise it's gone for good, so download
+              a .CSV first if you might want it back.
             </P>
           </>
         ),
@@ -440,7 +444,8 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <P>
               With no internet, your binders on this device still open and work as usual
-              (changes are saved to Google Drive when you're back online). Searching for cards
+              (changes are sent to your account, and to Google Drive if that backup is on, when you're
+              back online). Searching for cards
               needs the internet, except that when you're logged in, the card names and any card
               you've looked at before are saved on this device and still work without it. On the
               phone app, card pictures are saved too once you've seen them (Settings →
@@ -481,17 +486,25 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Signing in and out is in <Strong>Settings</Strong>, under <Strong>Account</Strong> (see <HelpLink to="settings-account">Your account</HelpLink>).
+              Your WUBRG'r account is your main login. You log in from the <Strong>Home</Strong> screen
+              (<Strong>Login</Strong>, or <Strong>Create account</Strong> under it), or from the account
+              block at the bottom of the side menu. Log out in <Strong>Settings</Strong>, under <Strong>Account</Strong>,
+              or from that same block (see <HelpLink to="settings-account">Your account</HelpLink>).
             </P>
             <Bullet>
-              When you're signed in, it shows your Google account and a <Strong>Sign out</Strong> button.
-              Signing out sends any waiting changes to Google Drive, then disconnects Google.
-              Your binders and lists stay on this device: only <Strong>Reset device memory</Strong> removes them.
+              <Strong>Logged in</Strong>: Settings → Account shows your name and email, a <Strong>Log out</Strong> button
+              and <Strong>Log out everywhere</Strong>. Logging out leaves your binders and lists on this device:
+              only <Strong>Reset device memory</Strong> removes them.
             </Bullet>
             <Bullet>
-              When using the app locally, or after signing out, there's a <Strong>Sign in with Google</Strong> button
-              instead. Signing in compares this device with your Google Drive and asks which way to
-              sync if they differ. (On phones, this is coming in the full app build; it works on the
+              <Strong>Forgot your username or password?</Strong> On the login screen, tap{' '}
+              <Strong>Forgot username/password?</Strong>. It emails you your username and a 6-digit code to set a new password.
+            </Bullet>
+            <Bullet>
+              <Strong>Google Drive backup</Strong> (optional): a separate <Strong>Sign in with Google</Strong> button
+              under Account keeps a copy of your binders in your own Google Drive. Signing in compares this device
+              with your Google Drive and asks which way to sync if they differ. Signing out of Google sends any
+              waiting changes to Drive first. (On phones, Google sign-in is coming in the full app build; it works on the
               website now.)
             </Bullet>
           </>
@@ -735,15 +748,19 @@ export const helpTopics: HelpTopic[] = [
           <>
             <P>
               Every change saves by itself. The check mark beside the binder's name shows how
-              it's going: <Strong>green</Strong> when everything is saved (to Google Drive when signed
-              in, or on this device when using the app locally), <Strong>red</Strong> while a change
+              it's going: <Strong>green</Strong> when everything is saved (on this device, and to
+              Google Drive too when the Google Drive backup is on), <Strong>red</Strong> while a change
               is still being saved or couldn't be. Tap the check mark to see which. If your Google
               sign-in has run out, tapping it offers <Strong>Connect Drive</Strong> to sign in again
               and finish saving. Your changes stay safe on this device in the meantime.
             </P>
             <P>
-              No internet? You can keep working: the check mark stays red, your changes are kept
-              on this device, and they're saved to Google Drive as soon as you're back online. Card
+              Logged in to your account, changes are also sent to the server in the background every few
+              seconds, and changes from your other devices arrive every couple of minutes.
+            </P>
+            <P>
+              No internet? You can keep working: your changes are kept on this device, and they're
+              sent to your account (and to Google Drive, if that backup is on) as soon as you're back online. Card
               pictures that can't be downloaded show the back of a Magic card instead.
             </P>
             <P>
@@ -1055,7 +1072,7 @@ export const helpTopics: HelpTopic[] = [
         body: (
           <>
             <P>
-              Under <Strong>Binders</Strong>, <Strong>Price store</Strong> picks whose prices the app
+              Under <Strong>Collection</Strong>, <Strong>Price store</Strong> picks whose prices the app
               shows for your cards: <Strong>TCGplayer</Strong> or <Strong>Card Kingdom</Strong> (US
               dollars) or <Strong>Cardmarket</Strong> (euros). Inside a binder, each card in the
               list shows what its copies are worth there (the foil price for a foil copy, times how many copies;
@@ -1246,6 +1263,49 @@ export const helpTopics: HelpTopic[] = [
               end of the row shows it. In the phone app, tap the row to open the status page in
               your browser. If the badge says the server is down, your binders still work on
               this device and sync when it's back.
+            </P>
+          </>
+        ),
+      },
+      {
+        id: 'settings-server',
+        title: 'Server',
+        body: (
+          <>
+            <P>
+              Your account lives on the <Strong>WUBRG'r server</Strong>, a small program on the internet that
+              keeps every account's binders, lists and settings in a database (MongoDB). The app and
+              the website both talk to it, which is how your collection follows you from device to device.
+            </P>
+            <Bullet><Strong>Website</Strong>: {WEBSITE}</Bullet>
+            <Bullet>
+              <Strong>Server</Strong>: wubrgr-server.onrender.com (hosted on Render). Open{' '}
+              <Strong>wubrgr-server.onrender.com/api/health</Strong> in a browser: it answers{' '}
+              <Strong>{'{"ok":true}'}</Strong> when the server is running. After it has been idle, the first
+              request can take a little while to wake it up.
+            </Bullet>
+            <Bullet>
+              <Strong>Status page</Strong>: stats.uptimerobot.com/WQDbcwUml0 (also reached from{' '}
+              <Strong>Server status</Strong> in Settings → About). If the server is down, your binders
+              still work on this device and sync when it's back.
+            </Bullet>
+            <P>
+              <Strong>Running the server on your own computer</Strong> (for building the app; you don't need this to use it):
+            </P>
+            <Step n={1}>Open a terminal in the <Strong>server</Strong> folder of the project and run <Strong>npm install</Strong> (once).</Step>
+            <Step n={2}>
+              Copy <Strong>.env.example</Strong> to <Strong>.env</Strong> and fill it in: your MongoDB address
+              (<Strong>MONGODB_URI</Strong>), a long secret text (<Strong>JWT_SECRET</Strong>), the Google client id
+              and the websites allowed to call the server (<Strong>CORS_ORIGINS</Strong>). Never share or commit this file.
+            </Step>
+            <Step n={3}>
+              Run <Strong>npm start</Strong>. It listens on port 4100 (change it with <Strong>PORT</Strong>), and the app
+              uses it automatically when no other server address is set. <Strong>npm test</Strong> runs its automated checks
+              on a separate test database.
+            </Step>
+            <P>
+              The published app and website are built to talk to the Render server above
+              (the <Strong>EXPO_PUBLIC_API_URL</Strong> setting).
             </P>
           </>
         ),

@@ -1,19 +1,24 @@
 # WUBRG'r Binder
 
-**Website: [navypirate83.github.io/WUBRGrExpo](https://navypirate83.github.io/WUBRGrExpo/)**
-(the phone app's web version; the original web app stays at
-[navypirate83.github.io/WUBRGr](https://navypirate83.github.io/WUBRGr/))
+**Website: [navypirate83.com/wubrgr](https://navypirate83.com/wubrgr/)**
+(the phone app's web version, published with GitHub Pages)
+
+**Server: [wubrgr-server.onrender.com](https://wubrgr-server.onrender.com/api/health)**
+(accounts and saved collections; hosted on Render, status at
+[stats.uptimerobot.com/WQDbcwUml0](https://stats.uptimerobot.com/WQDbcwUml0))
 
 A Magic: The Gathering card binder app for **iPhone, Android and the
 web**: keep your cards in binders that look and work like real ones,
-find any card with the Card Finder, and save everything on your device
-(or, on the web, in your own Google Drive).
+find any card with the Card Finder, and keep everything in your own
+WUBRG'r account (with a copy on your device, so it works offline). A
+Google Drive backup is optional.
 
 This repository is the **Expo (React Native)** version of
 [WUBRG'r](https://github.com/navypirate83/WUBRGr), which was a React
 website, itself a rewrite of the original
 [card-binder](https://github.com/navypirate83/card-binder). All three
-use the same Google Drive folder and the same `.csv` binder files.
+use the same `.csv` binder files, and the optional Google Drive backup
+uses the same Drive folder.
 
 ## What it does
 
@@ -34,10 +39,18 @@ use the same Google Drive folder and the same `.csv` binder files.
   Kingdom, Cardmarket), share it, and add it to a binder.
 - **Settings** (a tab): theme (Dark, System or Light), the binder page
   layout (pockets across × down), which formats show in Format Legality,
-  and your account.
+  and your account (log in, log out, optional Google Drive backup).
 - **Help**: the ? button in every screen's header.
 - Binders are `.csv` files in the same layout as a ManaBox export (plus
   each card's page and pocket, and the binder's name, cover and pages).
+
+## Logging in
+
+On the Home screen, **Login** with your username (or email) and password,
+or **Create account** (name, email, a password of 8+ characters, and an
+optional username). **Forgot username/password?** emails a 6-digit reset
+code. **Skip login, local use only** uses the app with binders on that
+device only; you can log in later and they are moved up to your account.
 
 ## Running it
 
@@ -59,6 +72,24 @@ Other commands:
   Pages by `.github/workflows/deploy.yml` on every push to `main`)
 - `npm run typecheck`: check the code for mistakes
 
+### The server (`server/` folder)
+
+An Express + MongoDB server keeps the accounts, binders, lists and
+settings. The published app and website use the one on Render (set by
+`EXPO_PUBLIC_API_URL`); without that setting, the app looks for a server
+on `http://localhost:4100`. To run your own:
+
+```sh
+cd server
+npm install        # once
+# copy .env.example to .env and fill in MONGODB_URI, JWT_SECRET,
+# GOOGLE_CLIENT_ID and CORS_ORIGINS (never commit .env)
+npm start          # listens on port 4100 (PORT in .env changes it)
+npm test           # automated checks, on a separate "-test" database
+```
+
+Check it is up at `/api/health` (answers `{"ok":true}`).
+
 ## How it's built
 
 - **Expo** (React Native) with **Expo Router**: one set of code for the
@@ -79,8 +110,10 @@ Other commands:
   shared ones (buttons, text boxes, pop-up windows).
 - `src/hooks/`: shared screen behavior (theme colors, settings, who's
   signed in, shortcut keys, screen-reader messages).
+- `server/`: the Express + MongoDB server (`routes/`, `models/`,
+  `middleware/`, `tests/`).
 - `src/lib/`: plain TypeScript with no React (binder storage, `.csv`
-  files, Google Drive, Scryfall, the card-name search, prices, settings,
+  files, server sync, Google Drive, Scryfall, the card-name search, prices, settings,
   reminders). A file ending in `.web.ts` is the web's version of the
   file beside it.
 - `src/theme/colors.ts`: the light and dark colors.
