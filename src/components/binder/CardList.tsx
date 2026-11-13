@@ -248,9 +248,10 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
    name · $118.40"
    - cards: every card, counting each copy
    - different: how many separate cards are in the list (a stack of
-     copies is one)
-   - same name: how many cards share their name with another card, so
-     copies and different printings of the same card all count
+     copies is one; each printing is its own)
+   - same name: how many different card NAMES there are, however the
+     cards look (another printing, set, foil or art counts as the same
+     name) and however many copies there are
    (also shown above the pockets in the Binder view: the binder screen uses it,
    and the lists use it too)
    --------------------------------------------------------------------- */
