@@ -30,7 +30,7 @@ export default function FormatSwitches({ hidden, onChange }: Props) {
       {/* The setting's name and what it does */}
       <SettingRow
         name="Format legality display"
-        description="Pick which formats show in a card's Format Legality box in the Card Finder. Switched-off ones are left out."
+        description="Pick which formats you use. Switched-off ones are left out of a card's Format Legality box in the Card Finder, and they're not offered as a choice when you make a new deck (decks you already have keep their format)."
       />
 
       {/* One switch per format */}

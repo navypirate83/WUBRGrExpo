@@ -232,7 +232,8 @@ export const helpTopics: HelpTopic[] = [
             </P>
             <Bullet>
               <Strong>Make a deck</Strong>: tap <Strong>Add deck</Strong>, type its name, pick its format
-              (Commander, Oathbreaker, Modern and more; only paper formats are offered), then tap <Strong>Create</Strong>.
+              (Commander, Oathbreaker, Modern and more; only paper formats are offered, and any format you turned off
+              under <Strong>Format legality display</Strong> in Settings is left out), then tap <Strong>Create</Strong>.
             </Bullet>
             <Bullet><Strong>Open it</Strong>: tap it.</Bullet>
             <Bullet>

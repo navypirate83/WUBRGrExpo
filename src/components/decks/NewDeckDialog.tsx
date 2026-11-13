@@ -2,7 +2,8 @@
    THE NEW DECK WINDOW
    A small window that asks for a new deck's name (a name like "Deck 2"
    is filled in) and its format (Commander, Modern... paper formats only:
-   see deckFormats.ts). It only collects the answers: "onCreate" is called
+   see deckFormats.ts). Formats turned off in Settings (Format legality
+   display) are not offered; if every one is off, all of them show. It only collects the answers: "onCreate" is called
    with the name and the format's code, and the screen that opened the
    window makes the deck. Used by the Decks page's "Add deck" and by the
    Card Finder's "+" (New deck, with the card in it).
@@ -13,6 +14,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import PopupWindow from '@/components/PopupWindow';
 import TextField from '@/components/TextField';
 import { useColors } from '@/hooks/useTheme';
+import { useSettings } from '@/hooks/useSettings';
 import { nextDeckName } from '@/lib/deckStorage';
 import { DECK_FORMATS, DEFAULT_DECK_FORMAT } from '@/lib/deckFormats';
 
@@ -29,7 +31,13 @@ export default function NewDeckDialog({ confirmLabel = 'Create', onCreate, onCan
   const colors = useColors();
   // The name being typed and the format chosen so far
   const [name, setName] = useState(nextDeckName);
-  const [format, setFormat] = useState(DEFAULT_DECK_FORMAT);
+  // The formats turned off in Settings are left out (unless every one is off:
+  // then they all show, so a deck can still be made)
+  const { hiddenFormats } = useSettings();
+  const shown = DECK_FORMATS.filter((option) => !hiddenFormats.includes(option.code));
+  const choices = shown.length > 0 ? shown : DECK_FORMATS;
+  // The format chosen so far: Commander if that's offered, otherwise the first one offered
+  const [format, setFormat] = useState(() => (choices.some((c) => c.code === DEFAULT_DECK_FORMAT) ? DEFAULT_DECK_FORMAT : choices[0].code));
   const create = () => { if (name.trim()) onCreate(name, format); };
 
   return (
@@ -52,7 +60,7 @@ export default function NewDeckDialog({ confirmLabel = 'Create', onCreate, onCan
         />
         <Text style={[styles.formatLabel, { color: colors.muted }]}>Format</Text>
         <View style={styles.formats}>
-          {DECK_FORMATS.map((option) => {
+          {choices.map((option) => {
             const chosen = option.code === format;
             return (
               <Pressable key={option.code} accessibilityRole="radio" accessibilityState={{ selected: chosen }}
