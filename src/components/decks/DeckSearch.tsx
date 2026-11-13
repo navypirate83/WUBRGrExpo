@@ -17,7 +17,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { loadDecks, type Deck } from '@/lib/deckStorage';
 import { deckFormat } from '@/lib/deckFormats';
-import { fuzzySearch, prepareNames } from '@/lib/nameSearch';
+import { fuzzySearch, matchParts, prepareNames } from '@/lib/nameSearch';
 import { useColors } from '@/hooks/useTheme';
 import TextField from '@/components/TextField';
 import { RADIUS } from '@/theme/colors';
@@ -130,6 +130,7 @@ export default function DeckSearch({ onPick }: { onPick: (id: string) => void })
               const deck = deckOf(item);
               // A deck: its name and format. A card: its name, and the deck(s) it is in.
               const title = item.kind === 'deck' ? item.deck.name : item.name;
+              const parts = matchParts(title, text);
               const about = item.kind === 'deck'
                 ? deckFormat(item.deck.format).name
                 : `in ${item.decks.map((d) => d.name).join(', ')}`;
@@ -139,7 +140,13 @@ export default function DeckSearch({ onPick }: { onPick: (id: string) => void })
                            style={({ pressed }) => [styles.result, { borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceHover }]}>
                   <Ionicons name={item.kind === 'deck' ? 'albums-outline' : 'document-outline'} size={18} color={colors.muted} />
                   <View style={styles.resultText}>
-                    <Text style={[styles.resultName, { color: colors.text }]} numberOfLines={1}>{title}</Text>
+                    {/* The part of the name that matches what was typed is
+                        highlighted (bold and orange), as in the Card Finder */}
+                    <Text style={[styles.resultName, { color: colors.text }]} numberOfLines={1}>
+                      {parts.before}
+                      <Text style={{ color: colors.accent, fontWeight: '700' }}>{parts.match}</Text>
+                      {parts.after}
+                    </Text>
                     <Text style={[styles.resultAbout, { color: colors.muted }]} numberOfLines={1}>{about}</Text>
                   </View>
                 </Pressable>

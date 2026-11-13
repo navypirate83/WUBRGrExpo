@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { loadLists, type CardList } from '@/lib/listStorage';
-import { fuzzySearch, prepareNames } from '@/lib/nameSearch';
+import { fuzzySearch, matchParts, prepareNames } from '@/lib/nameSearch';
 import { useColors } from '@/hooks/useTheme';
 import TextField from '@/components/TextField';
 import { RADIUS } from '@/theme/colors';
@@ -99,13 +99,22 @@ export default function ListSearch({ onPick }: { onPick: (id: string) => void })
             keyboardShouldPersistTaps="handled"
             // Nothing matched (or there are no lists yet)
             ListEmptyComponent={<Text style={[styles.noResults, { color: colors.muted }]}>No lists found.</Text>}
-            renderItem={({ item }) => (
-              <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.name}`}
-                         onPress={() => pick(item.id)}
-                         style={({ pressed }) => [styles.result, { borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceHover }]}>
-                <Text style={[styles.resultName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              // The part of the name that matches what was typed is
+              // highlighted (bold and orange), as in the Card Finder
+              const parts = matchParts(item.name, text);
+              return (
+                <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.name}`}
+                           onPress={() => pick(item.id)}
+                           style={({ pressed }) => [styles.result, { borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceHover }]}>
+                  <Text style={[styles.resultName, { color: colors.text }]} numberOfLines={1}>
+                    {parts.before}
+                    <Text style={{ color: colors.accent, fontWeight: '700' }}>{parts.match}</Text>
+                    {parts.after}
+                  </Text>
+                </Pressable>
+              );
+            }}
           />
         </View>
       )}
