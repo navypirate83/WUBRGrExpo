@@ -243,7 +243,10 @@ export const helpTopics: HelpTopic[] = [
               cards inside them (small typos are fine). Tap a match to open that deck.
             </Bullet>
             <P>
-              Inside a deck, type a card's name in the search bar and the matching cards are listed under it. Tap
+              Inside a deck, the search bar has a <Strong>switch</Strong> to its right, with a label above it that says what the
+              bar is doing. On <Strong>Search</Strong> (the start), the bar narrows the deck's own cards as you type (by name or
+              type, small typos are fine). Flip the switch to <Strong>Add</Strong>, and typing a card's name drops down a list of
+              matching cards over the page (it closes when you tap anywhere else). Tap
               the <Strong>+</Strong> on the one you want and it's added to the deck, using the first printing that
               comes up (to use a different printing, tap the card in the deck, then tap its picture: in the Card Finder the <Strong>+</Strong> changes the
               card to the one you pick). Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
@@ -252,7 +255,9 @@ export const helpTopics: HelpTopic[] = [
               the search bar; the grid zooms like a list's), with the same <Strong>sort</Strong> menu, header bars between
               groups, foil borders, and a line above the cards with how many cards, how many different, what they're worth and
               the format. Each card has a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy
-              asks whether to delete it). The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
+              asks whether to delete it). On a computer, you can also <Strong>drag a card picture</Strong> from Scryfall or
+              EDHREC and drop it anywhere over the cards to add it (the same warning about too many copies applies).
+              The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
               (it has the deck's name and format on every line).
               Tap a card for its window, the same as in a binder or list: a big picture (tap it to open the card in
               the Card Finder), what the card does, how many copies, <Strong>Move to a binder</Strong> (the card goes

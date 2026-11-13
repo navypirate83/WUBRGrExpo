@@ -13,7 +13,7 @@
    ===================================================================== */
 
 import { storageGet, storageRemove, storageSet } from './storage';
-import { samePrinting } from './binderStorage';
+import { MAX_COPIES, samePrinting } from './binderStorage';
 import { needsDetails, withDetails } from './cardDetails';
 import type { ScryfallCard } from './scryfall';
 import { cleanDeckFormat, DEFAULT_DECK_FORMAT } from './deckFormats';
@@ -123,13 +123,13 @@ export function addCardToDeck(id: string, card: DeckCard): boolean {
   return changeDeck(id, (d) => {
     const at = d.cards.findIndex((c) => samePrinting(c, card));
     if (at < 0) return { ...d, cards: [...d.cards, oneCopyIsNoCount(card)] };
-    return { ...d, cards: d.cards.map((c, i) => (i === at ? { ...c, count: (c.count ?? 1) + 1 } : c)) };
+    return { ...d, cards: d.cards.map((c, i) => (i === at ? { ...c, count: Math.min(MAX_COPIES, (c.count ?? 1) + 1) } : c)) };
   });
 }
 
-// One copy is saved as no count at all, the same as a binder's cards
+// One copy is saved as no count at all, the same as a binder's cards: the
+// card with its count taken off
 function oneCopyIsNoCount(card: DeckCard): DeckCard {
-  if (card.count !== undefined && card.count > 1) return card;
   const { count: _count, ...rest } = card;
   return rest as DeckCard;
 }

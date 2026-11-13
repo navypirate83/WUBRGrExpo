@@ -5,11 +5,17 @@
    bar, remembered the same way as a list's), the same sort menu, header
    bars between groups, foil borders, prices and the line of totals, the
    grid's zoom, and a download button (the deck as a .CSV file).
-   From top to bottom: the search bar for adding cards (see
-   components/decks/DeckAddSearch.tsx: type a name, tap the "+" on the
-   card you want; the first printing that comes up is added, and the
-   switch under the bar limits the search to cards in your binders), the
-   List / Grid switch with the sort and download button, then the cards.
+   From top to bottom: the search bar (see components/decks/DeckSearchBar.tsx)
+   with its Search / Add switch, the List / Grid switch with the sort and
+   download button, then the cards.
+   - SEARCH (the switch's first position): the bar narrows the deck's own
+     cards as you type, by name or type, like a list's search box.
+   - ADD: type a card's name and tap the "+" on the card you want; the first
+     printing that comes up is added. The drop-down closes when you tap
+     anywhere else (the invisible cover below does that), and the switch
+     under the bar limits the search to cards in your binders.
+   - DRAGGING (computers): a card picture dragged in from Scryfall or EDHREC
+     and dropped anywhere over the cards is added too, like in a list.
    Tapping a card opens its window, the same one the binders' and lists'
    cards have: a big picture (tap it to open the card in the Card Finder),
    what it does, how many copies (− and +), Move to a binder (the card
@@ -25,8 +31,8 @@
    kept on this device only for now (see lib/deckStorage.ts).
    ===================================================================== */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useColors } from '@/hooks/useTheme';
 import { useAccount } from '@/hooks/useAccount';
@@ -35,7 +41,7 @@ import { useBinderPrices } from '@/hooks/useBinderPrices';
 import { useContentWidth } from '@/hooks/useMenuStyle';
 import HelpButton from '@/components/HelpButton';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
-import DeckAddSearch from '@/components/decks/DeckAddSearch';
+import DeckSearchBar, { type DeckSearchMode } from '@/components/decks/DeckSearchBar';
 import CardList, { type CardEntry } from '@/components/binder/CardList';
 import ViewSwitch, { ToolButton } from '@/components/binder/ViewSwitch';
 import CardRules from '@/components/binder/CardRules';
@@ -46,9 +52,12 @@ import { addCardToDeck, copiesOf, fillDeckDetails, findDeck, setDeckCardCount, t
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
 import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
-import { CARD_BACK, costAndType, imageFor } from '@/lib/cards';
+import { CARD_BACK, costAndType, imageFor, isDoubleSided } from '@/lib/cards';
+import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
+import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
+import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { detailsOf, costAndTypeOf, finishParam } from '@/lib/cardDetails';
-import { cardCount, loadBinder, loadBinderList, MAX_COPIES } from '@/lib/binderStorage';
+import { cardCount, loadBinder, loadBinderList, MAX_COPIES, samePrinting } from '@/lib/binderStorage';
 import { cardByNamePath, loadOneCard } from '@/lib/scryfall';
 import { downloadDeckCsv } from '@/lib/binderDownload';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -78,6 +87,11 @@ export default function DeckScreen() {
   // The deck (this device's copy), and the note under the search bar
   const [deck, setDeck] = useState<Deck | undefined>(() => findDeck(id));
   const [note, setNote] = useState('');
+  // The search bar: Search (narrow this deck's cards) or Add, what's typed to
+  // narrow them, and whether the Add drop-down is showing
+  const [searchMode, setSearchMode] = useState<DeckSearchMode>('search');
+  const [filter, setFilter] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
   // A card is being looked up: don't start a second add until it's done
   const busy = useRef(false);
   // The held card's window (its spot in the deck), and the card being moved
@@ -100,11 +114,24 @@ export default function DeckScreen() {
     () => (deck?.cards ?? []).map((card, index) => ({ key: String(index), card })),
     [deck],
   );
-  // What the cards are worth, and their details from Scryfall (for sorting)
+  // The cards to show: all of them, or, in Search as you type, those whose
+  // name matches (a forgiving search, so small typos and spacing don't
+  // matter) or whose type line contains what's typed
+  const searching = searchMode === 'search' && isSearching(filter);
+  const nameFilter = useMemo(() => makeNameFilter(allEntries, (entry) => entry.card.name), [allEntries]);
+  const baseEntries = useMemo<CardEntry[]>(() => {
+    if (!searching) return allEntries;
+    const byName = new Set(nameFilter(filter).map((entry) => entry.key));
+    const typed = filter.trim().toLowerCase();
+    return allEntries.filter((entry) => byName.has(entry.key) || ((entry.card as DeckCard).typeLine ?? '').toLowerCase().includes(typed));
+  }, [searching, nameFilter, filter, allEntries]);
+  // What the cards are worth, and their details from Scryfall (for sorting).
+  // Looked up for the whole deck, so typing in the search box doesn't start
+  // a new lookup each time.
   const prices = useBinderPrices(allEntries);
   const entries = useMemo<CardEntry[]>(
-    () => sortEntries(allEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
-    [allEntries, sort, reversed, prices.printings, prices.byKey],
+    () => sortEntries(baseEntries, sort, reversed, { printings: prices.printings, prices: prices.byKey }),
+    [baseEntries, sort, reversed, prices.printings, prices.byKey],
   );
   // Which group each card falls under for the sort in use, so the list can
   // put a header bar between the groups (none if turned off in Settings)
@@ -160,21 +187,26 @@ export default function DeckScreen() {
     };
   }
 
-  // A "+" in the search: warn if the deck has as many as its format allows
-  // (unless it's a basic land or Wastes), then add one copy
+  // Warn if the deck has as many copies of this card as its format allows
+  // (unless it's a basic land, a snow-covered basic or Wastes). True to go
+  // ahead and add it.
+  async function okToAdd(name: string): Promise<boolean> {
+    const format = deckFormat(deck!.format);
+    const have = copiesOf(findDeck(id), name);
+    if (have < format.copyLimit || skipsCopyWarning(name)) return true;
+    const why = format.copyLimit === 1
+      ? `${format.name} decks are singleton: one copy of each card. (A few cards allow more.)`
+      : `${format.name} decks allow up to ${format.copyLimit} copies of a card. (A few cards allow more.)`;
+    return askYesNo(`${name} is already in this deck`, `The deck has ${have} ${have === 1 ? 'copy' : 'copies'}. ${why}`, 'Add anyway', 'Cancel');
+  }
+
+  // A "+" in the search: warn if the deck has as many as its format allows,
+  // then add one copy
   async function add(name: string, ownedOnly: boolean) {
     if (!deck || busy.current) return;
     busy.current = true;
     try {
-      const format = deckFormat(deck.format);
-      const have = copiesOf(findDeck(id), name);
-      if (have >= format.copyLimit && !skipsCopyWarning(name)) {
-        const why = format.copyLimit === 1
-          ? `${format.name} decks are singleton: one copy of each card. (A few cards allow more.)`
-          : `${format.name} decks allow up to ${format.copyLimit} copies of a card. (A few cards allow more.)`;
-        const yes = await askYesNo(`${name} is already in this deck`, `The deck has ${have} ${have === 1 ? 'copy' : 'copies'}. ${why}`, 'Add anyway', 'Cancel');
-        if (!yes) return;
-      }
+      if (!(await okToAdd(name))) return;
       const card = await cardToAdd(name, ownedOnly);
       addCardToDeck(id, card);
       setDeck(findDeck(id));
@@ -198,6 +230,59 @@ export default function DeckScreen() {
     setDeckCardCount(id, index, now);
     setDeck(findDeck(id));
     announce(`${now} ${now === 1 ? 'copy' : 'copies'} of ${card.name}.`);
+  }
+
+  /* ----- Dropping a picture from another website (computers) ----- */
+
+  // Let go anywhere over the cards and the card is added: one more copy if
+  // that exact printing is already in the deck, otherwise at the end. (After
+  // the same warning about too many copies as the "+".) The view shows it
+  // wherever the sort in use puts it, scrolls to it, and highlights it for a
+  // moment.
+  const listAreaRef = useRef<ComponentRef<typeof View>>(null);
+  const [dropOver, setDropOver] = useState(false);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [addedNote, setAddedNote] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function flash(key: string, text: string) {
+    setFlashKey(key);
+    setAddedNote(text);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => { setFlashKey(null); setAddedNote(null); }, 3000);
+  }
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+  useCardAreaDrop({
+    areaRef: listAreaRef,
+    enabled: true,
+    onOver: setDropOver,
+    onDrop: (dataTransfer) => { handleAreaDrop(dataTransfer); },
+  });
+  async function handleAreaDrop(dataTransfer: DataTransfer) {
+    // (Read what was dropped now: the browser only allows it right away.)
+    const lookup = lookupFromDrop(dataTransfer);
+    if (!lookup) {
+      showMessage('Couldn\'t add that', 'That isn\'t a card picture from Scryfall or EDHREC.');
+      return;
+    }
+    if (!deck || busy.current) return;
+    busy.current = true;
+    try {
+      const print = await loadOneCard(lookup.path);
+      const face = isDoubleSided(print) ? lookup.face : 0;
+      const card: DeckCard = { ...binderCardFrom(print, lookup.face), ...costAndType(print, face) };
+      if (!(await okToAdd(card.name))) return;
+      const current = findDeck(id);
+      if (!current) return;
+      const index = current.cards.findIndex((existing) => samePrinting(existing, card));
+      addCardToDeck(id, card);
+      setDeck(findDeck(id));
+      flash(String(index >= 0 ? index : current.cards.length), `✓ Added ${card.name}${index >= 0 ? ' (one more copy)' : ''}`);
+      announce(`Added ${card.name}${index >= 0 ? ', one more copy' : ''}.`);
+    } catch (err) {
+      showMessage('Couldn\'t add the card', (err as Error).message);
+    } finally {
+      busy.current = false;
+    }
   }
 
   // A version that never changes between redraws, for the rows
@@ -252,7 +337,12 @@ export default function DeckScreen() {
           cards below), and the List / Grid switch with the sort and the
           download button */}
       <View style={styles.top}>
-        <DeckAddSearch onAdd={add} note={note} />
+        <DeckSearchBar
+          mode={searchMode} onMode={setSearchMode}
+          filter={filter} onFilter={setFilter}
+          open={addOpen} onOpenChange={setAddOpen}
+          onAdd={add} note={note}
+        />
         <ViewSwitch
           mode={mode} sort={sort} reversed={reversed} modes={['list', 'grid']} onView={setListViewMode}
           extras={(
@@ -263,10 +353,11 @@ export default function DeckScreen() {
         />
       </View>
 
-      {/* THE CARDS */}
-      <View style={styles.listArea}>
+      {/* THE CARDS, with a picture dragged over them outlined */}
+      <View ref={listAreaRef} style={styles.listArea} collapsable={false}>
         <CardList
           entries={entries}
+          flashKey={flashKey}
           mode={mode}
           width={contentWidth}
           onPick={(key) => setMenuIndex(Number(key))}
@@ -274,17 +365,27 @@ export default function DeckScreen() {
           minTile={GRID_ZOOM_WIDTHS[gridZoom]}
           prices={prices}
           headerOf={headerOf}
-          // The format, at the end of the line of totals
-          note={deckFormat(deck.format).name}
-          // No cards yet
+          // The format, at the end of the line of totals (and the card just dropped)
+          note={[deckFormat(deck.format).name, addedNote].filter(Boolean).join(' · ')}
+          searchOf={searching ? allEntries.length : undefined}
+          // No cards yet (or none matching the search)
           empty={(
             <View style={[styles.empty, { borderColor: colors.border }]}>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>No cards yet</Text>
-              <Text style={[styles.emptyText, { color: colors.muted }]}>Search above and tap the + on a card to add it.</Text>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>{deck.cards.length ? 'No cards match' : 'No cards yet'}</Text>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                {deck.cards.length ? `None of the ${deck.cards.length} cards match "${filter.trim()}".` : 'Flip the switch to Add, search for a card and tap the + on it.'}
+              </Text>
             </View>
           )}
         />
+        {dropOver && <View pointerEvents="none" style={[styles.dropOutline, { borderColor: colors.accent }]} />}
       </View>
+
+      {/* While the Add drop-down is open, an invisible cover over everything
+          below the bar: tapping anywhere closes the drop-down */}
+      {searchMode === 'add' && addOpen && (
+        <Pressable accessibilityLabel="Close the card search" style={styles.cover} onPress={() => setAddOpen(false)} />
+      )}
 
       {/* THE CARD'S WINDOW: its picture (tap it to open the card in the Card
           Finder), what it does, how many copies, then Move to a binder and
@@ -332,6 +433,9 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   top: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, zIndex: 10 },
   listArea: { flex: 1 },
+  dropOutline: { position: 'absolute', top: 4, left: 8, right: 8, bottom: 4, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, zIndex: 25 },
+  // The invisible cover: it sits above the cards but below the search bar (which has zIndex 10)
+  cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 },
   empty: { alignItems: 'center', gap: 8, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, marginTop: 8 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
