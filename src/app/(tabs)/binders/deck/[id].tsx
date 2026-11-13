@@ -433,6 +433,37 @@ export default function DeckScreen() {
     announce(`${card.name} is now in the ${where === 'side' ? 'sideboard' : 'main deck'}.`);
   }
 
+  // Is the card whose window is open allowed in the command zone? The "Make
+  // commander" button (Make Oathbreaker / Make signature spell) only shows when
+  // it is. The spot it would go in is worked out the same way as when the button
+  // is pressed; the answer comes from the same Scryfall search that fills the
+  // spot's own search window, and is remembered, so reopening a card is instant.
+  const [canMake, setCanMake] = useState(false);
+  const allowedCache = useRef(new Map<string, boolean>());
+  useEffect(() => {
+    setCanMake(false);
+    const card = menuIndex !== null ? deck?.cards[menuIndex] : undefined;
+    if (!deck || !card || !format.command || zoneOf(card) !== 'main') return undefined;
+    const first = commandCard(deck, 0);
+    const types = (card.typeLine ?? '').toLowerCase();
+    let slot: 0 | 1 | null;
+    if (format.command.kind === 'oathbreaker') {
+      slot = types.includes('planeswalker') ? 0 : /instant|sorcery/.test(types) ? 1 : null;
+      if (slot === 1 && !first) slot = null;   // the signature spell waits for an Oathbreaker
+    } else {
+      slot = first && secondSpotShows(format, first) && !commandCard(deck, 1) ? 1 : 0;
+    }
+    if (slot === null) return undefined;
+    const key = `${format.code}|${slot}|${first?.name ?? ''}|${first?.extra?.Pairing ?? ''}|${card.name}`;
+    const known = allowedCache.current.get(key);
+    if (known !== undefined) { setCanMake(known); return undefined; }
+    let stale = false;
+    allowedInSlot(format, slot, first, card.name)
+      .then((ok) => { allowedCache.current.set(key, ok); if (!stale) setCanMake(ok); })
+      .catch(() => { /* couldn't ask: the button just doesn't show */ });
+    return () => { stale = true; };
+  }, [menuIndex, deck, format]);
+
   // A version that never changes between redraws, for the rows
   const copiesRef = useRef(changeCopies);
   copiesRef.current = changeCopies;
@@ -582,7 +613,7 @@ export default function DeckScreen() {
           )}
           <View style={styles.menu}>
             {/* The command zone: put this card in its spot (or take it back out) */}
-            {format.command && zoneOf(menuCard) === 'main' && (
+            {format.command && zoneOf(menuCard) === 'main' && canMake && (
               <Button
                 label={format.command.kind === 'oathbreaker'
                   ? ((menuCard.typeLine ?? '').includes('Planeswalker') ? 'Make Oathbreaker' : 'Make signature spell')

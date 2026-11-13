@@ -275,7 +275,7 @@ export const helpTopics: HelpTopic[] = [
               Commander and Tiny Leaders), or <Strong>Oathbreaker</Strong> and <Strong>Signature spell</Strong>. Fill a spot
               two ways: tap it to search the cards allowed there (only those are listed), or open a card in the deck and
               tap <Strong>Make commander</Strong> (<Strong>Make Oathbreaker</Strong> or <Strong>Make signature spell</Strong>) in its
-              window. A <Strong>second spot</Strong> appears only if the commander's abilities call for one:
+              window (the button only shows on a card that's allowed in that spot). A <Strong>second spot</Strong> appears only if the commander's abilities call for one:
               <Strong> Partner</Strong>, <Strong>Partner with</Strong> a named card, <Strong>Friends forever</Strong>,
               <Strong> Doctor's companion</Strong> (with a Time Lord Doctor), or <Strong>Choose a Background</Strong> (an
               Enchantment — Background goes there). A commander with none of those gets no second spot (and Tiny Leaders and
