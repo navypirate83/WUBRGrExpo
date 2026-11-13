@@ -14,11 +14,14 @@
      deck). The drop-down stays open so more can be added, and closes when
      you tap anywhere else (the deck screen draws an invisible cover for that:
      it says when with "open" and "onOpenChange").
-     In Add, a second switch, "Only cards in my binders", narrows the search
-     to the cards you own in your binders (a card on a list doesn't count:
-     lists are wishes, not cards you own); then the copy added is the printing
-     you own. A line under it says which card was added last, in a spot kept
-     free for it so nothing jumps.
+     A second switch sits beside the first, with its own label above it:
+     "Binders" when on and "All" when off. On, the search covers only the
+     cards you own in your binders (a card on a list doesn't count: lists are
+     wishes, not cards you own), and the copy added is the printing you own.
+     Off, it covers every card. While the first switch is on Search this
+     one is grayed out (it stays put, it just can't be used). A line under
+     the bar says which card was added last, in a spot kept free for it so
+     nothing jumps.
    The deck screen does the adding (and the warning for too many copies);
    this bar just says which card name was chosen.
    ===================================================================== */
@@ -116,19 +119,25 @@ export default function DeckSearchBar({ mode, onMode, filter, onFilter, open, on
             trackColor={{ true: colors.accent }}
           />
         </View>
+        {/* Beside it: which cards the Add search covers, "Binders" (just the
+            cards you own in your binders) or "All". Grayed out, not removed,
+            while the box is on Search. */}
+        <View style={[styles.modeBox, !adding && styles.grayedOut]}>
+          <Text style={[styles.modeLabel, { color: colors.text }]}>{ownedOnly ? 'Binders' : 'All'}</Text>
+          <Switch
+            value={ownedOnly}
+            onValueChange={setOwnedOnly}
+            disabled={!adding}
+            accessibilityLabel={ownedOnly ? 'Searching only cards in your binders. Switch to search all cards.' : 'Searching all cards. Switch to search only cards in your binders.'}
+            trackColor={{ true: colors.accent }}
+          />
+        </View>
       </View>
 
-      {/* Add only: just cards in my binders, and the line about the last card added */}
+      {/* Add only: the line about the last card added (its spot is always
+          kept, so it never moves anything) */}
       {adding && (
-        <>
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: colors.text }]}>Only cards in my binders</Text>
-            <Switch value={ownedOnly} onValueChange={setOwnedOnly} accessibilityLabel="Only cards in my binders"
-                    trackColor={{ true: colors.accent }} />
-          </View>
-          {/* The spot for this line is always kept, so it never moves anything */}
-          <Text style={[styles.note, { color: colors.muted }]} accessibilityLiveRegion="polite">{note ?? ' '}</Text>
-        </>
+        <Text style={[styles.note, { color: colors.muted }]} accessibilityLiveRegion="polite">{note ?? ' '}</Text>
       )}
 
       {/* The matches, dropping down over whatever is below, each with a "+" */}
@@ -179,9 +188,9 @@ const styles = StyleSheet.create({
   input: { paddingRight: 44 },
   searchIcon: { position: 'absolute', right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   modeBox: { alignItems: 'center', minWidth: 56 },
+  // A switch that can't be used right now: faded, but still there
+  grayedOut: { opacity: 0.4 },
   modeLabel: { fontSize: 13, fontWeight: '700' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
-  switchLabel: { fontSize: 15 },
   note: { fontSize: 14, paddingHorizontal: 4, minHeight: 18 },
   results: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, maxHeight: 340, borderWidth: 1, borderRadius: RADIUS, overflow: 'hidden' },
   noResults: { padding: 14, fontSize: 15 },

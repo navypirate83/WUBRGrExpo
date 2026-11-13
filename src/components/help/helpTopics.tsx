@@ -249,7 +249,8 @@ export const helpTopics: HelpTopic[] = [
               matching cards over the page (it closes when you tap anywhere else). Tap
               the <Strong>+</Strong> on the one you want and it's added to the deck, using the first printing that
               comes up (to use a different printing, tap the card in the deck, then tap its picture: in the Card Finder the <Strong>+</Strong> changes the
-              card to the one you pick). Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
+              card to the one you pick). The second switch, beside the first, says <Strong>All</Strong> (every card) or, when you flip it on,
+              <Strong> Binders</Strong>: then the search covers just the cards you own in your
               binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are shown
               the way a list's are: as a <Strong>List</Strong> or a <Strong>Grid</Strong> of card pictures (the buttons under
               the search bar; the grid zooms like a list's), with the same <Strong>sort</Strong> menu, header bars between
