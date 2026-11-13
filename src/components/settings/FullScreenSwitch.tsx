@@ -18,9 +18,14 @@ import { Platform } from 'react-native';
 import { SettingRow, SwitchRow } from './SettingsParts';
 
 // Is the site running as an installed app (which has no address bar)?
+// The browser also says "display-mode: fullscreen" while the page is
+// full screen because of THIS switch, so that only counts when the page
+// wasn't made full screen from here (otherwise the switch would hide itself
+// the moment it was turned on, with no way to turn it off).
 function isInstalledApp(): boolean {
+  const fullScreenFromHere = typeof document !== 'undefined' && document.fullscreenElement != null;
   return window.matchMedia?.('(display-mode: standalone)').matches
-    || window.matchMedia?.('(display-mode: fullscreen)').matches
+    || (!fullScreenFromHere && window.matchMedia?.('(display-mode: fullscreen)').matches)
     || (navigator as { standalone?: boolean }).standalone === true;
 }
 
