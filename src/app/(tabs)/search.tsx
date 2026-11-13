@@ -33,6 +33,7 @@ import { prepareNames } from '@/lib/nameSearch';
 import { finishFromParam, plural, type Finish } from '@/lib/cards';
 import { binderName, findBinder } from '@/lib/binderStorage';
 import { findList } from '@/lib/listStorage';
+import { findDeck } from '@/lib/deckStorage';
 import { RequestError } from '@/lib/http';
 import { useShortcutKeys, useShowKeyHints } from '@/hooks/useShortcutKeys';
 import { useAnnouncer } from '@/hooks/useAnnouncer';
@@ -148,6 +149,11 @@ export default function CardFinderScreen() {
   // exists is ignored.)
   const listParam = addressValue(params.list);
   const fromList = listParam && findList(listParam) ? listParam : null;
+  // Or from a card in a deck ("?deck=<id>&at=<spot>")? Then the "+" changes
+  // that card to the one shown. (A deck that no longer exists is ignored.)
+  const deckParam = addressValue(params.deck);
+  const deckSpot = parseInt(addressValue(params.at) ?? '', 10);
+  const toDeck = deckParam && findDeck(deckParam) && deckSpot >= 0 ? { id: deckParam, at: deckSpot } : null;
 
   // What's typed in the search box, and a handle on the box
   const [text, setText] = useState('');
@@ -241,7 +247,9 @@ export default function CardFinderScreen() {
   // Where "back" goes when this screen was opened from a list or a
   // binder (that list or binder), and what screen readers call it; null
   // when it was opened on its own
-  const back = fromList
+  const back = toDeck
+    ? { to: `/binders/deck/${encodeURIComponent(toDeck.id)}`, name: findDeck(toDeck.id)?.name ?? 'the deck' }
+    : fromList
     ? { to: `/binders/list/${encodeURIComponent(fromList)}`, name: findList(fromList)?.name ?? 'the list' }
     : usingBinders && fromBinder
       ? { to: `/binders/${encodeURIComponent(fromBinder)}`, name: binderName(fromBinder) }
@@ -345,6 +353,7 @@ export default function CardFinderScreen() {
               fromBinder={fromBinder}
               pocket={pocket}
               toList={fromList}
+              toDeck={toDeck}
               onMessage={(message, isError = false) => setAddMessage(message === null ? null : { text: message, isError })}
             />
           )}

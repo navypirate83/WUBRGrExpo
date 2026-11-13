@@ -54,8 +54,9 @@ import { downloadDeckCsv } from '@/lib/binderDownload';
 import { askYesNo, showMessage } from '@/lib/dialogs';
 
 // The Card Finder's address for a card in this deck: that exact printing
-// (side, language, foil)
-function finderLinkFor(card: DeckCard): string {
+// (side, language, foil), and which deck card it is (the deck and its spot),
+// so the Card Finder's "+" can change that card to the printing picked
+function finderLinkFor(deckId: string, index: number, card: DeckCard): string {
   const params = new URLSearchParams();
   params.set('set', card.set);
   params.set('number', card.number);
@@ -63,6 +64,8 @@ function finderLinkFor(card: DeckCard): string {
   if (card.lang) params.set('lang', card.lang);
   const finish = finishParam(card);
   if (finish) params.set('foil', finish);
+  params.set('deck', deckId);
+  params.set('at', String(index));
   return `/search?${params}`;
 }
 
@@ -290,7 +293,7 @@ export default function DeckScreen() {
         <PopupWindow title={menuCard.name} onClose={() => setMenuIndex(null)}
                      buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
           <CardRules card={menuCard}
-                     onOpen={() => { const card = menuCard; setMenuIndex(null); router.push(finderLinkFor(card) as never); }} />
+                     onOpen={() => { const card = menuCard; const spot = menuIndex; setMenuIndex(null); router.push(finderLinkFor(id, spot, card) as never); }} />
           {/* How many copies: − and + */}
           <View style={styles.menuCopies}>
             <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from deck'}

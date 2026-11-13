@@ -1,24 +1,33 @@
 /* =====================================================================
-   ADD TO A BINDER OR A LIST (the round orange "+" beside the card on
-   the Card Finder)
+   ADD TO A BINDER, A LIST OR A DECK (the round orange "+" beside the card
+   on the Card Finder)
    - Opened from a binder's pocket (the address has "?binder=<id>", and
      maybe "&binderPage=3&binderSlot=5")? "+" puts the card straight into
      that binder (that pocket, or its first empty one).
    - Opened from a list ("?list=<id>")? "+" puts the card at the end of
      that list.
+   - Opened from a card in a deck ("?deck=<id>&at=<spot>", from that
+     card's window in the deck)? "+" CHANGES that card: the deck's card at
+     that spot becomes the card shown here (this printing, this finish),
+     keeping its place and its number of copies. Then it goes back to the deck.
    - Opened on its own? "+" asks where it should go, with two panels that
      rise from the bottom of the screen ("sheets"), one after the other:
-       1. "Add to a binder or a list?": Binder, or List
+       1. "Add to a binder, a list or a deck?": Binder, List or Deck
        2. then "Add to which binder?" (one row per binder: a dot in its
           cover color, its name and card count; full binders can't be
           picked; then "New binder"), or "Add to which list?" (one row
           per list, with its card count; a list that already has this
           card can't be picked; then "New list")
-     "New binder" opens the New binder window, and "New list" a small
-     window to name the list; either is made with the card in it.
+          or "Add to which deck?" (one row per deck, with its format and card
+          count; then "New deck")
+     "New binder" opens the New binder window, "New list" a small window
+     to name the list, and "New deck" a window for the deck's name and
+     format; each is made with the card in it. Adding to a deck that
+     already has as many copies as its format allows asks first (with
+     "Add anyway").
    Only shown to someone using the binders (signed in, or locally).
-   Afterwards it opens the binder (at the page with the new card) or the
-   list the card went into.
+   Afterwards it opens the binder (at the page with the new card), or the
+   list or deck the card went into.
    ===================================================================== */
 
 import { useImperativeHandle, useRef, useState, type ComponentRef, type Ref } from 'react';
@@ -30,6 +39,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import NewBinderDialog from '@/components/binders/NewBinderDialog';
 import PopupWindow from '@/components/PopupWindow';
+import NewDeckDialog from '@/components/decks/NewDeckDialog';
 import TextField from '@/components/TextField';
 import CoverSwatch from '@/components/binders/CoverSwatch';
 import {
@@ -42,6 +52,11 @@ import { coverLook } from '@/lib/covers';
 import {
   addCardToList, addListToDevice, findList, loadLists, nextListName, type CardList, type ListCard,
 } from '@/lib/listStorage';
+import {
+  addCardToDeck, addDeck, copiesOf, findDeck, loadDecks, replaceDeckCard, type Deck,
+} from '@/lib/deckStorage';
+import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
+import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
 import { useColors } from '@/hooks/useTheme';
 import { PickerSheet, ROW_HEIGHT, type Anchor } from './PickerSheet';
@@ -61,6 +76,9 @@ type Props = {
   listEntry: () => ListCard;
   // The list this screen was opened from, if any: the "+" adds to it
   toList: string | null;
+  // The deck card this screen was opened from, if any (the deck, and the
+  // card's spot in it): the "+" changes that card to the one shown
+  toDeck: { id: string; at: number } | null;
   // The binder this screen was opened from, and the pocket to fill (from
   // the address), if any
   fromBinder: string | null;
@@ -87,7 +105,7 @@ export function pocketFromAddress(params: AddressParams): { page: number; slot: 
   return valid ? { page, slot } : null;
 }
 
-export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, pocket, onMessage, style, ref }: Props) {
+export default function AddToBinder({ cardEntry, listEntry, toList, toDeck, fromBinder, pocket, onMessage, style, ref }: Props) {
   const colors = useColors();
   // Is the menu open, is the New binder window open, and is something
   // being saved (so nothing can be tapped twice)?
@@ -95,13 +113,14 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
   // "list": which one?), whether the New binder window is open, the name
   // being typed in the New list window (null: closed), and whether
   // something is being saved (so nothing can be tapped twice)
-  const [menu, setMenu] = useState<'kind' | 'binder' | 'list' | null>(null);
+  const [menu, setMenu] = useState<'kind' | 'binder' | 'list' | 'deck' | null>(null);
   // The round "+" button, and where it is on the screen: the choices drop
   // down from it (see PickerSheet.tsx)
   const plusButton = useRef<ComponentRef<typeof Pressable>>(null);
   const [anchor, setAnchor] = useState<Anchor | undefined>(undefined);
   const [newOpen, setNewOpen] = useState(false);
   const [newListName, setNewListName] = useState<string | null>(null);
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Close the open sheet, then do the next thing (open another sheet or
@@ -117,7 +136,8 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
   function activate() {
     if (busy) return;
     hapticTap();
-    if (toList) addToList(toList);
+    if (toDeck) changeDeckCard(toDeck);
+    else if (toList) addToList(toList);
     else if (fromBinder) addCardToBinder(fromBinder, pocket);
     else if (plusButton.current) {
       plusButton.current.measureInWindow((x, y, width, height) => { setAnchor({ x, y, width, height }); setMenu('kind'); });
@@ -131,6 +151,51 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
     addCardToList(id, listEntry());
     onMessage(null);
     router.navigate(`/binders/list/${encodeURIComponent(id)}` as never);
+  }
+
+  // Opened from a card in a deck: that card becomes the card being shown
+  // (its place and copies stay), then go back to the deck. If the card has
+  // moved or gone since (the deck changed), the card is added instead.
+  function changeDeckCard(target: { id: string; at: number }) {
+    setMenu(null);
+    if (!replaceDeckCard(target.id, target.at, listEntry())) addCardToDeck(target.id, listEntry());
+    onMessage(null);
+    // This screen stays open behind the tabs, so forget which deck card it
+    // was opened from (opening the Card Finder again on its own shouldn't change it)
+    router.setParams({ deck: undefined, at: undefined });
+    router.navigate(`/binders/deck/${encodeURIComponent(target.id)}` as never);
+  }
+
+  // Put the card being shown into a deck (one more copy if the deck has
+  // this printing already), then go to the deck. A deck that already has as
+  // many copies as its format allows asks first (basic lands, snow-covered
+  // basics and Wastes never ask).
+  async function addToDeck(id: string) {
+    setMenu(null);
+    const deck = findDeck(id);
+    if (!deck) return;
+    const entry = listEntry();
+    const format = deckFormat(deck.format);
+    const have = copiesOf(deck, entry.name);
+    if (have >= format.copyLimit && !skipsCopyWarning(entry.name)) {
+      const why = format.copyLimit === 1
+        ? `${format.name} decks are singleton: one copy of each card. (A few cards allow more.)`
+        : `${format.name} decks allow up to ${format.copyLimit} copies of a card. (A few cards allow more.)`;
+      const yes = await askYesNo(`${entry.name} is already in this deck`, `The deck has ${have} ${have === 1 ? 'copy' : 'copies'}. ${why}`, 'Add anyway', 'Cancel');
+      if (!yes) return;
+    }
+    addCardToDeck(id, entry);
+    onMessage(null);
+    router.navigate(`/binders/deck/${encodeURIComponent(id)}` as never);
+  }
+
+  // "Create" in the New deck window: make the deck with the card in it, then go to it
+  function addCardToNewDeck(name: string, format: string) {
+    setNewDeckOpen(false);
+    const id = addDeck(name, format);
+    addCardToDeck(id, listEntry());
+    onMessage(null);
+    router.navigate(`/binders/deck/${encodeURIComponent(id)}` as never);
   }
 
   // "Create" in the New list window: make the list (in Google Drive when
@@ -246,6 +311,7 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
   // list already has this card
   const binders = menu ? loadBinderList() : [];
   const lists = menu ? loadLists() : [];
+  const decks = menu ? loadDecks() : [];
   const countOf = (binder: Binder) => Object.keys(loadBinder(binder.id)).length;
   const isFull = (binder: Binder) => countOf(binder) >= binderPages(binder.id) * pocketsPerPage();
   const hasCard = (list: CardList) => {
@@ -259,9 +325,10 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
       <Pressable
         ref={plusButton}
         accessibilityRole="button"
-        accessibilityLabel={toList ? 'Add to list' : fromBinder ? 'Add to binder' : 'Add to a binder or a list'}
-        accessibilityHint={toList ? `Puts this card into ${findList(toList)?.name ?? 'the list'}`
-          : fromBinder ? `Puts this card into ${binderName(fromBinder)}` : 'Asks whether it goes in a binder or a list'}
+        accessibilityLabel={toDeck ? 'Use this card in the deck' : toList ? 'Add to list' : fromBinder ? 'Add to binder' : 'Add to a binder, a list or a deck'}
+        accessibilityHint={toDeck ? `Changes the card in ${findDeck(toDeck.id)?.name ?? 'the deck'} to this one`
+          : toList ? `Puts this card into ${findList(toList)?.name ?? 'the list'}`
+          : fromBinder ? `Puts this card into ${binderName(fromBinder)}` : 'Asks whether it goes in a binder, a list or a deck'}
         accessibilityState={{ disabled: busy, busy }}
         disabled={busy}
         onPress={activate}
@@ -278,27 +345,31 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
           : <Ionicons name="add" size={28} color={colors.accentText} />}
       </Pressable>
 
-      {/* 1. "Add to a binder or a list?": Binder or List, each with its
-          line drawing and how many there are */}
+      {/* 1. "Add to a binder, a list or a deck?": Binder, List or Deck, each
+          with its line drawing and how many there are */}
       {menu === 'kind' && (
         <PickerSheet
           anchor={anchor}
-          title="Add to a binder or a list?"
-          items={['binder', 'list'] as const}
+          title="Add to a binder, a list or a deck?"
+          items={['binder', 'list', 'deck'] as const}
           keyOf={(kind) => kind}
-          labelOf={(kind) => (kind === 'binder' ? 'Binder' : 'List')}
+          labelOf={(kind) => (kind === 'binder' ? 'Binder' : kind === 'list' ? 'List' : 'Deck')}
           renderRow={(kind) => (
             <>
               <Image
                 source={kind === 'binder'
                   ? require('../../../assets/images/binder-outline.svg')
-                  : require('../../../assets/images/notebook-outline.svg')}
+                  : kind === 'list'
+                    ? require('../../../assets/images/notebook-outline.svg')
+                    : require('../../../assets/images/deckbox-outline.svg')}
                 style={styles.kindPicture} contentFit="contain" tintColor={colors.text} />
-              <Text style={[styles.name, { color: colors.text }]}>{kind === 'binder' ? 'Binder' : 'List'}</Text>
+              <Text style={[styles.name, { color: colors.text }]}>{kind === 'binder' ? 'Binder' : kind === 'list' ? 'List' : 'Deck'}</Text>
               <Text style={[styles.count, { color: colors.muted }]}>
                 {kind === 'binder'
                   ? `${binders.length} ${binders.length === 1 ? 'binder' : 'binders'}`
-                  : `${lists.length} ${lists.length === 1 ? 'list' : 'lists'}`}
+                  : kind === 'list'
+                    ? `${lists.length} ${lists.length === 1 ? 'list' : 'lists'}`
+                    : `${decks.length} ${decks.length === 1 ? 'deck' : 'decks'}`}
               </Text>
             </>
           )}
@@ -344,6 +415,48 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
                 <Ionicons name="add" size={18} color="#ffffff" />
               </View>
               <Text style={[styles.name, { color: colors.text }]}>New list</Text>
+            </Pressable>
+          }
+        />
+      )}
+
+      {/* 2. "Add to which deck?": one row per deck, then "New deck" */}
+      {menu === 'deck' && (
+        <PickerSheet
+          anchor={anchor}
+          title="Add to which deck?"
+          items={decks}
+          keyOf={(deck: Deck) => deck.id}
+          labelOf={(deck: Deck) => `${deck.name}, ${deckFormat(deck.format).name}, ${cardCountText(deck.cards.length)}`}
+          isDisabled={() => busy}
+          renderRow={(deck: Deck) => (
+            <>
+              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{deck.name}</Text>
+              <Text style={[styles.count, { color: colors.muted }]}>
+                {deckFormat(deck.format).name} · {cardCountText(deck.cards.length)}
+              </Text>
+            </>
+          )}
+          onPick={(deck: Deck) => addToDeck(deck.id)}
+          onClose={() => setMenu(null)}
+          // The "New deck" row at the end: a "+" in an orange dot, with a
+          // thin line above it (unless it's the only row)
+          footer={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="New deck"
+              disabled={busy}
+              onPress={() => afterClosing(() => setNewDeckOpen(true))}
+              style={({ pressed }) => [
+                styles.newRow,
+                decks.length > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                pressed && { backgroundColor: colors.surfaceHover },
+              ]}
+            >
+              <View style={[styles.dot, styles.plusDot, { backgroundColor: colors.accent }]}>
+                <Ionicons name="add" size={18} color="#ffffff" />
+              </View>
+              <Text style={[styles.name, { color: colors.text }]}>New deck</Text>
             </Pressable>
           }
         />
@@ -397,6 +510,11 @@ export default function AddToBinder({ cardEntry, listEntry, toList, fromBinder, 
             </Pressable>
           }
         />
+      )}
+
+      {/* The New deck window: its name and format */}
+      {newDeckOpen && (
+        <NewDeckDialog onCreate={addCardToNewDeck} onCancel={() => setNewDeckOpen(false)} />
       )}
 
       {/* The New binder window */}

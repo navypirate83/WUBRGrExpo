@@ -245,7 +245,8 @@ export const helpTopics: HelpTopic[] = [
             <P>
               Inside a deck, type a card's name in the search bar and the matching cards are listed under it. Tap
               the <Strong>+</Strong> on the one you want and it's added to the deck, using the first printing that
-              comes up. Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
+              comes up (to use a different printing, tap the card in the deck, then tap its picture: in the Card Finder the <Strong>+</Strong> changes the
+              card to the one you pick). Turn on <Strong>Only cards in my binders</Strong> to search just the cards you own in your
               binders (cards on a list don't count), and the printing you own is the one added. The deck's cards are shown
               the way a list's are: as a <Strong>List</Strong> or a <Strong>Grid</Strong> of card pictures (the buttons under
               the search bar; the grid zooms like a list's), with the same <Strong>sort</Strong> menu, header bars between
@@ -977,24 +978,32 @@ export const helpTopics: HelpTopic[] = [
       },
       {
         id: 'finder-add',
-        title: 'Adding to a binder or a list',
+        title: 'Adding to a binder, a list or a deck',
         body: (
           <>
-            <P>The round <Strong>+</Strong> button beside the card adds it to a binder or a list:</P>
+            <P>The round <Strong>+</Strong> button beside the card adds it to a binder, a list or a deck:</P>
             <Bullet><Strong>Came from a binder's pocket?</Strong> The card goes straight into that pocket.</Bullet>
             <Bullet><Strong>Came from a list (its Add card button)?</Strong> The card goes straight to the end of that list.</Bullet>
             <Bullet>
-              <Strong>Opened the finder on its own?</Strong> It first asks <Strong>Add to a binder or a
-              list?</Strong> A short list drops down from the <Strong>+</Strong>: tap <Strong>Binder</Strong> or <Strong>List</Strong>, then pick which one:
-              each binder or list shows its card count. A binder's card goes into its first empty
-              pocket (full binders can't be picked); a list's goes at the end (a list that already
-              has the card can't be picked). <Strong>New binder</Strong> or <Strong>New list</Strong> at
-              the bottom makes a new one with the card in it.
+              <Strong>Came from a card in a deck</Strong> (you tapped the card in the deck, then its picture)? The
+              <Strong> +</Strong> <Strong>changes that card</Strong> to the one you're looking at, so you can pick a
+              different printing or finish. It keeps its place in the deck and its number of copies, and you're taken back
+              to the deck.
             </Bullet>
-            <P>Afterwards you're taken to the binder (opened to the page with the new card) or the list.</P>
+            <Bullet>
+              <Strong>Opened the finder on its own?</Strong> It first asks <Strong>Add to a binder, a list or a
+              deck?</Strong> A short list drops down from the <Strong>+</Strong>: tap <Strong>Binder</Strong>, <Strong>List</Strong> or <Strong>Deck</Strong>, then pick which one:
+              each shows its card count (a deck also shows its format). A binder's card goes into its first empty
+              pocket (full binders can't be picked); a list's goes at the end (a list that already
+              has the card can't be picked); a deck's goes at the end too (and if the deck already has
+              as many copies as its format allows, a window asks first, with <Strong>Add anyway</Strong>).
+              <Strong> New binder</Strong>, <Strong>New list</Strong> or <Strong>New deck</Strong> at
+              the bottom makes a new one with the card in it (a new deck asks for its name and format).
+            </Bullet>
+            <P>Afterwards you're taken to the binder (opened to the page with the new card), the list or the deck.</P>
             <P>
               The <Strong>+</Strong> button only shows when you're signed in or using the app
-              locally. When you came from a binder or a list, the <Strong>back arrow</Strong> at the top
+              locally. When you came from a binder, a list or a deck, the <Strong>back arrow</Strong> at the top
               left<OnComputer> (or the <Key>B</Key> key on a computer)</OnComputer> takes you back to it. When you're not
               signed in, <Strong>Home</Strong> (the house at the bottom) goes back to the welcome
               screen, where you can sign in.

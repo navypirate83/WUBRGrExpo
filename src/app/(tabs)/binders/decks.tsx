@@ -27,8 +27,9 @@ import DeckSearch from '@/components/decks/DeckSearch';
 import PopupWindow from '@/components/PopupWindow';
 import TextField from '@/components/TextField';
 import Button from '@/components/Button';
-import { addDeck, forgetDeck, loadDecks, nextDeckName, renameDeck, type Deck } from '@/lib/deckStorage';
-import { DECK_FORMATS, DEFAULT_DECK_FORMAT, deckFormat } from '@/lib/deckFormats';
+import NewDeckDialog from '@/components/decks/NewDeckDialog';
+import { addDeck, forgetDeck, loadDecks, renameDeck, type Deck } from '@/lib/deckStorage';
+import { deckFormat } from '@/lib/deckFormats';
 import { cardCountText } from '@/lib/binderStorage';
 import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
@@ -56,7 +57,7 @@ export default function DecksScreen() {
   // The decks, the new deck being made (its name and format), and which
   // window is open: a held deck's options, or Rename (with the name being typed)
   const [decks, setDecks] = useState<Deck[]>(loadDecks);
-  const [making, setMaking] = useState<{ name: string; format: string } | null>(null);
+  const [making, setMaking] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
@@ -64,10 +65,9 @@ export default function DecksScreen() {
   useFocusEffect(useCallback(() => { setDecks(loadDecks()); }, []));
 
   // "Create" in the new deck window: make it and open it
-  function create() {
-    if (!making) return;
-    const id = addDeck(making.name, making.format);
-    setMaking(null);
+  function create(name: string, format: string) {
+    const id = addDeck(name, format);
+    setMaking(false);
     setDecks(loadDecks());
     openDeck(id);
   }
@@ -109,7 +109,7 @@ export default function DecksScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <DeckSearch onPick={openDeck} />
-            <Button label="Add deck" icon="add" onPress={() => setMaking({ name: nextDeckName(), format: DEFAULT_DECK_FORMAT })} />
+            <Button label="Add deck" icon="add" onPress={() => setMaking(true)} />
           </View>
         }
         ListHeaderComponentStyle={styles.headerOnTop}
@@ -143,40 +143,7 @@ export default function DecksScreen() {
       />
 
       {/* Add deck: a name, and the format to build it for */}
-      {making && (
-        <PopupWindow title="New deck" onClose={() => setMaking(null)}
-                     buttons={[
-                       { label: 'Cancel', onPress: () => setMaking(null), kind: 'secondary' },
-                       { label: 'Create', onPress: create, disabled: !making.name.trim() },
-                     ]}>
-          <View style={styles.menu}>
-            <TextField
-              label="Name"
-              value={making.name}
-              onChangeText={(name) => setMaking({ ...making, name })}
-              onSubmitEditing={create}
-              returnKeyType="done"
-              autoFocus
-              selectTextOnFocus
-              maxLength={NAME_LIMIT}
-              autoCapitalize="words"
-            />
-            <Text style={[styles.formatLabel, { color: colors.muted }]}>Format</Text>
-            <View style={styles.formats}>
-              {DECK_FORMATS.map((format) => {
-                const chosen = format.code === making.format;
-                return (
-                  <Pressable key={format.code} accessibilityRole="radio" accessibilityState={{ selected: chosen }}
-                             onPress={() => setMaking({ ...making, format: format.code })}
-                             style={[styles.chip, { borderColor: chosen ? colors.accent : colors.border, backgroundColor: chosen ? colors.accent : 'transparent' }]}>
-                    <Text style={[styles.chipText, { color: chosen ? colors.bg : colors.text }]}>{format.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </PopupWindow>
-      )}
+      {making && <NewDeckDialog onCreate={create} onCancel={() => setMaking(false)} />}
 
       {/* A held deck's options: Rename and Delete */}
       {menuDeck && (
@@ -225,10 +192,6 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 18, fontWeight: '700' },
   rowCount: { fontSize: 14 },
   menu: { gap: 8 },
-  formatLabel: { fontSize: 14, fontWeight: '600', marginTop: 4 },
-  formats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5 },
-  chipText: { fontSize: 14, fontWeight: '600' },
   empty: { alignItems: 'center', gap: 10, padding: 28, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: RADIUS * 1.4, marginTop: 8 },
   emptyPicture: { width: 74, height: 56 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },

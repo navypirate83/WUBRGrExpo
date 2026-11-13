@@ -83,6 +83,8 @@ type Props = {
   pocket: { page: number; slot: number } | null;
   // The list this screen was opened from, if any (the "+" adds to it)
   toList: string | null;
+  // The deck card this screen was opened from, if any (the "+" changes that card)
+  toDeck: { id: string; at: number } | null;
   // Show a message under the search box (red if it's a problem), or
   // clear it (null)
   onMessage: (text: string | null, isError?: boolean) => void;
@@ -98,7 +100,7 @@ function nextFinishName(print: ScryfallCard | undefined, finish: Finish): string
 
 export default function CardPanel(props: Props) {
   const { result, startFace, startLang, setIcons, finish: wantedFinish, setFinish, busy, announce } = props;
-  const { usingBinders, fromBinder, pocket, toList, onMessage } = props;
+  const { usingBinders, fromBinder, pocket, toList, toDeck, onMessage } = props;
   const colors = useColors();
   // The "+" Add to binder button (the A key presses it)
   const addRef = useRef<AddToBinderHandle>(null);
@@ -328,6 +330,11 @@ export default function CardPanel(props: Props) {
   useShortcutKeys((event) => {
     const key = event.key;
     if (key === 'b' || key === 'B') {
+      if (toDeck) {
+        event.preventDefault();
+        router.navigate(`/binders/deck/${encodeURIComponent(toDeck.id)}` as never);
+        return;
+      }
       if (toList) {
         event.preventDefault();
         router.navigate(`/binders/list/${encodeURIComponent(toList)}` as never);
@@ -404,10 +411,10 @@ export default function CardPanel(props: Props) {
 
       {/* "+": for someone using the binders, or opened from a list (lists
           are kept on this device), once a card is showing */}
-      {(usingBinders || toList) && (
+      {(usingBinders || toList || toDeck) && (
         <View style={[styles.spot, styles.twoThirds, buttonSide]}>
           <AddToBinder ref={addRef} cardEntry={cardEntry} listEntry={listEntry} fromBinder={fromBinder} pocket={pocket}
-                       toList={toList} onMessage={onMessage} />
+                       toList={toList} toDeck={toDeck} onMessage={onMessage} />
         </View>
       )}
     </>

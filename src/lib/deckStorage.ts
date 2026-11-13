@@ -134,6 +134,17 @@ function oneCopyIsNoCount(card: DeckCard): DeckCard {
   return rest as DeckCard;
 }
 
+// Swap the card at this spot (0 is the first) for another printing or card,
+// keeping its place in the deck and how many copies there are. Returns
+// false if there's no card at that spot.
+export function replaceDeckCard(id: string, index: number, card: DeckCard): boolean {
+  const before = findDeck(id)?.cards[index];
+  if (!before) return false;
+  const copies = before.count ?? 1;
+  const next = copies > 1 ? { ...card, count: copies } : oneCopyIsNoCount(card);
+  return changeDeck(id, (d) => ({ ...d, cards: d.cards.map((c, i) => (i === index ? next : c)) }));
+}
+
 // Change how many copies of the card at this spot (0 is the first) the
 // deck has; 0 takes it out
 export function setDeckCardCount(id: string, index: number, count: number): boolean {
