@@ -21,7 +21,7 @@ export type MergeChoice = 'combine' | 'keep-device' | 'keep-account';
 
 // Everything the window needs to explain the difference
 export type MergeQuestion = {
-  kind: 'binder' | 'list';
+  kind: 'binder' | 'list' | 'deck';
   name: string;
   device: number;     // how many cards are on this device
   account: number;    // how many cards are in the account

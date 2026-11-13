@@ -74,7 +74,7 @@ Other commands:
 
 ### The server (`server/` folder)
 
-An Express + MongoDB server keeps the accounts, binders, lists and
+An Express + MongoDB server keeps the accounts, binders, lists, decks and
 settings. The published app and website use the one on Render (set by
 `EXPO_PUBLIC_API_URL`); without that setting, the app looks for a server
 on `http://localhost:4100`. To run your own:

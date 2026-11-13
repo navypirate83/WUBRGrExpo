@@ -14,6 +14,8 @@ export const COLLECTIONS = {
   card: 'wubrgr_cards',
   list: 'wubrgr_lists',
   listCard: 'wubrgr_listcards',
+  deck: 'wubrgr_decks',
+  deckCard: 'wubrgr_deckcards',
   // Answers remembered from Scryfall (a different thing from "card" above,
   // which is a card sitting in someone's binder)
   scryfallCache: 'wubrgr_scryfallcache',

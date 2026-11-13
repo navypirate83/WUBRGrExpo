@@ -13,7 +13,8 @@
    - press and HOLD a row for its options: Rename and Delete (it asks first)
    Each row is plain, like the Lists page: the deck's name in bold, its
    format and how many cards it has under that, and an arrow.
-   Decks are kept on this device only for now (see deckStorage.ts).
+   Decks are saved on this device and in your account (see deckStorage.ts
+   and serverSync.ts).
    ===================================================================== */
 
 import { useCallback, useState } from 'react';

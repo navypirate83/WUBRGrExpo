@@ -36,7 +36,8 @@
    switch between the two lists; a "+" or a dragged picture adds to the one
    showing; a card's window can move it between them.
    Picking a different printing and the format's other rules come later.
-   Decks are kept on this device only for now (see lib/deckStorage.ts).
+   Decks are saved on this device and in your account (see lib/deckStorage.ts
+   and serverSync.ts).
    ===================================================================== */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';

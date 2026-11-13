@@ -290,7 +290,9 @@ export const helpTopics: HelpTopic[] = [
               If the deck already has as many copies of a card as its format allows (one in Commander-style
               formats, four in the others), a window says so and lets you <Strong>Add anyway</Strong>, since a few
               cards break the limit. Basic lands, snow-covered basic lands and Wastes never ask.
-              Decks are kept on this device only for now.
+              Decks are saved like binders and lists: on this device first, and in your WUBRG'r account when you're
+              logged in, so they follow you to your other phones and computers (each person only ever sees their own). They
+              aren't saved to Google Drive.
             </P>
           </>
         ),

@@ -11,6 +11,7 @@
 
 import { isBlank, hasControlChars } from './text.js';
 import { isGoodCover, COVER_SYMBOL_PATTERN } from '../models/Binder.js';
+import { DECK_FORMAT_CODES } from '../models/Deck.js';
 
 /* ---------- small checks, one per kind of value ---------- */
 
@@ -208,6 +209,36 @@ export function validateListName(body) {
   const input = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
   const problem = checkText(input.name, 'Name', { min: 1, max: 100 });
   return problem ? { error: problem } : { value: { name: input.name.trim() } };
+}
+
+// Checks a deck card: a list card plus where it is kept ("zone": the
+// sideboard or the command zone; none means the main deck) and, in the
+// command zone, which spot ("slot" 0 or 1)
+export function validateDeckCard(card) {
+  const result = validateListCard(card);
+  if (result.error) return result;
+  if (card.zone !== undefined && card.zone !== null) {
+    if (card.zone !== 'side' && card.zone !== 'command') return { error: 'zone must be "side" or "command"' };
+    result.value.zone = card.zone;
+  }
+  if (card.slot !== undefined && card.slot !== null) {
+    if (card.slot !== 0 && card.slot !== 1) return { error: 'slot must be 0 or 1' };
+    result.value.slot = card.slot;
+  }
+  return result;
+}
+
+// Checks a deck's name (1 to 100 characters) and, when sent, its format
+export function validateDeck(body) {
+  const input = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+  const problem = checkText(input.name, 'Name', { min: 1, max: 100 });
+  if (problem) return { error: problem };
+  const value = { name: input.name.trim() };
+  if (input.format !== undefined) {
+    if (!DECK_FORMAT_CODES.includes(input.format)) return { error: `Format must be one of: ${DECK_FORMAT_CODES.join(', ')}` };
+    value.format = input.format;
+  }
+  return { value };
 }
 
 // The most cards one binder may hold (a safety cap)

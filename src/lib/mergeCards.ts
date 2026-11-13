@@ -101,3 +101,29 @@ export function mergeListCards<T extends CardLike>(mine: T[], theirs: T[]): T[] 
   }
   return [...theirs, ...added];
 }
+
+// Combine two decks' cards, the same way (see mergeListCards), except that a
+// card in the sideboard and the same card in the main deck are different
+// cards. A card of mine that would take a command zone spot the account's deck
+// already uses goes into the main deck instead (a spot holds one card).
+type DeckCardLike = CardLike & { zone?: string; slot?: number };
+const deckIdentity = (card: DeckCardLike): string => `${cardIdentity(card)}|${card.zone ?? 'main'}|${card.zone === 'command' ? card.slot ?? 0 : ''}`;
+
+export function mergeDeckCards<T extends DeckCardLike>(mine: T[], theirs: T[]): T[] {
+  const available = new Map<string, number>();
+  for (const card of theirs) available.set(deckIdentity(card), (available.get(deckIdentity(card)) ?? 0) + 1);
+  const taken = new Set(theirs.filter((c) => c.zone === 'command').map((c) => c.slot ?? 0));
+  const added: T[] = [];
+  for (const card of mine) {
+    const id = deckIdentity(card);
+    const left = available.get(id) ?? 0;
+    if (left > 0) { available.set(id, left - 1); continue; }
+    if (card.zone === 'command' && taken.has(card.slot ?? 0)) {
+      const { zone: _zone, slot: _slot, ...rest } = card;
+      added.push(rest as T);
+    } else {
+      added.push(card);
+    }
+  }
+  return [...theirs, ...added];
+}

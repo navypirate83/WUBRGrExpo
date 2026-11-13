@@ -5,8 +5,10 @@
    its cards in the order they were added. A card in a deck is saved the
    same way as a card in a list: its exact printing and picture, plus its
    casting cost and type line.
-   For now decks are kept on this device only (not in Google Drive or on
-   the server); saving them to the account comes later.
+   Decks are kept on this device first (so the app works with no internet),
+   and when you're signed in they are also kept in your WUBRG'r account, so
+   they follow you to your other devices (see serverSync.ts). They aren't
+   saved to Google Drive.
    This is the first step of decks: the cards are simply a list. The
    commander slot, sideboard and the format's rules come later.
    Plain TypeScript with no React in it.
@@ -55,8 +57,9 @@ export function loadDecks(): Deck[] {
   }
 }
 
-// Keep every deck on this device. Returns false if the device wouldn't save.
-function saveDecks(decks: Deck[]): boolean {
+// Keep every deck on this device, just as given. Returns false if the device
+// wouldn't save. (The server sync uses this too: see serverSync.ts.)
+export function saveDecks(decks: Deck[]): boolean {
   return storageSet(DECKS_KEY, JSON.stringify(decks));
 }
 
@@ -88,9 +91,14 @@ export function nextDeckName(): string {
   return `Deck ${n}`;
 }
 
+// A new id for a deck kept on this device
+export function newLocalDeckId(): string {
+  return `local-deck-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 // Make a new, empty deck at the end, and give back its id
 export function addDeck(name: string, format: string = DEFAULT_DECK_FORMAT): string {
-  const id = `local-deck-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const id = newLocalDeckId();
   saveDecks([...loadDecks(), { id, name: name.trim() || nextDeckName(), format: cleanDeckFormat(format), cards: [] }]);
   return id;
 }

@@ -42,6 +42,7 @@ import { askSyncDirection, type SyncQuestion } from './syncChoice';
 import { storageRemove } from './storage';
 import { clearSaved } from './cardCache';
 import { forgetServerLinks } from './serverSync';
+import { forgetAllDecks } from './deckStorage';
 
 // How a reconcile ended: nothing to do, one of the two directions, or
 // "Not now"
@@ -270,6 +271,7 @@ export async function resetPhoneMemory(): Promise<void> {
   } catch { /* couldn't tell Google: the pass is forgotten here anyway */ }
   clearAllBinders();
   forgetAllLists();
+  forgetAllDecks();
   setLocalMode(false);
   clearSnapshot();
   storageRemove('lastBinderId');

@@ -1,6 +1,6 @@
 /* =====================================================================
    KEEPING THIS DEVICE AND THE WUBRG'R SERVER THE SAME
-   The device keeps the working copy of your binders and lists (so the app
+   The device keeps the working copy of your binders, lists and decks (so the app
    works with no internet). When you're signed in, syncWithServer():
    1. SENDS what changed on this device. A binder or list that isn't on
       the server yet is created there (this is also how the binders you
@@ -58,8 +58,12 @@ import {
 import {
   forgetList, loadLists, newLocalListId, saveLists, type CardList, type ListCard,
 } from './listStorage';
+import {
+  forgetDeck, loadDecks, newLocalDeckId, saveDecks, type Deck, type DeckCard,
+} from './deckStorage';
+import { cleanDeckFormat } from './deckFormats';
 import { storageGet, storageKeys, storageRemove, storageSet } from './storage';
-import { mergeBinderCards, mergeListCards } from './mergeCards';
+import { mergeBinderCards, mergeDeckCards, mergeListCards } from './mergeCards';
 import { askMergeChoice, type MergeChoice } from './mergeChoice';
 
 /* ---------- what we remember between syncs ---------- */
@@ -67,7 +71,7 @@ import { askMergeChoice, type MergeChoice } from './mergeChoice';
 // For one binder or list: its id on the server, its fingerprint when we
 // last synced it, and the server's "version" time then
 type Link = { serverId: string; fingerprint: string; version: string };
-type Memory = { binders: Record<string, Link>; lists: Record<string, Link> };
+type Memory = { binders: Record<string, Link>; lists: Record<string, Link>; decks: Record<string, Link> };
 
 // Each account has its own memory on this device, so logging out and in
 // again (even as someone else in between) never mixes links up, and a
@@ -79,9 +83,9 @@ function memoryKey(): string {
 function readMemory(): Memory {
   try {
     const saved = JSON.parse(storageGet(memoryKey()) ?? 'null');
-    if (saved && typeof saved === 'object') return { binders: saved.binders ?? {}, lists: saved.lists ?? {} };
+    if (saved && typeof saved === 'object') return { binders: saved.binders ?? {}, lists: saved.lists ?? {}, decks: saved.decks ?? {} };
   } catch { /* unreadable: start fresh */ }
-  return { binders: {}, lists: {} };
+  return { binders: {}, lists: {}, decks: {} };
 }
 function writeMemory(memory: Memory): void {
   storageSet(memoryKey(), JSON.stringify(memory));
@@ -101,17 +105,17 @@ const NOT_SENT_YET = 'not-sent-yet';
 
 // Binders and lists the person said "Decide later" to, until the app is
 // closed (so the question isn't asked again at every sync, every few
-// seconds): "binder:<id>" or "list:<id>"
+// seconds): "binder:<id>", "list:<id>" or "deck:<id>"
 const decidedLater = new Set<string>();
 
 // "Do the same for the others": the answer to use for the rest of THIS
 // sync. (Cleared at the start of every sync.)
-let sameForOthers: { binder: MergeChoice | null; list: MergeChoice | null } = { binder: null, list: null };
+let sameForOthers: { binder: MergeChoice | null; list: MergeChoice | null; deck: MergeChoice | null } = { binder: null, list: null, deck: null };
 
 // Ask which version to keep (unless already answered for this one, or for
 // all of them). Returns null for "Decide later".
 async function decideMerge(
-  kind: 'binder' | 'list', localId: string, name: string, device: number, account: number, combined: number,
+  kind: 'binder' | 'list' | 'deck', localId: string, name: string, device: number, account: number, combined: number,
 ): Promise<MergeChoice | null> {
   const id = `${kind}:${localId}`;
   if (decidedLater.has(id)) return null;
@@ -138,8 +142,8 @@ function fingerprintOf(value: unknown): string {
 /* ---------- turning cards into what the server wants, and back ---------- */
 
 // What the server sends for a binder or list
-type ServerItem = { _id: string; name: string; color?: string | null; cover?: string; pages?: number; updatedAt: string };
-type ServerCard = BinderCard & { page: number; pocket: number; manaCost?: string; typeLine?: string };
+type ServerItem = { _id: string; name: string; color?: string | null; cover?: string; pages?: number; format?: string; updatedAt: string };
+type ServerCard = BinderCard & { page: number; pocket: number; manaCost?: string; typeLine?: string; zone?: 'side' | 'command'; slot?: 0 | 1 };
 
 // This device's cards in the account's layout (what the server stores),
 // and back. The pockets are counted page by page, so each card keeps its
@@ -580,6 +584,169 @@ async function pullList(localId: string, remote: ServerItem, memory: Memory): Pr
   writeMemory(memory);
 }
 
+/* ---------- decks ---------- */
+
+// The same steps as the lists (see syncLists), for decks: a deck also has a
+// format, and each card is in the main deck, the sideboard or the command zone.
+async function syncDecks(memory: Memory): Promise<void> {
+  // A server that doesn't have decks yet (it hasn't been updated): leave the
+  // decks on this device for now, without an error
+  let onServer: ServerItem[];
+  try {
+    onServer = await getAll<ServerItem>('/decks');
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) return;
+    throw err;
+  }
+  const serverById = new Map(onServer.map((item) => [item._id, item]));
+  let decks = loadDecks();
+  // Server decks waiting for an answer ("Decide later"): not to be brought
+  // down as a second copy meanwhile
+  const heldBack = new Set<string>();
+
+  // 1. Every deck on this device
+  for (const deck of [...decks]) {
+    const fingerprint = fingerprintOf([deck.name, deck.format, deck.cards]);
+    const link = memory.decks[deck.id];
+    const remote = link ? serverById.get(link.serverId) : undefined;
+
+    if (!remote) {
+      if (link && link.fingerprint === fingerprint) {
+        // Deleted on another device and unchanged here: remove it here
+        decks = decks.filter((d) => d.id !== deck.id);
+        forgetDeck(deck.id);
+        delete memory.decks[deck.id];
+        continue;
+      }
+      // Never linked, but the server already has a deck of this name that
+      // nothing here is linked to? Same deck: with the same cards just
+      // link them; with different cards combine them (see mergeCards.ts).
+      const sameName = link ? undefined : findUnlinkedSameName(deck.name, onServer, memory.decks);
+      if (sameName) {
+        const theirCards = (await apiRequest<ServerCard[]>(`/decks/${sameName._id}/cards`)).map(deckCardFromServer);
+        if (sameDeckCards(deck.cards, theirCards) && sameName.name === deck.name && cleanDeckFormat(sameName.format) === deck.format) {
+          // Exactly the same name, format and cards: just link them, nothing to send
+          memory.decks[deck.id] = { serverId: sameName._id, fingerprint, version: sameName.updatedAt };
+          writeMemory(memory);
+          continue;
+        }
+        const combinedCards = mergeDeckCards(deck.cards, theirCards);
+        // The same cards (only the name's capital letters or the format differ):
+        // nothing to decide. Otherwise ask which version to keep.
+        const choice = sameDeckCards(deck.cards, theirCards)
+          ? 'combine'
+          : await decideMerge('deck', deck.id, deck.name, deck.cards.length, theirCards.length, combinedCards.length);
+        if (choice === 'combine') {
+          const combined: Deck = { ...deck, name: sameName.name, cards: combinedCards };
+          decks = decks.map((d) => (d.id === deck.id ? combined : d));
+          saveDecks(loadDecks().map((d) => (d.id === deck.id ? combined : d)));
+          memory.decks[deck.id] = { serverId: sameName._id, fingerprint: NOT_SENT_YET, version: '' };
+          writeMemory(memory);
+          await pushDeck(combined, sameName._id, memory);
+        } else if (choice === 'keep-device') {
+          memory.decks[deck.id] = { serverId: sameName._id, fingerprint: NOT_SENT_YET, version: '' };
+          writeMemory(memory);
+          await pushDeck(deck, sameName._id, memory);
+        } else if (choice === 'keep-account') {
+          await pullDeck(deck.id, sameName, memory);
+        } else {
+          heldBack.add(sameName._id);
+        }
+        continue;
+      }
+      const target = await createDeckOnServer(deck);
+      // Remember the link before the cards are sent (see createBinderOnServer)
+      memory.decks[deck.id] = { serverId: target._id, fingerprint: NOT_SENT_YET, version: '' };
+      writeMemory(memory);
+      await pushDeck(deck, target._id, memory);
+      continue;
+    }
+
+    const changedHere = !link || link.fingerprint !== fingerprint;
+    const changedThere = remote.updatedAt !== link?.version;
+    if (changedHere) await pushDeck(deck, remote._id, memory);
+    else if (changedThere) await pullDeck(deck.id, remote, memory);
+  }
+
+  // 2. Decks on the server this device has never seen
+  const known = new Set(Object.values(memory.decks).map((link) => link.serverId));
+  for (const remote of onServer) {
+    if (known.has(remote._id) || heldBack.has(remote._id)) continue;
+    const cards = await apiRequest<ServerCard[]>(`/decks/${remote._id}/cards`);
+    const id = newLocalDeckId();
+    const added: Deck = { id, name: uniqueDeckName(remote.name), format: cleanDeckFormat(remote.format), cards: cards.map(deckCardFromServer) };
+    saveDecks([...loadDecks(), added]);
+    memory.decks[id] = { serverId: remote._id, fingerprint: fingerprintOf([added.name, added.format, added.cards]), version: remote.updatedAt };
+    writeMemory(memory);
+  }
+
+  // 3. Decks deleted on this device
+  const stillHere = new Set(loadDecks().map((d) => d.id));
+  for (const [localId, link] of Object.entries(memory.decks)) {
+    if (stillHere.has(localId)) continue;
+    await apiRequest(`/decks/${link.serverId}`, { method: 'DELETE' }).catch((err) => {
+      if ((err as { status?: number }).status !== 404) throw err;
+    });
+    delete memory.decks[localId];
+  }
+}
+
+// A deck card from the server: a list card, and where it is kept
+function deckCardFromServer(card: ServerCard): DeckCard {
+  const out: DeckCard = listCardFromServer(card);
+  if (card.zone === 'side' || card.zone === 'command') out.zone = card.zone;
+  if (card.zone === 'command' && (card.slot === 0 || card.slot === 1)) out.slot = card.slot;
+  return out;
+}
+
+// A deck name not already used on this device
+function uniqueDeckName(name: string): string {
+  const taken = new Set(loadDecks().map((d) => d.name.toLowerCase()));
+  let candidate = name;
+  for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${name} ${n}`;
+  return candidate;
+}
+
+// Do two decks hold the same cards (in any order)?
+function sameDeckCards(mine: DeckCard[], theirs: DeckCard[]): boolean {
+  const text = (cards: DeckCard[]) =>
+    cards.map((card) => stableText(deckCardFromServer(card as unknown as ServerCard))).sort().join('|');
+  return mine.length === theirs.length && text(mine) === text(theirs);
+}
+
+// Make a deck on the server (a number is added to the name if it's taken)
+async function createDeckOnServer(deck: Deck): Promise<ServerItem> {
+  try {
+    return await apiRequest<ServerItem>('/decks', { method: 'POST', body: { name: deck.name, format: deck.format } });
+  } catch (err) {
+    if ((err as { status?: number }).status !== 409) throw err;
+    const taken = new Set((await getAll<ServerItem>('/decks')).map((item) => item.name.toLowerCase()));
+    let n = 2;
+    let name = deck.name;
+    while (taken.has(name.toLowerCase())) name = `${deck.name} ${n++}`;
+    saveDecks(loadDecks().map((d) => (d.id === deck.id ? { ...d, name } : d)));
+    return apiRequest<ServerItem>('/decks', { method: 'POST', body: { name, format: deck.format } });
+  }
+}
+
+async function pushDeck(deck: Deck, serverId: string, memory: Memory): Promise<void> {
+  const current = loadDecks().find((d) => d.id === deck.id) ?? deck;
+  await apiRequest(`/decks/${serverId}`, { method: 'PUT', body: { name: current.name, format: current.format } });
+  await apiRequest(`/decks/${serverId}/cards`, { method: 'PUT', body: { cards: current.cards } });
+  const after = await apiRequest<ServerItem>(`/decks/${serverId}`);
+  memory.decks[deck.id] = { serverId, fingerprint: fingerprintOf([current.name, current.format, current.cards]), version: after.updatedAt };
+  writeMemory(memory);
+}
+
+async function pullDeck(localId: string, remote: ServerItem, memory: Memory): Promise<void> {
+  const cards = (await apiRequest<ServerCard[]>(`/decks/${remote._id}/cards`)).map(deckCardFromServer);
+  const format = cleanDeckFormat(remote.format);
+  const decks = loadDecks().map((d) => (d.id === localId ? { ...d, name: remote.name, format, cards } : d));
+  saveDecks(decks);
+  memory.decks[localId] = { serverId: remote._id, fingerprint: fingerprintOf([remote.name, format, cards]), version: remote.updatedAt };
+  writeMemory(memory);
+}
+
 /* ---------- running a sync ---------- */
 
 // Is a sync running right now? (A second request waits for the same one.)
@@ -593,13 +760,14 @@ export function syncWithServer(): Promise<void> {
     running = (async () => {
       const memory = readMemory();
       // "Do the same for the others" lasts for one sync only
-      sameForOthers = { binder: null, list: null };
+      sameForOthers = { binder: null, list: null, deck: null };
       // The app's screens work from the device's copy: make sure the
       // binders show even though nobody "signed in with Google"
       setLocalMode(true);
       try {
         await syncBinders(memory);
         await syncLists(memory);
+        await syncDecks(memory);
       } finally {
         // Remember how far we got, even if something failed half way
         writeMemory(memory);
@@ -632,8 +800,14 @@ export function changedSinceSync(): boolean {
     const link = memory.lists[list.id];
     if (!link || link.fingerprint !== fingerprintOf([list.name, list.cards])) return true;
   }
+  for (const deck of loadDecks()) {
+    const link = memory.decks[deck.id];
+    if (!link || link.fingerprint !== fingerprintOf([deck.name, deck.format, deck.cards])) return true;
+  }
   const hereBinders = new Set(loadBinderList().map((b) => b.id));
   const hereLists = new Set(loadLists().map((l) => l.id));
+  const hereDecks = new Set(loadDecks().map((d) => d.id));
   return Object.keys(memory.binders).some((id) => !hereBinders.has(id))
-    || Object.keys(memory.lists).some((id) => !hereLists.has(id));
+    || Object.keys(memory.lists).some((id) => !hereLists.has(id))
+    || Object.keys(memory.decks).some((id) => !hereDecks.has(id));
 }
