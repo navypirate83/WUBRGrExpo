@@ -553,3 +553,15 @@ export function samePrinting(a: BinderCard, b: BinderCard): boolean {
 export function cardCountText(count: number): string {
   return `${count.toLocaleString()} card${count === 1 ? '' : 's'}`;
 }
+
+// The names of every card in your binders (in lowercase, so capital letters
+// don't matter), whatever the printing. Cards on a list aren't counted: a
+// list is for cards you want, not cards you own. A deck uses this to mark the
+// cards that aren't in your collection.
+export function ownedCardNames(): Set<string> {
+  const names = new Set<string>();
+  for (const binder of loadBinderList()) {
+    for (const card of Object.values(loadBinder(binder.id))) names.add(card.name.trim().toLowerCase());
+  }
+  return names;
+}

@@ -69,7 +69,7 @@ import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
 import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { detailsOf, costAndTypeOf, finishParam } from '@/lib/cardDetails';
-import { cardCount, loadBinder, loadBinderList, MAX_COPIES, samePrinting } from '@/lib/binderStorage';
+import { cardCount, loadBinder, loadBinderList, MAX_COPIES, ownedCardNames, samePrinting } from '@/lib/binderStorage';
 import { cardByNamePath, cardBySetPath, loadOneCard, type ScryfallCard } from '@/lib/scryfall';
 import { downloadDeckCsv } from '@/lib/binderDownload';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -168,8 +168,13 @@ export default function DeckScreen() {
     if (prices.printings && fillDeckDetails(id, prices.printings)) setDeck(findDeck(id));
   }, [prices.printings, deck]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Every time this page comes into view: read the deck again
-  useFocusEffect(useCallback(() => { setDeck(findDeck(id)); }, [id]));
+  // The names of the cards in your binders: a deck card not among them gets a
+  // bold dashed red border (cards on lists don't count)
+  const [owned, setOwned] = useState<Set<string>>(ownedCardNames);
+  const isMissing = useCallback((name: string) => !owned.has(name.trim().toLowerCase()), [owned]);
+
+  // Every time this page comes into view: read the deck again (and what you own)
+  useFocusEffect(useCallback(() => { setDeck(findDeck(id)); setOwned(ownedCardNames()); }, [id]));
 
   // The header: the deck's name, then the Binders / Lists / Decks switch and Help
   useLayoutEffect(() => {
@@ -454,6 +459,7 @@ export default function DeckScreen() {
   // The card is safely in the binder: take it out of the deck
   function movedToBinder(moveNote: string) {
     if (movingIndex !== null) setDeckCardCount(id, movingIndex, 0);
+    setOwned(ownedCardNames());
     setMovingIndex(null);
     setNote(moveNote.replace('✓ ', ''));
     setDeck(findDeck(id));
@@ -516,7 +522,7 @@ export default function DeckScreen() {
 
       {/* THE COMMAND ZONE (formats that have one) */}
       {format.command && (
-        <CommandZone deck={deck} onChoose={openSlot} onOpenCard={setMenuIndex} onMoveToDeck={moveSlotToDeck} />
+        <CommandZone deck={deck} onChoose={openSlot} onOpenCard={setMenuIndex} onMoveToDeck={moveSlotToDeck} missing={isMissing} />
       )}
 
       {/* THE CARDS, with a picture dragged over them outlined */}
@@ -531,8 +537,9 @@ export default function DeckScreen() {
           minTile={GRID_ZOOM_WIDTHS[gridZoom]}
           prices={prices}
           headerOf={headerOf}
-          // The format, at the end of the line of totals (and the card just dropped)
-          note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', addedNote].filter(Boolean).join(' · ')}
+          missing={(card) => isMissing(card.name)}
+          // The format, at the end of the line of totals (and how many cards aren't in your binders, and the card just dropped)
+          note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', deck.cards.some((c) => isMissing(c.name)) ? `${deck.cards.filter((c) => isMissing(c.name)).length} not in your binders` : '', addedNote].filter(Boolean).join(' · ')}
           searchOf={searching ? allEntries.length : undefined}
           // No cards yet (or none matching the search)
           empty={(

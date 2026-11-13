@@ -263,6 +263,9 @@ export const helpTopics: HelpTopic[] = [
               the format. Each card has a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy
               asks whether to delete it). On a computer, you can also <Strong>drag a card picture</Strong> from Scryfall or
               EDHREC and drop it anywhere over the cards to add it (the same warning about too many copies applies).
+              A card in a deck that <Strong>isn't in any of your binders</Strong> has a bold <Strong>dashed red border</Strong> around its
+              picture (a card on a list doesn't count, and neither does which printing you own), and the line above the
+              cards says how many aren't in your binders.
               The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
               (it has the deck's name, format and where each card is kept: main, sideboard or command).
             </P>
