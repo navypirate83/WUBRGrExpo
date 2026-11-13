@@ -1141,7 +1141,11 @@ export const helpTopics: HelpTopic[] = [
               <Strong>Hide all</Strong> turns them all off (the Format Legality box then doesn't
               show at all).
             </Bullet>
-            <P>A new format added to Magic later shows up turned on, so you won't miss it.</P>
+            <P>
+              Only paper formats are listed. Brawl (all kinds), Alchemy, Historic, Timeless and
+              Gladiator are Arena-only, so they never show anywhere in the app. A new paper format
+              added to Magic later shows up turned on, so you won't miss it.
+            </P>
           </>
         ),
       },

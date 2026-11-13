@@ -246,13 +246,19 @@ export const FORMAT_NAMES: [string, string][] = [
   ['pauper', 'Pauper'],              ['commander', 'Commander'],
   ['oathbreaker', 'Oathbreaker'],    ['paupercommander', 'Pauper Commander'],
   ['duel', 'Duel Commander'],        ['predh', 'PreDH'],
-  ['tlr', 'Tiny Leaders: Reborn'],   ['brawl', 'Brawl'],
-  ['standardbrawl', 'Standard Brawl'], ['competitivebrawl', 'Competitive Brawl'],
-  ['historic', 'Historic'],          ['timeless', 'Timeless'],
-  ['alchemy', 'Alchemy'],            ['gladiator', 'Gladiator'],
-  ['penny', 'Penny Dreadful'],       ['premodern', 'Premodern'],
-  ['oldschool', 'Old School 93/94'],
+  ['tlr', 'Tiny Leaders: Reborn'],   ['penny', 'Penny Dreadful'],
+  ['premodern', 'Premodern'],        ['oldschool', 'Old School 93/94'],
 ];
+
+// Formats this app never shows: it is for PAPER Magic only. Brawl (all
+// three kinds), Alchemy, Historic, Timeless and Gladiator are Arena
+// (digital) ways of playing. They are left out of the Format Legality box,
+// out of the Settings list, and out of the "formats we don't know yet" part
+// below, so they can't sneak back in under their code.
+const NOT_PAPER_FORMATS = new Set([
+  'brawl', 'standardbrawl', 'competitivebrawl',
+  'alchemy', 'historic', 'timeless', 'gladiator',
+]);
 
 // The words shown on each status label
 const LEGALITY_WORDS: Record<string, string> = {
@@ -275,7 +281,7 @@ export function legalityRows(print: ScryfallCard, hidden: string[] = []): Legali
   const known = new Set(FORMAT_NAMES.map(([code]) => code));
   const formats = [
     ...FORMAT_NAMES.filter(([code]) => code in legalities),
-    ...Object.keys(legalities).filter((code) => !known.has(code)).map((code): [string, string] => [code, code]),
+    ...Object.keys(legalities).filter((code) => !known.has(code) && !NOT_PAPER_FORMATS.has(code)).map((code): [string, string] => [code, code]),
   ];
   return formats.filter(([code]) => !hidden.includes(code)).map(([code, name]) => {
     const status = legalities[code];
