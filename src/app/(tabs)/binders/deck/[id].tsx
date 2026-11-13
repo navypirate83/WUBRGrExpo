@@ -28,6 +28,7 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation }
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useTheme';
 import { useAccount } from '@/hooks/useAccount';
+import { useAnnouncer } from '@/hooks/useAnnouncer';
 import HelpButton from '@/components/HelpButton';
 import ShelfSwitch from '@/components/binders/ShelfSwitch';
 import DeckAddSearch from '@/components/decks/DeckAddSearch';
@@ -66,6 +67,7 @@ function finderLinkFor(card: DeckCard): string {
 
 export default function DeckScreen() {
   const colors = useColors();
+  const { announce } = useAnnouncer();
   const navigation = useNavigation();
   const { usingBinders } = useAccount();
   const { id = '' } = useLocalSearchParams<{ id: string }>();
@@ -147,19 +149,18 @@ export default function DeckScreen() {
     }
   }
 
-  // The − and + on a row: one fewer or one more copy (− on the last copy asks first)
-  async function changeCopies(index: number, step: number) {
-    if (!deck) return;
-    const card = deck.cards[index];
-    const next = cardCount(card) + step;
-    if (next < 1) {
-      const yes = await askYesNo(`Remove ${card.name}?`, 'It will be taken out of this deck.', 'Yes, remove', 'No');
-      if (!yes) return;
-      setDeckCardCount(id, index, 0);
-    } else if (next <= MAX_COPIES) {
-      setDeckCardCount(id, index, next);
-    }
+  // One more or one fewer copy of the card at this spot, the same as in a
+  // list. "−" on the last copy is a delete (it asks first).
+  function changeCopies(index: number, step: number) {
+    const card = deck?.cards[index];
+    if (!card) return;
+    const count = cardCount(card);
+    if (step < 0 && count === 1) { confirmDelete(index); return; }
+    const now = Math.min(MAX_COPIES, count + step);
+    if (now === count) return;
+    setDeckCardCount(id, index, now);
     setDeck(findDeck(id));
+    announce(`${now} ${now === 1 ? 'copy' : 'copies'} of ${card.name}.`);
   }
 
   // "Delete from deck": ask, then take the card out
@@ -260,7 +261,7 @@ export default function DeckScreen() {
           {/* How many copies: − and + */}
           <View style={styles.menuCopies}>
             <Button label="−" kind="secondary" accessibilityLabel={cardCount(menuCard) > 1 ? 'One fewer copy' : 'Delete from deck'}
-                    onPress={() => { if (cardCount(menuCard) > 1) changeCopies(menuIndex, -1); else confirmDelete(menuIndex); }} />
+                    onPress={() => changeCopies(menuIndex, -1)} />
             <Text style={[styles.menuCount, { color: colors.text }]}>
               {cardCount(menuCard)} {cardCount(menuCard) === 1 ? 'copy' : 'copies'}
             </Text>
