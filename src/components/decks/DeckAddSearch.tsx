@@ -1,10 +1,11 @@
 /* =====================================================================
    FIND CARDS TO ADD TO A DECK
    The search bar inside an opened deck. Type a card name and the matching
-   cards are listed right under the bar (with the same forgiving search as
-   the Card Finder: part of a name, odd spacing and small typos all still
-   match). Each line has a "+": tapping it adds that card to the deck, one
-   copy each time. The printing added is the first one that comes up
+   cards DROP DOWN over the page under the bar (so nothing on the screen
+   moves; with the same forgiving search as the Card Finder: part of a name,
+   odd spacing and small typos all still match). Each line has a "+":
+   tapping it adds that card to the deck, one copy each time, and the
+   drop-down stays open so more can be added. Leaving the box closes it. The printing added is the first one that comes up
    (change it later by opening the card in the deck).
    The switch under the bar, "Only cards in my binders", narrows the
    search to the cards you own in your binders (a card on a list doesn't
@@ -14,7 +15,7 @@
    this bar just says which card name was chosen.
    ===================================================================== */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
@@ -41,6 +42,12 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
   const colors = useColors();
   const [text, setText] = useState('');
   const [ownedOnly, setOwnedOnly] = useState(false);
+  // Is the drop-down showing? It opens when the box is used and closes when
+  // you leave it (a moment later, so a tap on a "+" still counts and keeps it open)
+  const [open, setOpen] = useState(false);
+  const keepOpen = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   // Every card name (downloaded once, shared with the Card Finder)
   const allNames = useQuery({ queryKey: ['card-names'], queryFn: loadCardNames, select: prepareNames });
@@ -61,7 +68,7 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
     return fuzzySearch(source, text).slice(0, MAX_RESULTS);
   }, [text, ownedOnly, ownedNames, allNames.data]);
 
-  const searching = text.trim().length >= MIN_CHARS;
+  const searching = open && text.trim().length >= MIN_CHARS;
 
   return (
     <View style={styles.wrap} accessibilityRole="search">
@@ -71,7 +78,12 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
           accessibilityLabel="Search for a card to add to this deck"
           placeholder="Search for a card to add…"
           value={text}
-          onChangeText={setText}
+          onChangeText={(value) => { setText(value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            clearTimeout(closeTimer.current);
+            closeTimer.current = setTimeout(() => { if (!keepOpen.current) setOpen(false); keepOpen.current = false; }, 200);
+          }}
           returnKeyType="search"
           autoCorrect={false}
           autoCapitalize="none"
@@ -89,13 +101,12 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
                 trackColor={{ true: colors.accent }} />
       </View>
 
-      {note ? <Text style={[styles.note, { color: colors.muted }]} accessibilityLiveRegion="polite">{note}</Text> : null}
-
-      {/* The matches, each with a "+" */}
+      {/* The matches, dropping down over whatever is below. The note about the
+          last card added is the first line, so it never moves anything. */}
       {searching && (
-        <View style={[styles.results, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.results, { backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }]}>
+          {note ? <Text style={[styles.note, { color: colors.muted, borderBottomColor: colors.border }]} accessibilityLiveRegion="polite">{note}</Text> : null}
           <FlatList
-            scrollEnabled={false}
             data={results}
             keyExtractor={(name) => name}
             keyboardShouldPersistTaps="handled"
@@ -114,6 +125,7 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
                     {parts.before}<Text style={styles.bold}>{parts.match}</Text>{parts.after}
                   </Text>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Add ${item} to the deck`} hitSlop={6}
+                             onPressIn={() => { keepOpen.current = true; }}
                              onPress={() => onAdd(item, ownedOnly)}
                              style={({ pressed }) => [styles.plus, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}>
                     <Ionicons name="add" size={22} color={colors.bg} />
@@ -131,14 +143,15 @@ export default function DeckAddSearch({ onAdd, note }: Props) {
 // The look: the same box as the other search bars, the list under it as
 // a bordered card
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  wrap: { gap: 8, zIndex: 10 },
   field: { justifyContent: 'center' },
   input: { paddingRight: 44 },
   searchIcon: { position: 'absolute', right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
   switchLabel: { fontSize: 15 },
-  note: { fontSize: 14, paddingHorizontal: 4 },
-  results: { borderWidth: 1, borderRadius: RADIUS, overflow: 'hidden' },
+  note: { fontSize: 14, paddingHorizontal: 14, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  // "top: 100%" puts the drop-down just under the bar and the switch, floating over the page
+  results: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 340, borderWidth: 1, borderRadius: RADIUS, overflow: 'hidden' },
   noResults: { padding: 14, fontSize: 15 },
   result: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, paddingRight: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48 },
   resultName: { flex: 1, fontSize: 16 },

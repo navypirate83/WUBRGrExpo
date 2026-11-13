@@ -158,7 +158,9 @@ export default function DeckScreen() {
         keyExtractor={(card, index) => `${card.set}-${card.number}-${card.face}-${card.foil ? 'f' : 'n'}-${index}`}
         contentContainerStyle={styles.page}
         keyboardShouldPersistTaps="handled"
-        // At the top: the search bar, then the quiet line about the deck
+        // At the top: the search bar (its drop-down floats over the cards
+        // below), then the quiet line about the deck
+        ListHeaderComponentStyle={styles.headerOnTop}
         ListHeaderComponent={
           <View style={styles.header}>
             <DeckAddSearch onAdd={add} note={note} />
@@ -195,7 +197,8 @@ export default function DeckScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   page: { padding: PAGE_PADDING, width: '100%', maxWidth: PAGE_MAX_WIDTH, alignSelf: 'center', flexGrow: 1, paddingBottom: 60 },
-  header: { gap: 10, marginBottom: 8 },
+  header: { gap: 10, marginBottom: 8, zIndex: 10 },
+  headerOnTop: { zIndex: 10 },
   summary: { fontSize: 13 },
   empty: { fontSize: 15, textAlign: 'center', marginTop: 24 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },

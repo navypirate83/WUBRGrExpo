@@ -15,7 +15,7 @@
      section's main page (shelfRootHref below). This holds for the bottom
      tab on a phone, the header buttons, and the side menu
    - an opened binder also remembers which page it was on
-   A binder or list that has been deleted since is forgotten: its button
+   A binder, list or deck that has been deleted since is forgotten: its button
    goes to the section's first page instead.
    It's remembered while the app is open (not after it's closed).
    Plain TypeScript with no React in it.
@@ -23,6 +23,7 @@
 
 import { findBinder } from './binderStorage';
 import { findList } from './listStorage';
+import { findDeck } from './deckStorage';
 
 export type ShelfSection = 'binders' | 'lists' | 'decks';
 
@@ -45,7 +46,7 @@ function sectionOf(pathname: string): ShelfSection | null {
   const path = pathname.replace(/\/+$/, '');
   if (path === '/binders') return 'binders';
   if (path === '/binders/lists' || /^\/binders\/list\/[^/]+$/.test(path)) return 'lists';
-  if (path === '/binders/decks') return 'decks';
+  if (path === '/binders/decks' || /^\/binders\/deck\/[^/]+$/.test(path)) return 'decks';
   if (/^\/binders\/[^/]+$/.test(path)) return 'binders';   // one binder
   return null;
 }
@@ -65,6 +66,8 @@ function stillThere(href: string): boolean {
   if (binder && !['lists', 'decks'].includes(binder)) return findBinder(binder) !== undefined;
   const list = /^\/binders\/list\/([^/]+)$/.exec(href)?.[1];
   if (list) return findList(list) !== undefined;
+  const deck = /^\/binders\/deck\/([^/]+)$/.exec(href)?.[1];
+  if (deck) return findDeck(deck) !== undefined;
   return true;
 }
 

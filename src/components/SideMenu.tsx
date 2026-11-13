@@ -49,10 +49,10 @@ const DECK_BOX_PICTURE = require('../../assets/images/deckbox-outline.svg') as n
 // An Ionicons icon's name, written the way the icon set spells it
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// Is this address the Lists page (or one list), or the Decks page?
+// Is this address the Lists page (or one list), or the Decks page (or one deck)?
 // Everything else under /binders is the Binders page (the shelf, or one binder).
 const LISTS_ADDRESS = /^\/binders\/lists?(\/|$)/;
-const DECKS_ADDRESS = /^\/binders\/decks(\/|$)/;
+const DECKS_ADDRESS = /^\/binders\/decks?(\/|$)/;
 
 export default function SideMenu({ style }: { style: 'slim' | 'full' }) {
   const colors = useColors();

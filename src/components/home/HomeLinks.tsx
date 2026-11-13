@@ -29,7 +29,7 @@ const SHELF: Place = { to: '/binders', icon: 'library-outline', name: 'The Shelf
 const PLACES: Place[] = [
   { to: '/search', icon: 'search-outline', name: 'Card Finder', about: 'Look up any Magic card' },
   { to: '/binders/lists', icon: 'list-outline', name: 'Lists', about: 'Your card lists' },
-  { to: '/binders/decks', icon: 'albums-outline', name: 'Decks', about: 'Your decklists (still being built)' },
+  { to: '/binders/decks', icon: 'albums-outline', name: 'Decks', about: 'Your decks' },
   { to: '/help', icon: 'help-circle-outline', name: 'Help', about: 'How everything works' },
 ];
 
