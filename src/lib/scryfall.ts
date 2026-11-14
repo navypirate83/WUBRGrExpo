@@ -181,6 +181,17 @@ export async function searchCards(query: string): Promise<ScryfallCard[]> {
   }
 }
 
+// Like searchCards, but every page of answers (for searches with hundreds of
+// results, like "all the cards banned in a format"). Nothing found gives [].
+export async function searchAllCards(query: string): Promise<ScryfallCard[]> {
+  try {
+    return await fetchAllPages<ScryfallCard>(`/cards/search?unique=cards&order=name&q=${encodeURIComponent(query)}`);
+  } catch (err) {
+    if (err instanceof Error && /didn.t match any cards|No cards found/i.test(err.message)) return [];
+    throw err;
+  }
+}
+
 // Some Scryfall lists come in pages. Keep asking for the next page
 // until we have everything, then return one combined list.
 async function fetchAllPages<T>(url: string): Promise<T[]> {

@@ -62,7 +62,7 @@ import CommandZone from '@/components/decks/CommandZone';
 import SlotSearchDialog from '@/components/decks/SlotSearchDialog';
 import { allowedInSlot, deckCardFromPrint, secondSpotShows, slotHint, slotName, slotQuery, zoneExtraOf } from '@/lib/deckZones';
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
-import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
+import { isBanned, useBanned } from '@/lib/bannedCards';import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
 import { CARD_BACK, costAndType, imageFor, isDoubleSided } from '@/lib/cards';
 import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
@@ -169,9 +169,13 @@ export default function DeckScreen() {
   }, [prices.printings, deck]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // The names of the cards in your binders: a deck card not among them gets a
-  // bold dashed red border (cards on lists don't count)
+  // bold solid red border (cards on lists don't count)
   const [owned, setOwned] = useState<Set<string>>(ownedCardNames);
   const isMissing = useCallback((name: string) => !owned.has(name.trim().toLowerCase()), [owned]);
+
+  // The cards banned in this deck's format (asked from Scryfall once): they
+  // get a black "BANNED" slash across their picture
+  const isBannedHere = useBanned(format.code);
 
   // Every time this page comes into view: read the deck again (and what you own)
   useFocusEffect(useCallback(() => { setDeck(findDeck(id)); setOwned(ownedCardNames()); }, [id]));
@@ -215,11 +219,15 @@ export default function DeckScreen() {
     };
   }
 
-  // Warn if the deck has as many copies of this card as its format allows
-  // (unless it's a basic land, a snow-covered basic or Wastes). True to go
-  // ahead and add it.
+  // Warn if the card is banned in this format, then if the deck has as many
+  // copies of it as the format allows (unless it's a basic land, a
+  // snow-covered basic or Wastes). True to go ahead and add it.
   async function okToAdd(name: string): Promise<boolean> {
     const format = deckFormat(deck!.format);
+    if (await isBanned(format.code, name)) {
+      const sure = await askYesNo(`${name} is banned`, `${name} is banned in ${format.name}. Are you sure you want to add it?`, 'Add anyway', 'Cancel');
+      if (!sure) return false;
+    }
     const have = copiesOf(findDeck(id), name);
     if (have < format.copyLimit || skipsCopyWarning(name)) return true;
     const why = format.copyLimit === 1
@@ -553,7 +561,7 @@ export default function DeckScreen() {
 
       {/* THE COMMAND ZONE (formats that have one) */}
       {format.command && (
-        <CommandZone deck={deck} onChoose={openSlot} onOpenCard={setMenuIndex} onMoveToDeck={moveSlotToDeck} missing={isMissing} />
+        <CommandZone deck={deck} onChoose={openSlot} onOpenCard={setMenuIndex} onMoveToDeck={moveSlotToDeck} missing={isMissing} banned={isBannedHere} />
       )}
 
       {/* THE CARDS, with a picture dragged over them outlined */}
@@ -569,6 +577,7 @@ export default function DeckScreen() {
           prices={prices}
           headerOf={headerOf}
           missing={(card) => isMissing(card.name)}
+          banned={(card) => isBannedHere(card.name)}
           // The format, at the end of the line of totals (and how many cards aren't in your binders, and the card just dropped)
           note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', deck.cards.some((c) => isMissing(c.name)) ? `${deck.cards.filter((c) => isMissing(c.name)).length} not in your binders` : '', addedNote].filter(Boolean).join(' · ')}
           searchOf={searching ? allEntries.length : undefined}

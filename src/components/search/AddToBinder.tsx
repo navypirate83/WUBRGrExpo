@@ -56,6 +56,7 @@ import {
   addCardToDeck, addDeck, copiesOf, findDeck, loadDecks, replaceDeckCard, type Deck,
 } from '@/lib/deckStorage';
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
+import { isBanned } from '@/lib/bannedCards';
 import { askYesNo } from '@/lib/dialogs';
 import { hapticTap } from '@/lib/haptics';
 import { useColors } from '@/hooks/useTheme';
@@ -177,6 +178,11 @@ export default function AddToBinder({ cardEntry, listEntry, toList, toDeck, from
     if (!deck) return;
     const entry = listEntry();
     const format = deckFormat(deck.format);
+    // A card banned in this format asks first
+    if (await isBanned(format.code, entry.name)) {
+      const sure = await askYesNo(`${entry.name} is banned`, `${entry.name} is banned in ${format.name}. Are you sure you want to add it?`, 'Add anyway', 'Cancel');
+      if (!sure) return;
+    }
     const have = copiesOf(deck, entry.name);
     if (have >= format.copyLimit && !skipsCopyWarning(entry.name)) {
       const why = format.copyLimit === 1

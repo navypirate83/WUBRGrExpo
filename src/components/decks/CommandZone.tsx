@@ -18,6 +18,7 @@ import { useColors } from '@/hooks/useTheme';
 import ManaCost from '@/components/lists/ManaCost';
 import FoilFrame from '@/components/binder/FoilFrame';
 import MissingOutline from './MissingOutline';
+import BannedSlash from './BannedSlash';
 import { commandCard, type Deck } from '@/lib/deckStorage';
 import { deckFormat } from '@/lib/deckFormats';
 import { secondSpotShows, slotHint, slotName } from '@/lib/deckZones';
@@ -28,10 +29,11 @@ type Props = {
   onChoose: (slot: 0 | 1) => void;          // an empty spot (or "Change") was tapped
   onOpenCard: (index: number) => void;      // a spot's card was tapped: its window
   onMoveToDeck: (slot: 0 | 1) => void;      // "Move to deck"
-  missing?: (name: string) => boolean;      // is this card not in your binders? (bold dashed red border)
+  missing?: (name: string) => boolean;      // is this card not in your binders? (bold solid red border)
+  banned?: (name: string) => boolean;       // is this card banned in the format? (black "BANNED" slash)
 };
 
-export default function CommandZone({ deck, onChoose, onOpenCard, onMoveToDeck, missing }: Props) {
+export default function CommandZone({ deck, onChoose, onOpenCard, onMoveToDeck, missing, banned }: Props) {
   const colors = useColors();
   const format = deckFormat(deck.format);
   if (!format.command) return null;
@@ -73,7 +75,8 @@ export default function CommandZone({ deck, onChoose, onOpenCard, onMoveToDeck, 
                   <FoilFrame foil={card.foil === true} width={54} height={76} radius={6}>
                     <Image source={pictureSource(card.image)} style={styles.thumb} contentFit="cover" />
                   </FoilFrame>
-                  {missing?.(card.name) && <MissingOutline radius={6} width={3} />}
+                  {banned?.(card.name) && <BannedSlash radius={6} />}
+                  {missing?.(card.name) &&<MissingOutline radius={6} width={3} />}
                 </View>
                 <View style={styles.what}>
                   <Text style={[styles.role, { color: colors.text }]} numberOfLines={2}>{card.name}</Text>

@@ -263,9 +263,12 @@ export const helpTopics: HelpTopic[] = [
               the format. Each card has a <Strong>− 3 +</Strong> bar for how many copies (<Strong>−</Strong> on the last copy
               asks whether to delete it). On a computer, you can also <Strong>drag a card picture</Strong> from Scryfall or
               EDHREC and drop it anywhere over the cards to add it (the same warning about too many copies applies).
-              A card in a deck that <Strong>isn't in any of your binders</Strong> has a bold <Strong>dashed red border</Strong> around its
+              A card in a deck that <Strong>isn't in any of your binders</Strong> has a bold <Strong>solid red border</Strong> around its
               picture (a card on a list doesn't count, and neither does which printing you own), and the line above the
               cards says how many aren't in your binders.
+              A card that is <Strong>banned in the deck's format</Strong> gets a thick black slash across its picture
+              (top left to bottom right) with <Strong>BANNED</Strong> written on it, and adding one (with the + in the
+              deck, a dropped picture, or the Card Finder) first asks whether you're sure.
               The <Strong>down arrow</Strong> button downloads the deck as a <Strong>.CSV</Strong> file
               (it has the deck's name, format and where each card is kept: main, sideboard or command).
             </P>

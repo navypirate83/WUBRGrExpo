@@ -51,6 +51,7 @@ import FoilFrame from './FoilFrame';
 import CopiesBar from './CopiesBar';
 import SortHeaderBar, { HEADER_HEIGHT } from './SortHeaderBar';
 import MissingOutline from '@/components/decks/MissingOutline';
+import BannedSlash from '@/components/decks/BannedSlash';
 import type { SortHeader } from '@/lib/binderSort';
 import type { BinderPrices } from '@/hooks/useBinderPrices';
 import { SPACE } from '@/theme/colors';
@@ -79,9 +80,12 @@ type Props = {
   // lib/binderSort.ts). A header bar goes in wherever the group changes.
   // Leave it out (or give back null) for no header bars.
   headerOf?: (entry: CardEntry) => SortHeader | null;
-  // Is this card to be marked with a bold dashed red border? (A deck marks the
+  // Is this card to be marked with a bold solid red border? (A deck marks the
   // cards that aren't in your binders; leave it out for no marks.)
   missing?: (card: BinderCard) => boolean;
+  // Is this card banned in the deck's format? (A deck draws a black "BANNED"
+  // slash across those pictures; leave it out for no slashes.)
+  banned?: (card: BinderCard) => boolean;
 };
 
 // What the FlatList draws, one item per screen row: a header bar, or a
@@ -96,7 +100,7 @@ const CARD_RATIO = 88 / 63;
 // The space between grid pictures
 const GRID_GAP = 10;
 
-export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint, flashKey, note, headerOf, missing }: Props) {
+export default function CardList({ entries, mode, width, onPick, onCopies, minTile, prices, empty, searchOf, hint, flashKey, note, headerOf, missing, banned }: Props) {
   const colors = useColors();
   const listRef = useRef<FlatList<Row>>(null);
   // Each set's symbol picture (downloaded once, shared with the Card Finder),
@@ -288,13 +292,13 @@ export default function CardList({ entries, mode, width, onPick, onCopies, minTi
         if (mode === 'list') {
           const item = row.entries[0];
           return <ListRow entry={item} onPick={onPick} onCopies={onCopies} border={colors.border} price={prices.byKey.get(item.key)} currency={prices.currency}
-                          setIcon={setIcons.data?.get(item.card.set.toLowerCase())} highlighted={item.key === flashKey} missing={missing?.(item.card) ?? false} />;
+                          setIcon={setIcons.data?.get(item.card.set.toLowerCase())} highlighted={item.key === flashKey} missing={missing?.(item.card) ?? false} banned={banned?.(item.card) ?? false} />;
         }
         // The Grid view: a row of pictures side by side
         return (
           <View style={styles.gridRow}>
             {row.entries.map((item) => (
-              <GridTile key={item.key} entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} missing={missing?.(item.card) ?? false} />
+              <GridTile key={item.key} entry={item} onPick={onPick} onCopies={onCopies} size={tile} highlighted={item.key === flashKey} missing={missing?.(item.card) ?? false} banned={banned?.(item.card) ?? false} />
             ))}
           </View>
         );
@@ -352,11 +356,12 @@ export function Summary({ entries, prices, searchOf, hint, note }: { entries: Ca
 /* ---------------------------------------------------------------------
    ONE LINE OF THE LIST. "memo" redraws it only when its card changes.
    --------------------------------------------------------------------- */
-const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency, setIcon, highlighted, missing }: {
+const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, currency, setIcon, highlighted, missing, banned }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; border: string;
   setIcon: string | undefined;         // the set's symbol picture, once it has downloaded
   highlighted: boolean;                // just added: tinted for a moment
-  missing: boolean;                    // not in your binders (a deck): bold dashed red border
+  missing: boolean;                    // not in your binders (a deck): bold solid red border
+  banned: boolean;                     // banned in the deck's format: black "BANNED" slash
   price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
   currency: 'USD' | 'EUR';
 }) {
@@ -381,6 +386,7 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
           <FoilFrame foil={card.foil === true} width={34} height={48} radius={4}>
             <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
           </FoilFrame>
+          {banned && <BannedSlash radius={4} />}
           {missing && <MissingOutline radius={4} width={2} />}
         </View>
         <View style={styles.rowText}>
@@ -407,10 +413,11 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
 /* ---------------------------------------------------------------------
    ONE PICTURE IN THE GRID
    --------------------------------------------------------------------- */
-const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlighted, missing }: {
+const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlighted, missing, banned }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; size: number;
   highlighted: boolean;                // just added: outlined for a moment
-  missing: boolean;                    // not in your binders (a deck): bold dashed red border
+  missing: boolean;                    // not in your binders (a deck): bold solid red border
+  banned: boolean;                     // banned in the deck's format: black "BANNED" slash
 }) {
   const colors = useColors();
   const { card, key } = entry;
@@ -427,6 +434,7 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlig
         <FoilFrame foil={card.foil === true} width={size} height={Math.round(size * CARD_RATIO)} radius={6} border={3}>
           <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
         </FoilFrame>
+        {banned && <BannedSlash radius={6} />}
         {missing && <MissingOutline radius={6} width={3} />}
       </Pressable>
 
