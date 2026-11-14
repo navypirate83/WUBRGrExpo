@@ -171,6 +171,12 @@ export function replaceDeckCard(id: string, index: number, card: DeckCard): bool
   return changeDeck(id, (d) => ({ ...d, cards: d.cards.map((c, i) => (i === index ? next : c)) }));
 }
 
+// Replace all of a deck's cards with this list (used when what you own
+// changes how the copies are split into entries: see deckOwnership.ts)
+export function setDeckCards(id: string, cards: DeckCard[]): boolean {
+  return changeDeck(id, (d) => ({ ...d, cards }));
+}
+
 // Change how many copies of the card at this spot (0 is the first) the
 // deck has; 0 takes it out
 export function setDeckCardCount(id: string, index: number, count: number): boolean {

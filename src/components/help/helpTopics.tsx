@@ -265,8 +265,14 @@ export const helpTopics: HelpTopic[] = [
               EDHREC and drop it anywhere over the cards to add it (the same warning about too many copies applies).
               A card in a deck that <Strong>isn't in any of your binders</Strong> has a bold <Strong>solid red border</Strong> around its
               picture (a card on a list doesn't count). If you own the card, but not <Strong>that printing</Strong> of it
-              (a different set or number), the border is <Strong>dashed</Strong> instead. The line above the
-              cards says how many aren't in your binders at all.
+              (a different set or number), the border is <Strong>dashed</Strong> instead: tap the card and its window shows
+              <Strong> pictures of the printings you own</Strong>. Tap one and it takes as many of the deck's copies as you own of
+              that printing (all of them if you own enough); if copies are left over, the window stays open so you can pick
+              a printing for them too, and <Strong>Done</Strong> stops whenever you like. Different printings are separate
+              entries in the deck. If the deck has more copies of a printing than you own, the extra copies split off as
+              their own entry (the deck still counts them all). If you own only one printing of a card, adding it with the
+              deck's own search uses that printing. These borders are only a hint from the binders you have so far; they
+              aren't saved in the .CSV. The line above the cards says how many copies aren't in your binders at all.
               A card that is <Strong>banned in the deck's format</Strong> gets a thick black slash across its picture
               (top left to bottom right) with <Strong>BANNED</Strong> written on it, and adding one (with the + in the
               deck, a dropped picture, or the Card Finder) first asks whether you're sure.

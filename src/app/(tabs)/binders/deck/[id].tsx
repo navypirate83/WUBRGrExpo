@@ -57,19 +57,23 @@ import CardRules from '@/components/binder/CardRules';
 import MoveCardDialog from '@/components/binder/MoveCardDialog';
 import PopupWindow from '@/components/PopupWindow';
 import Button from '@/components/Button';
-import { addCardToDeck, commandCard, copiesOf, fillDeckDetails, findDeck, moveToMain, moveToSideboard, placeInCommandZone, setDeckCardCount, zoneOf, type Deck, type DeckCard } from '@/lib/deckStorage';
+import { addCardToDeck, commandCard, copiesOf, fillDeckDetails, findDeck, moveToMain, moveToSideboard, placeInCommandZone, setDeckCardCount, setDeckCards, zoneOf, type Deck, type DeckCard } from '@/lib/deckStorage';
 import CommandZone from '@/components/decks/CommandZone';
 import SlotSearchDialog from '@/components/decks/SlotSearchDialog';
 import { allowedInSlot, deckCardFromPrint, secondSpotShows, slotHint, slotName, slotQuery, zoneExtraOf } from '@/lib/deckZones';
 import { deckFormat, skipsCopyWarning } from '@/lib/deckFormats';
-import { isBanned, useBanned } from '@/lib/bannedCards';import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
+import { isBanned, useBanned } from '@/lib/bannedCards';
+import { assignPrinting, choicesFor, loadOwned, marksFor, normalizeOwnership, type Mark, type OwnedPrint } from '@/lib/deckOwnership';
+import { Image } from 'expo-image';
+import { pictureSource } from '@/lib/http';
+import { GRID_ZOOM_WIDTHS, binderGridZoom, binderSort, binderSortReversed, listViewMode, onBinderViewChange, onGridZoomChange, setListViewMode, sortHeadersOn } from '@/lib/binderView';
 import { headerFor, sortEntries } from '@/lib/binderSort';
 import { CARD_BACK, costAndType, imageFor, isDoubleSided } from '@/lib/cards';
 import { useCardAreaDrop } from '@/hooks/useCardAreaDrop';
 import { binderCardFrom, lookupFromDrop } from '@/lib/cardDrop';
 import { isSearching, makeNameFilter } from '@/lib/nameFilter';
 import { detailsOf, costAndTypeOf, finishParam } from '@/lib/cardDetails';
-import { cardCount, type BinderCard, loadBinder, loadBinderList, MAX_COPIES, ownedCardNames, ownedPrintings, samePrinting } from '@/lib/binderStorage';
+import { cardCount, MAX_COPIES, samePrinting } from '@/lib/binderStorage';
 import { cardByNamePath, cardBySetPath, loadOneCard, type ScryfallCard } from '@/lib/scryfall';
 import { downloadDeckCsv } from '@/lib/binderDownload';
 import { askYesNo, showMessage } from '@/lib/dialogs';
@@ -168,23 +172,34 @@ export default function DeckScreen() {
     if (prices.printings && fillDeckDetails(id, prices.printings)) setDeck(findDeck(id));
   }, [prices.printings, deck]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The names of the cards in your binders: a deck card not among them gets a
-  // bold solid red border (cards on lists don't count)
-  const [owned, setOwned] = useState<Set<string>>(ownedCardNames);
-  const [ownedPrints, setOwnedPrints] = useState<Set<string>>(ownedPrintings);
-  // Not owned at all: 'card' (solid red border). Owned, but not this printing:
-  // 'printing' (dashed red border). Otherwise false.
-  const isMissing = useCallback((card: BinderCard): false | 'card' | 'printing' => {
-    if (!owned.has(card.name.trim().toLowerCase())) return 'card';
-    return ownedPrints.has(`${card.set}/${card.number}`.toLowerCase()) ? false : 'printing';
-  }, [owned, ownedPrints]);
+  // What's in your binders (cards on lists don't count): each card name with
+  // the printings you own and how many copies of each. From it, each deck card
+  // gets a border: a card you don't own has a solid red one; a card you own,
+  // but not this printing, has a dashed red one (tap it to pick a printing
+  // you own). See deckOwnership.ts.
+  const [owned, setOwned] = useState(loadOwned);
+  const marks = useMemo(() => {
+    const byCard = new Map<DeckCard, Mark>();
+    if (deck) marksFor(deck.cards, owned).forEach((mark, i) => byCard.set(deck.cards[i], mark));
+    return byCard;
+  }, [deck, owned]);
+  const isMissing = useCallback((card: { name: string }) => marks.get(card as DeckCard) ?? false, [marks]);
+
+  // Copies of a printing the deck holds beyond what you own are split off as
+  // their own entry (so each can have its own border). Done whenever the deck
+  // or what you own changes; nothing changes when it's already tidy.
+  useEffect(() => {
+    if (!deck) return;
+    const tidy = normalizeOwnership(deck.cards, owned);
+    if (tidy !== deck.cards) { setDeckCards(id, tidy); setDeck(findDeck(id)); }
+  }, [deck, owned]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // The cards banned in this deck's format (asked from Scryfall once): they
   // get a black "BANNED" slash across their picture
   const isBannedHere = useBanned(format.code);
 
   // Every time this page comes into view: read the deck again (and what you own)
-  useFocusEffect(useCallback(() => { setDeck(findDeck(id)); setOwned(ownedCardNames()); setOwnedPrints(ownedPrintings()); }, [id]));
+  useFocusEffect(useCallback(() => { setDeck(findDeck(id)); setOwned(loadOwned()); }, [id]));
 
   // The header: the deck's name, then the Binders / Lists / Decks switch and Help
   useLayoutEffect(() => {
@@ -199,18 +214,15 @@ export default function DeckScreen() {
     });
   }, [navigation, deck?.name]);
 
-  // The card to add, as the deck saves it. With "only my binders" on, it's
-  // the printing you own (the first one found in your binders); otherwise
-  // the first printing Scryfall gives for the name.
+  // The card to add, as the deck saves it. If you own just one printing of the
+  // card, that's the printing used (with "only my binders" on, the first one
+  // you own); otherwise the first printing Scryfall gives for the name (which
+  // is dashed red if you own the card in another printing: you pick one).
   async function cardToAdd(name: string, ownedOnly: boolean): Promise<DeckCard> {
-    if (ownedOnly) {
-      for (const binder of loadBinderList()) {
-        const owned = Object.values(loadBinder(binder.id)).find((card) => card.name === name);
-        if (owned) {
-          const { count: _count, ...rest } = owned;
-          return { ...rest, added: new Date().toISOString(), ...costAndTypeOf(owned) };
-        }
-      }
+    const mine = loadOwned().get(name.trim().toLowerCase());
+    if (mine && (mine.length === 1 || (ownedOnly && mine.length > 0))) {
+      const have = mine[0].card;
+      return { ...have, added: new Date().toISOString(), ...costAndTypeOf(have) };
     }
     const print = await loadOneCard(cardByNamePath(name, true));
     return {
@@ -493,6 +505,23 @@ export default function DeckScreen() {
     setDeck(findDeck(id));
   }
 
+  // The window's printing choices: a tap on one of the printings you own
+  // switches as many copies of the card as you own of it. If copies are left
+  // over, the window stays open for them (tap Done to stop); once every copy
+  // has switched, it closes.
+  function pickPrinting(print: OwnedPrint) {
+    if (!deck || menuIndex === null) return;
+    const before = deck.cards[menuIndex];
+    const done = assignPrinting(deck.cards, menuIndex, print, owned);
+    if (!before || !done) return;
+    setDeckCards(id, done.cards);
+    setDeck(findDeck(id));
+    announce(`${before.name} now uses ${print.card.set.toUpperCase()} number ${print.card.number}.`);
+    if (done.all) { setMenuIndex(null); return; }
+    const left = done.cards.findIndex((c) => c.name === before.name && samePrinting(c, before) && zoneOf(c) === zoneOf(before));
+    setMenuIndex(left >= 0 ? left : null);
+  }
+
   // "Move to a binder": close this window, then open the list of binders.
   // (iPhones can't open one pop-up while another is still fading away,
   // so there it waits a moment.)
@@ -504,8 +533,7 @@ export default function DeckScreen() {
   // The card is safely in the binder: take it out of the deck
   function movedToBinder(moveNote: string) {
     if (movingIndex !== null) setDeckCardCount(id, movingIndex, 0);
-    setOwned(ownedCardNames());
-    setOwnedPrints(ownedPrintings());
+    setOwned(loadOwned());
     setMovingIndex(null);
     setNote(moveNote.replace('✓ ', ''));
     setDeck(findDeck(id));
@@ -523,6 +551,8 @@ export default function DeckScreen() {
 
   const menuCard = menuIndex !== null ? deck.cards[menuIndex] : undefined;
   const movingCard = movingIndex !== null ? deck.cards[movingIndex] : undefined;
+  // The printings you own that this card could switch to
+  const menuChoices = menuIndex !== null ? choicesFor(deck.cards, menuIndex, owned) : [];
 
   return (
     // The keyboard pushes everything up instead of covering the search bar
@@ -586,7 +616,7 @@ export default function DeckScreen() {
           missing={isMissing}
           banned={(card) => isBannedHere(card.name)}
           // The format, at the end of the line of totals (and how many cards aren't in your binders, and the card just dropped)
-          note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', deck.cards.some((c) => isMissing(c) === 'card') ? `${deck.cards.filter((c) => isMissing(c) === 'card').length} not in your binders` : '', addedNote].filter(Boolean).join(' · ')}
+          note={[format.name, deck.cards.some((c) => c.zone === 'command') ? `${deck.cards.filter((c) => c.zone === 'command').length} in command zone` : '', deck.cards.some((c) => isMissing(c) === 'card') ? `${deck.cards.filter((c) => isMissing(c) === 'card').reduce((sum, c) => sum + cardCount(c), 0)} not in your binders` : '', addedNote].filter(Boolean).join(' · ')}
           searchOf={searching ? allEntries.length : undefined}
           // No cards yet (or none matching the search)
           empty={(
@@ -615,6 +645,27 @@ export default function DeckScreen() {
                      buttons={[{ label: 'Close', onPress: () => setMenuIndex(null), kind: 'secondary' }]}>
           <CardRules card={menuCard}
                      onOpen={() => { const card = menuCard; const spot = menuIndex; setMenuIndex(null); router.push(finderLinkFor(id, spot, card) as never); }} />
+          {/* The printings you own of this card (a dashed red border): tap one to use it */}
+          {marks.get(menuCard) === 'printing' && menuChoices.length > 0 && (
+            <View style={styles.printings}>
+              <Text style={[styles.printingsText, { color: colors.text }]}>
+                You own other printings of this card. Tap one to use it{cardCount(menuCard) > 1 ? ` (it takes as many of the ${cardCount(menuCard)} copies as you own of it)` : ''}.
+              </Text>
+              <View style={styles.printRow}>
+                {menuChoices.map(({ print, free }) => (
+                  <Pressable key={print.key} accessibilityRole="button"
+                             accessibilityLabel={`Use ${print.card.set.toUpperCase()} number ${print.card.number}, you own ${free}`}
+                             onPress={() => pickPrinting(print)} style={({ pressed }) => [styles.printChoice, pressed && { opacity: 0.6 }]}>
+                    <Image source={pictureSource(print.card.image)} style={styles.printPicture} contentFit="cover" />
+                    <Text style={[styles.printLabel, { color: colors.muted }]} numberOfLines={1}>
+                      {print.card.set.toUpperCase()} #{print.card.number}{free > 1 ? ` ×${free}` : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Button label="Done" kind="secondary" onPress={() => setMenuIndex(null)} />
+            </View>
+          )}
           {/* How many copies: − and + (a command zone card is always one) */}
           {zoneOf(menuCard) !== 'command' && (
             <View style={styles.menuCopies}>
@@ -696,6 +747,12 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
   // The card's window: the copies, then the buttons
+  printings: { gap: 10, alignItems: 'center' },
+  printingsText: { fontSize: 14, textAlign: 'center' },
+  printRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+  printChoice: { alignItems: 'center', gap: 4, width: 84 },
+  printPicture: { width: 84, height: 117, borderRadius: 6 },
+  printLabel: { fontSize: 12 },
   menuCopies: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
   menuCount: { fontSize: 16, fontWeight: '600', minWidth: 90, textAlign: 'center' },
   menu: { gap: 8 },
