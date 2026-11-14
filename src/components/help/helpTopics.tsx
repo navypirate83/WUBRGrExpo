@@ -981,7 +981,7 @@ export const helpTopics: HelpTopic[] = [
               choose it. Tapping a grayed one tells you why. Choose another language and the other versions show
               their pictures in that language.
             </Bullet>
-            <Bullet><Strong>Language</Strong> (above the card): the languages that printing was made in.</Bullet>
+            <Bullet><Strong>Language</Strong> (above the card): the languages that printing was made in. A language printed as its own version with its own number (like <Strong>Phyrexian</Strong>, e.g. Sheoldred, the Apocalypse #369 in Dominaria United) is in the list too: picking it switches to that version.</Bullet>
             <P>The picture changes to match what you pick, and that's the printing that gets added to your binder.</P>
             <P>
               Have the <Strong>foil</Strong> version? Tap the <Strong>Foil</Strong> button under the

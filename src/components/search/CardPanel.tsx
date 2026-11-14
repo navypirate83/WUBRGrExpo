@@ -371,8 +371,14 @@ export default function CardPanel(props: Props) {
   // The picture for the side and language showing (null: the card back)
   const pictureUrl = shown ? imageFor(shown, face) : null;
   const pictureAlt = shown ? `${faceName(shown, face)} — ${shown.set_name}` : '';
-  // The languages to offer: the downloaded list, or just this one
-  const languageOptions = languages.data ?? (print ? [print] : []);
+  // The languages to offer: the downloaded list, or just this one. Some
+  // languages are printed as their own version of the card with its own number
+  // (like the Phyrexian Sheoldred, the Apocalypse #369 in Dominaria United), so
+  // they aren't in this printing's own list. Those versions of this set are
+  // added to the list too; picking one switches to that version.
+  const ownLanguages = languages.data ?? (print ? [print] : []);
+  const languageVersions = versions.filter((v) => v.lang !== 'en' && !ownLanguages.some((own) => own.lang === v.lang));
+  const languageOptions = [...ownLanguages, ...languageVersions];
   const currentLanguage = languageOptions.find((v) => v.lang === shown?.lang) ?? null;
 
   // Where the round buttons go: just past the card's right edge (wide
@@ -558,7 +564,7 @@ export default function CardPanel(props: Props) {
           keyOf={(v) => v.lang}
           labelOf={(v) => languageName(v.lang)}
           renderRow={(v, isCurrent) => <SheetRowText text={languageName(v.lang)} bold={isCurrent} />}
-          onPick={(v) => { setLang(v.lang); setOpenSheet(null); }}
+          onPick={(v) => { if (languageVersions.includes(v)) selectPrint(v); else setLang(v.lang); setOpenSheet(null); }}
           onClose={() => setOpenSheet(null)}
         />
       )}
