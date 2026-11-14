@@ -19,7 +19,7 @@ import ManaCost from '@/components/lists/ManaCost';
 import FoilFrame from '@/components/binder/FoilFrame';
 import MissingOutline from './MissingOutline';
 import BannedSlash from './BannedSlash';
-import { commandCard, type Deck } from '@/lib/deckStorage';
+import { commandCard, type Deck, type DeckCard } from '@/lib/deckStorage';
 import { deckFormat } from '@/lib/deckFormats';
 import { secondSpotShows, slotHint, slotName } from '@/lib/deckZones';
 import { pictureSource } from '@/lib/http';
@@ -29,7 +29,7 @@ type Props = {
   onChoose: (slot: 0 | 1) => void;          // an empty spot (or "Change") was tapped
   onOpenCard: (index: number) => void;      // a spot's card was tapped: its window
   onMoveToDeck: (slot: 0 | 1) => void;      // "Move to deck"
-  missing?: (name: string) => boolean;      // is this card not in your binders? (bold solid red border)
+  missing?: (card: DeckCard) => false | 'card' | 'printing';   // not in your binders (solid red border) or not that printing (dashed)
   banned?: (name: string) => boolean;       // is this card banned in the format? (black "BANNED" slash)
 };
 
@@ -76,7 +76,7 @@ export default function CommandZone({ deck, onChoose, onOpenCard, onMoveToDeck, 
                     <Image source={pictureSource(card.image)} style={styles.thumb} contentFit="cover" />
                   </FoilFrame>
                   {banned?.(card.name) && <BannedSlash radius={6} />}
-                  {missing?.(card.name) &&<MissingOutline radius={6} width={3} />}
+                  {missing?.(card) && <MissingOutline radius={6} width={3} dashed={missing(card) === 'printing'} />}
                 </View>
                 <View style={styles.what}>
                   <Text style={[styles.role, { color: colors.text }]} numberOfLines={2}>{card.name}</Text>

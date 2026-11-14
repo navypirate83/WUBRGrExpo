@@ -554,10 +554,18 @@ export function cardCountText(count: number): string {
   return `${count.toLocaleString()} card${count === 1 ? '' : 's'}`;
 }
 
-// The names of every card in your binders (in lowercase, so capital letters
-// don't matter), whatever the printing. Cards on a list aren't counted: a
-// list is for cards you want, not cards you own. A deck uses this to mark the
-// cards that aren't in your collection.
+// The printings ("set/number", in lowercase) of every card in your binders.
+// A deck uses this to mark a card you own, but not that printing of it.
+// Cards on a list aren't counted: a list is for cards you want, not own.
+export function ownedPrintings(): Set<string> {
+  const printings = new Set<string>();
+  for (const binder of loadBinderList()) {
+    for (const card of Object.values(loadBinder(binder.id))) printings.add(`${card.set}/${card.number}`.toLowerCase());
+  }
+  return printings;
+}
+
+// The names of every card in your binders (see above), whatever the printing
 export function ownedCardNames(): Set<string> {
   const names = new Set<string>();
   for (const binder of loadBinderList()) {

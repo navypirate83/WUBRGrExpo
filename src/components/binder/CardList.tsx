@@ -82,7 +82,9 @@ type Props = {
   headerOf?: (entry: CardEntry) => SortHeader | null;
   // Is this card to be marked with a bold solid red border? (A deck marks the
   // cards that aren't in your binders; leave it out for no marks.)
-  missing?: (card: BinderCard) => boolean;
+  // Gives 'card' (not owned: solid red), 'printing' (the card is owned, but not
+  // this printing: dashed red) or false.
+  missing?: (card: BinderCard) => false | 'card' | 'printing';
   // Is this card banned in the deck's format? (A deck draws a black "BANNED"
   // slash across those pictures; leave it out for no slashes.)
   banned?: (card: BinderCard) => boolean;
@@ -360,7 +362,7 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; border: string;
   setIcon: string | undefined;         // the set's symbol picture, once it has downloaded
   highlighted: boolean;                // just added: tinted for a moment
-  missing: boolean;                    // not in your binders (a deck): bold solid red border
+  missing: false | 'card' | 'printing';   // a deck: not in your binders (solid red border) or not that printing (dashed)
   banned: boolean;                     // banned in the deck's format: black "BANNED" slash
   price: number | null | undefined;    // undefined: not loaded yet; null: the store has none
   currency: 'USD' | 'EUR';
@@ -387,7 +389,7 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
             <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
           </FoilFrame>
           {banned && <BannedSlash radius={4} />}
-          {missing && <MissingOutline radius={4} width={2} />}
+          {missing && <MissingOutline radius={4} width={2} dashed={missing === 'printing'} />}
         </View>
         <View style={styles.rowText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{card.name}</Text>
@@ -416,7 +418,7 @@ const ListRow = memo(function ListRow({ entry, onPick, onCopies, border, price, 
 const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlighted, missing, banned }: {
   entry: CardEntry; onPick: (key: string) => void; onCopies: (key: string, step: number) => void; size: number;
   highlighted: boolean;                // just added: outlined for a moment
-  missing: boolean;                    // not in your binders (a deck): bold solid red border
+  missing: false | 'card' | 'printing';   // a deck: not in your binders (solid red border) or not that printing (dashed)
   banned: boolean;                     // banned in the deck's format: black "BANNED" slash
 }) {
   const colors = useColors();
@@ -435,7 +437,7 @@ const GridTile = memo(function GridTile({ entry, onPick, onCopies, size, highlig
           <Image source={pictureSource(card.image)} style={styles.thumbPicture} contentFit="cover" />
         </FoilFrame>
         {banned && <BannedSlash radius={6} />}
-        {missing && <MissingOutline radius={6} width={3} />}
+        {missing && <MissingOutline radius={6} width={3} dashed={missing === 'printing'} />}
       </Pressable>
 
       {/* The "− 3 +" bar along the bottom of the card: how many copies you
